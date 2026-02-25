@@ -69,37 +69,33 @@ export default function Header() {
 
       <nav style={navCard}>
   {/* LOGO AREA: เอาตัวอักษรออกแล้วขยายรูปให้ใหญ่ขึ้น */}
-  <Link to="/" style={logoStyle}>
-    <div style={{ 
-      width: 90,           // เพิ่มความกว้าง
-      height: 90,          // เพิ่มความสูง
-      borderRadius: 18,    // ปรับความมนให้รับกับขนาดใหญ่
-      overflow: 'hidden',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      boxShadow: `0 8px 20px ${colors.coral}44`,
-      flexShrink: 0,
-      transition: '0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+{/* LOGO AREA: ไม่มีกรอบ เป็นโลโก้ลอยตัวว */}
+<Link to="/" style={{ ...logoStyle, position: 'relative', overflow: 'visible' }}>
+  <img 
+    src="/logo1.png" 
+    alt="MoodPlace Logo" 
+    style={{ 
+      height: '110px',      // เพิ่มความสูงให้ใหญ่กว่า Navbar
+      width: 'auto', 
+      position: 'absolute', // ทำให้ลอยเป็นอิสระ
+      top: '50%',           // จัดกึ่งกลางแนวตั้ง
+      transform: 'translateY(-50%)', // ปรับจุดกึ่งกลางให้เป๊ะ
+      left: '0',
+      display: 'block',
+      filter: `drop-shadow(0 8px 15px ${colors.coral}33)`, 
+      transition: '0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+      zIndex: 10,           // มั่นใจว่าอยู่เหนือแถบเมนู
     }}
-    onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-    onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-    >
-      <img 
-        src="/logo1.png" 
-        alt="Main Logo" 
-        style={{ 
-          width: '100%', 
-          height: '100%', 
-          objectFit: 'cover',
-          display: 'block'
-        }}
-        onError={(e) => {
-          e.target.style.display = 'none';
-        }}
-      />
-    </div>
-  </Link>
+    onMouseEnter={(e) => {
+      e.currentTarget.style.transform = 'translateY(-50%) scale(1.1)';
+      e.currentTarget.style.filter = `drop-shadow(0 12px 20px ${colors.coral}44)`;
+    }}
+    onMouseLeave={(e) => {
+      e.currentTarget.style.transform = 'translateY(-50%) scale(1)';
+      e.currentTarget.style.filter = `drop-shadow(0 8px 15px ${colors.coral}33)`;
+    }}
+  />
+</Link>
 
   {/* NAVIGATION AREA */}
   <div style={menuCenter}>
@@ -159,7 +155,9 @@ const navCard = {
   borderRadius: "24px",
   border: "1px solid rgba(255, 255, 255, 0.5)",
   boxShadow: "0 15px 35px rgba(74, 69, 58, 0.08)",
-  pointerEvents: "auto"
+  pointerEvents: "auto",
+  height: "70%", // กำหนดความสูง Navbar ให้คงที่ชัดเจน
+  overflow: "visible", // สำคัญ เพื่อให้โลโก้ที่ใหญ่กว่าล้นออกมาได้
 };
 
 const logoStyle = {
