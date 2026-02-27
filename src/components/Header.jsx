@@ -12,7 +12,7 @@ export default function Header() {
   // Theme Config
   const colors = {
     warmCream: "#F9F4E8",
-    coral: "#FF7F67",
+    coral: "#FF8E6E",
     darkPaper: "#4A453A",
     softSand: "#EFE9D9",
   };
@@ -188,7 +188,7 @@ const linkBase = {
 };
 
 const signUpBtn = {
-  background: "linear-gradient(135deg, #FF7F67 0%, #FFB385 100%)",
+  background: "linear-gradient(135deg, #FF8E6E 0%, #FFB385 100%)",
   color: "white",
   padding: "10px 22px",
   borderRadius: "16px",

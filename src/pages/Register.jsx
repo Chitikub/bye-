@@ -68,7 +68,7 @@ export default function AuthPage() {
         customClass: { popup: 'rounded-[30px]' }
       });
       setSubmitting(false);
-      if (isLogin) navigate('/dashboard'); // เปลี่ยนไปหน้าอื่นหลัง login
+      if (isLogin) navigate('/Login'); 
     }, 1500);
   };
 

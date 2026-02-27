@@ -69,7 +69,7 @@ export default function AuthPage() {
   };
 
   return (
-    <main className="min-h-screen w-full flex items-center justify-center bg-[#F9F4E8] py-12 px-4 relative overflow-hidden font-['IBM_Plex_Sans_Thai']">
+    <main className="min-h-screen w-full flex items-center justify-center bg-[#FDF8F1] py-12 px-4 relative overflow-hidden font-['IBM_Plex_Sans_Thai']">
       
       {/* Background Decor */}
       <div className="absolute top-0 left-0 w-full h-full pointer-events-none">

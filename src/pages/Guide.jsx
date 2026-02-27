@@ -30,46 +30,46 @@ export default function GuidePage() {
   };
 
   const steps = [
-    {
-      title: "เข้าร่วมกับเรา",
-      description: "เข้าสู่ระบบหรือสมัครสมาชิกเพื่อ บันทึกสถานที่โปรด และจดจำอารมณ์ในแต่ละวัน",
-      icon: <UserPlus className="w-7 h-7" />,
-      color: "indigo",
-      gradient: "from-indigo-500 to-blue-600",
-      lightBg: "bg-indigo-50",
-      shadow: "shadow-indigo-200/50"
-    },
+      {
+        title: "เข้าร่วมกับเรา",
+        description: "เข้าสู่ระบบหรือสมัครสมาชิกเพื่อ บันทึกสถานที่โปรด และจดจำอารมณ์ในแต่ละวัน",
+        icon: <UserPlus className="w-7 h-7" />,
+        color: "4D6EF3",
+        gradient: "from-[#4D6EF3] to-[#6A85F7]", 
+    lightBg: "bg-[#4D6EF3]/10",
+    shadow: "shadow-[#4D6EF3]/30"
+      },
     {
       title: "ตั้งค่าโปรไฟล์",
       description: "อัปโหลดรูปและระบุตัวตนของคุณ เพื่อให้ระบบ AI แนะนำพิกัดได้ตรงใจที่สุด",
       icon: <Settings2 className="w-7 h-7" />,
-      color: "purple",
-      gradient: "from-purple-500 to-pink-600",
-      lightBg: "bg-purple-50",
-      shadow: "shadow-purple-200/50"
+      color: "D82B8E",
+      gradient: "from-[#D82B8E] to-[#F45C9C]",
+      lightBg: "bg-[#D82B8E]/10",
+      shadow: "shadow-[#D82B8E]/30"
     },
     {
       title: "เลือกอารมณ์",
       description: "บอกความรู้สึกตอนนี้ผ่าน Mood Chips หรือพิมพ์ระบายในช่องค้นหา",
       icon: <SmilePlus className="w-7 h-7" />,
       color: "pink",
-      gradient: "from-pink-500 to-rose-600",
-      lightBg: "bg-pink-50",
-      shadow: "shadow-pink-200/50"
+      gradient: "from-[#F45C9C] to-[#D82B8E]",
+      lightBg: "bg-[#D82B8E]/10",
+      shadow: "shadow-[#D82B8E]/30"
     },
     {
       title: "รับพิกัดพักใจ",
       description: "เลือกสถานที่ที่แนะนำ แล้วออกเดินทางได้ทันที พร้อมระบบนำทางที่แม่นยำ",
       icon: <MapPinCheckInside className="w-7 h-7" />,
       color: "emerald",
-      gradient: "from-emerald-500 to-teal-600",
-      lightBg: "bg-emerald-50",
-      shadow: "shadow-emerald-200/50"
+      gradient: "from-[#00A78E] to-[#008C72]",
+      lightBg: "bg-[#00A78E]/10",
+      shadow: "shadow-[#00A78E]/30"
     }
   ];
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-[#1E1B4B] font-['Anuphan',sans-serif] selection:bg-indigo-100 overflow-x-hidden">
+    <div className="min-h-screen bg-[#FDF8F1] text-[#1E1B4B] font-['Anuphan',sans-serif] selection:bg-indigo-100 overflow-x-hidden">
       
       {/* --- Background Elements --- */}
       <div className="fixed inset-0 z-0">
@@ -102,25 +102,16 @@ export default function GuidePage() {
         
         {/* --- Hero Section --- */}
         <section className="max-w-4xl mx-auto text-center mb-24">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-100 rounded-full shadow-sm mb-8"
-          >
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
-            </span>
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Easy Onboarding</span>
+          <motion.div>
           </motion.div>
           
           <motion.h1 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-4xl md:text-7xl font-black mb-8 leading-[1.1] tracking-tight text-slate-900"
+            className="text-4xl md:text-7xl font-black mb-8 leading-[1.1] tracking-tight text-[#4A4A4A]"
           >
             เปลี่ยนความรู้สึก ให้เป็น <br />
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600">
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-orange-600 via-purple-600 to-pink-600">
               พิกัดที่ใช่สำหรับคุณ
             </span>
           </motion.h1>
@@ -164,7 +155,7 @@ export default function GuidePage() {
                   {step.description}
                 </p>
                 <div className="flex items-center gap-2 text-[10px] font-black uppercase text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity tracking-widest">
-                  <CheckCircle2 className="w-3 h-3" /> Step Completed
+                  <CheckCircle2 className="w-3 h-3" /> 
                 </div>
               </div>
             </motion.div>
@@ -179,14 +170,14 @@ export default function GuidePage() {
           className="relative max-w-3xl mx-auto"
         >
           <div className="absolute inset-0 bg-indigo-600 blur-[80px] opacity-10" />
-          <div className="relative bg-[#1E1B4B] rounded-[3rem] p-12 overflow-hidden shadow-2xl shadow-indigo-900/40 text-center">
+          <div className="relative bg-gradient-to-r from-orange-300 to-orange-400 text-white rounded-[2rem] p-12 text-center shadow-2xl shadow-indigo-200/50">
             <div className="absolute top-0 right-0 p-8 opacity-10">
               <Sparkles className="w-32 h-32 text-white" />
             </div>
             
             <h2 className="text-3xl md:text-4xl font-black text-white mb-8 relative z-10">
               พร้อมที่จะตามหา <br />
-              <span className="text-indigo-400">พื้นที่พักพิงใจ</span> ของคุณหรือยัง?
+              <span className="text-orange-500">พื้นที่พักพิงใจ</span> ของคุณหรือยัง?
             </h2>
             
             <button 
