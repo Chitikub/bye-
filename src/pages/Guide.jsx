@@ -36,8 +36,8 @@ export default function GuidePage() {
         icon: <UserPlus className="w-7 h-7" />,
         color: "4D6EF3",
         gradient: "from-[#4D6EF3] to-[#6A85F7]", 
-    lightBg: "bg-[#4D6EF3]/10",
-    shadow: "shadow-[#4D6EF3]/30"
+        lightBg: "bg-[#4D6EF3]/10",
+        shadow: "shadow-[#4D6EF3]/30"
       },
     {
       title: "ตั้งค่าโปรไฟล์",
@@ -77,34 +77,22 @@ export default function GuidePage() {
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-pink-200/30 rounded-full blur-[120px]" />
       </div>
 
-      {/* --- Header / Nav --- */}
-      <nav className="fixed top-0 w-full z-50 bg-white/60 backdrop-blur-xl border-b border-white/40">
-        <div className="container mx-auto px-6 h-20 flex items-center justify-between">
-          <motion.button 
-            whileHover={{ x: -4 }}
-            onClick={() => navigate(-1)} 
-            className="group flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-indigo-600 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4 group-hover:scale-110" /> ย้อนกลับ
-          </motion.button>
-          
-          <div className="flex items-center gap-2">
-             <div className="p-2 bg-indigo-600 rounded-xl shadow-lg shadow-indigo-200">
-                <Sparkles className="w-5 h-5 text-white" />
-             </div>
-             <span className="font-black text-2xl tracking-tighter">Mood<span className="text-indigo-600">Place</span></span>
-          </div>
-          <div className="hidden md:block w-24"></div> 
-        </div>
+      {/* --- Header / Nav (เป๊ะตามที่คุณขอ) --- */}
+      <nav className="container mx-auto px-6 h-32 flex items-center relative z-50">
+        <motion.button 
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          onClick={() => navigate(-1)}
+          className="ml-[18px] mt-[-60px] flex items-center gap-2 px-6 py-3 rounded-2xl bg-white/40 backdrop-blur-md border border-white/30 text-[#4A453A] hover:text-[#FF8E6E] hover:bg-white/60 transition-all font-bold shadow-lg shadow-black/5"
+        >
+          <ArrowLeft className="w-5 h-5" />
+        </motion.button>
       </nav>
 
-      <main className="container mx-auto px-6 pt-40 pb-24 relative z-10">
+      <main className="container mx-auto px-6 pt-10 pb-24 relative z-10">
         
         {/* --- Hero Section --- */}
         <section className="max-w-4xl mx-auto text-center mb-24">
-          <motion.div>
-          </motion.div>
-          
           <motion.h1 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -140,7 +128,6 @@ export default function GuidePage() {
               whileHover={{ y: -10 }}
               className="group relative bg-white/80 backdrop-blur-md rounded-[2.5rem] p-8 border border-white shadow-xl shadow-slate-200/50 flex flex-col items-start transition-all"
             >
-              {/* Background Step Number */}
               <div className="absolute top-6 right-8 text-8xl font-black text-slate-100 opacity-20 group-hover:opacity-40 transition-opacity pointer-events-none">
                 {index + 1}
               </div>
@@ -189,9 +176,7 @@ export default function GuidePage() {
             </button>
           </div>
         </motion.div>
-
       </main>
-
     </div>
   );
 }

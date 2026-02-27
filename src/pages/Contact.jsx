@@ -29,8 +29,7 @@ export default function ContactPage() {
       <section className="relative w-full h-[50vh] min-h-[400px] flex items-center justify-center overflow-hidden bg-[#4A453A] text-white">
         {/* Background Decor */}
         <div className="absolute inset-0 opacity-20">
-          <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-transparent z-10" />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-transparent z-10 " />
+          <img src="/src/assets/ContactHero.png" alt="CHero" />
         </div>
 
         <div className="container relative z-10 px-6 text-center">
@@ -38,10 +37,9 @@ export default function ContactPage() {
   initial={{ opacity: 0, x: -20 }}
   animate={{ opacity: 1, x: 0 }}
   onClick={() => navigate(-1)}
-  className="text-white mt-20 absolute top-[-100px] left-20 flex items-center gap-2 px-6 py-3 rounded-2xl bg-white/40 backdrop-blur-md border border-white/30 text-[#4A453A] hover:text-[#FF8E6E] hover:bg-white/60 transition-all font-bold shadow-lg shadow-black/5"
+  className="text-white mt-20 absolute top-[-230px] left-18 flex items-center gap-2 px-6 py-3 rounded-2xl bg-white/40 backdrop-blur-md border border-white/30 text-[#4A453A] hover:text-[#FF8E6E] hover:bg-white/60 transition-all font-bold shadow-lg shadow-black/5"
 >
   <ArrowLeft className="w-5 h-5" />
-  <span>ย้อนกลับ</span>
 </motion.button>
 
           <motion.div
