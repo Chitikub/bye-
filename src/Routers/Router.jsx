@@ -5,6 +5,10 @@ import Register from "../pages/Register";
 import Home from "../pages/Home";
 import GuidePage from "../pages/Guide";
 import ContactPage from "../pages/Contact";
+import Favorites from "../pages/favorites";
+import Profile from "../pages/profile";
+import History from "../pages/history";
+import PlaceDetail from "../pages/PlaceDetail";
 
 const router = createBrowserRouter([
     {
@@ -15,7 +19,11 @@ const router = createBrowserRouter([
             { path: "login", element: <Login /> },
             { path: "register", element: <Register /> },
             { path: "guide", element: <GuidePage /> },
-            { path: "contact", element: <ContactPage /> }
+            { path: "contact", element: <ContactPage /> },
+            { path: "favorites", element: <Favorites /> },
+            { path: "profile", element: <Profile /> },
+            { path: "history", element: <History /> },
+            { path: "place/:id", element: <PlaceDetail /> }
         ]
     },
 ]);

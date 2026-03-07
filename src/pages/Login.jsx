@@ -3,26 +3,26 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Eye, EyeOff, ArrowLeft, User, Mail, Lock, UserCircle } from "lucide-react";
 import Swal from 'sweetalert2';
+import axios from "axios";
 
 export default function AuthPage() {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // ตรวจสอบจาก URL ว่าตอนนี้อยู่หน้าไหน
+  // ตรวจสอบจาก URL Path
   const isLogin = location.pathname === '/login';
   
+  // --- States Management ---
   const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState({ firstName: "", lastName: "", email: "", password: "", gender: "" });
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
 
-  // เล่น Animation เมื่อเข้าหน้าหรือเปลี่ยนหน้า
   useEffect(() => { 
     setIsVisible(true); 
   }, [location.pathname]);
 
-  // ฟังก์ชันสลับหน้า (แก้ Error toggleMode is not defined)
   const handleNavigation = (path) => {
     if (location.pathname === path) return;
     setIsVisible(false);
@@ -50,28 +50,54 @@ export default function AuthPage() {
     return Object.keys(e).length === 0;
   };
 
+  // --- ฟังก์ชันส่งข้อมูลไปยัง Backend ของเพื่อนบน Render ---
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!validate()) return;
-    setSubmitting(true);
+  e.preventDefault();
+  if (!validate()) return;
+  setSubmitting(true);
 
-    setTimeout(() => {
-      Swal.fire({
+  try {
+    // URL Render ของเพื่อน
+    const baseUrl = "https://moodlocationfinder-backend.onrender.com/api/v1";
+    const endpoint = isLogin ? '/auth/login' : '/auth/register';
+    
+    const response = await axios.post(`${baseUrl}${endpoint}`, form);
+
+    if (response.data) {
+      // 1. บันทึก Token และข้อมูล User ลง LocalStorage
+      if (response.data.token) {
+        localStorage.setItem('token', response.data.token);
+      }
+      // บันทึก Object user เพื่อให้ Header.jsx นำไปใช้
+      localStorage.setItem('user', JSON.stringify(response.data.user || response.data));
+
+      // 2. ✨ บรรทัดสำคัญ: ดีดนิ้วบอก Navbar ให้เปลี่ยนปุ่มทันที ✨
+      window.dispatchEvent(new Event("authChange"));
+
+      await Swal.fire({
         icon: 'success',
         title: isLogin ? 'เข้าสู่ระบบสำเร็จ!' : 'สมัครสมาชิกสำเร็จ!',
         showConfirmButton: false,
-        timer: 1500,
-        customClass: { popup: 'rounded-[30px]' }
+        timer: 1500
       });
-      setSubmitting(false);
+      
       if (!isLogin) handleNavigation('/login');
-    }, 1500);
-  };
+      else navigate('/');
+    }
+  } catch (error) {
+    Swal.fire({
+      icon: 'error',
+      title: 'CORS Error หรือ Server มีปัญหา',
+      text: error.response?.data?.message || 'ต้องให้เพื่อนเพิ่ม http://localhost:5000 ในหลังบ้านก่อน'
+    });
+  } finally {
+    setSubmitting(false);
+  }
+};
 
   return (
     <main className="min-h-screen w-full flex items-center justify-center bg-[#FDF8F1] py-12 px-4 relative overflow-hidden font-['IBM_Plex_Sans_Thai']">
       
-      {/* Background Decor */}
       <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-[#FF7F67]/5 rounded-full blur-[100px]" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-[#FF7F67]/10 rounded-full blur-[100px]" />
@@ -85,11 +111,10 @@ export default function AuthPage() {
 
         <div className="bg-white rounded-[40px] p-8 md:p-12 shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-white">
           
-          {/* ส่วนสลับหน้า (แก้ไขเป็น handleNavigation) */}
           <div className="relative flex bg-gray-100 p-1.5 rounded-2xl mb-10 h-14 items-center border border-gray-200/50">
             <div 
-  className={`absolute top-1.5 bottom-1.5 transition-all duration-500 cubic-bezier(0.34, 1.56, 0.64, 1) rounded-xl shadow-md bg-gradient-to-r from-[#FF7F67] to-[#FFB385] w-[calc(50%-6px)] ${isLogin ? 'left-1.5' : 'left-1/2'}`}
-/>
+              className={`absolute top-1.5 bottom-1.5 transition-all duration-500 cubic-bezier(0.34, 1.56, 0.64, 1) rounded-xl shadow-md bg-gradient-to-r from-[#FF7F67] to-[#FFB385] w-[calc(50%-6px)] ${isLogin ? 'left-1.5' : 'left-1/2'}`}
+            />
             <button 
               type="button"
               onClick={() => handleNavigation('/login')}
@@ -167,12 +192,12 @@ export default function AuthPage() {
             )}
 
             <button 
-  className="w-full h-14 rounded-2xl text-lg font-bold bg-gradient-to-r from-[#FF7F67] to-[#FFB385] text-white shadow-lg shadow-[#FF7F67]/30 hover:scale-[1.02] hover:shadow-xl active:scale-95 transition-all mt-6" 
-  type="submit" 
-  disabled={submitting}
->
-  {submitting ? "กำลังประมวลผล..." : isLogin ? "เข้าสู่ระบบ" : "สร้างบัญชีสมาชิก"}
-</button>
+              className="w-full h-14 rounded-2xl text-lg font-bold bg-gradient-to-r from-[#FF7F67] to-[#FFB385] text-white shadow-lg shadow-[#FF7F67]/30 hover:scale-[1.02] hover:shadow-xl active:scale-95 transition-all mt-6" 
+              type="submit" 
+              disabled={submitting}
+            >
+              {submitting ? "กำลังประมวลผล..." : isLogin ? "เข้าสู่ระบบ" : "สร้างบัญชีสมาชิก"}
+            </button>
           </form>
         </div>
       </div>

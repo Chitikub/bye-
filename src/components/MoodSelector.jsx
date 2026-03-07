@@ -1,20 +1,25 @@
 export default function MoodSelector() {
   const moods = [
-    { id: "lonely", emoji: "☕", label: "เหงาจัง", color: "#A7C7E7" },
-    { id: "stressed", emoji: "🌳", label: "อยากพัก", color: "#C1E1C1" },
-    { id: "sweet", emoji: "🍰", label: "ขาดหวาน", color: "#FFB7B2" },
-    { id: "work", emoji: "💻", label: "หาที่ทำงาน", color: "#FFDAC1" },
+    { label: "มีความสุข", emoji: "😁", color: "#FF8E6E" },
+  { label: "เบื่อ", emoji: "😫", color: "#FFB385" },
+  { label: "โกรธ", emoji: "😡", color: "#FF4D4D" },
+  { label: "เครียด", emoji: "🤯", color: "#A855F7" },
+  { label: "เศร้า", emoji: "😢", color: "#60A5FA" },
   ];
 
   return (
-    <div className="flex flex-wrap justify-center gap-4">
-      {moods.map((mood) => (
+    <div className="flex flex-wrap justify-center gap-6">
+      {moods.map((mood, index) => (
         <button
-          key={mood.id}
-          className="group flex flex-col items-center gap-2 rounded-3xl bg-white p-6 shadow-sm border-2 border-transparent transition-all hover:border-[#FF7F67] hover:-translate-y-2 hover:shadow-xl active:scale-95"
+          key={index}
+          className="group flex flex-col items-center justify-center bg-white border border-gray-100 rounded-[2rem] p-6 w-32 h-32 shadow-[0_10px_30px_rgba(0,0,0,0.03)] hover:shadow-xl hover:-translate-y-2 transition-all duration-300"
         >
-          <span className="text-4xl transition-transform group-hover:scale-125">{mood.emoji}</span>
-          <span className="font-bold text-[#4A453A]">{mood.label}</span>
+          <span className="text-4xl mb-3 group-hover:scale-125 transition-transform duration-300">
+            {mood.emoji}
+          </span>
+          <span className="text-sm font-bold text-[#4A453A]">
+            {mood.label}
+          </span>
         </button>
       ))}
     </div>

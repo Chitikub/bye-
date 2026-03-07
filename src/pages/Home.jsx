@@ -2,15 +2,35 @@
 import { Search } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import axios from "axios"; // นำเข้า axios สำหรับเชื่อมต่อ API
 import heroBg from "@/assets/hero-bg.png";
 import MoodSelector from "@/components/MoodSelector";
 import PlaceCard from "@/components/PlaceCard";
-import { SAMPLE_PLACES, CATEGORIES } from "@/data/mockData";
+import api from "@/api/axios"; 
 
 export default function Index() {
   const [searchQuery, setSearchQuery] = useState("");
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [places, setPlaces] = useState([]); // สร้าง State สำหรับเก็บข้อมูลสถานที่จากหลังบ้าน
+  const [loading, setLoading] = useState(true); // เพิ่ม State สำหรับสถานะการโหลดข้อมูล
 
+  // --- ดึงข้อมูลสถานที่จาก Backend ---
+  useEffect(() => {
+    const fetchPlaces = async () => {
+      try {
+        // เรียกไปยัง API endpoint ที่ตั้งไว้ใน server.js
+        const response = await api.get("https://moodlocationfinder-backend.onrender.com/api/v1/places");
+        setPlaces(response.data);
+      } catch (error) {
+        console.error("เกิดข้อผิดพลาดในการดึงข้อมูล:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPlaces();
+  }, []);
+
+  // --- Interactive Logic: Parallax Effect ---
   useEffect(() => {
     const handleMouseMove = (e) => {
       setMousePos({ 
@@ -25,15 +45,12 @@ export default function Index() {
   return (
     <div className="w-full bg-[#FDF8F1] text-[#4A453A] overflow-x-hidden">
       
-      {/* --- HERO SECTION: แก้ไขให้ขยายเต็มพื้นที่ --- */}
+      {/* --- HERO SECTION --- */}
       <section className="relative w-screen left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] h-[85vh] min-h-[600px] flex items-center justify-center overflow-hidden bg-[#FDF8F1]">
-        
-        {/* Background Image Container */}
         <div 
           className="absolute inset-0 z-0 scale-110 transition-transform duration-1000 ease-out"
           style={{ transform: `translate(${mousePos.x}px, ${mousePos.y}px)` }}
         >
-          {/* object-cover จะทำให้รูปยืดเต็มพื้นที่ 1980x1080 โดยไม่เสียสัดส่วน */}
           <img 
             src={heroBg} 
             className="h-full w-full object-cover object-center" 
@@ -41,15 +58,10 @@ export default function Index() {
           />
         </div>
         
-        {/* Overlays: ปรับให้ฟุ้งและกลืนไปกับพื้นหลังสีครีมด้านล่าง */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-transparent z-10" />
         <div className="absolute inset-0 bg-gradient-to-t from-[#FDF8F1] via-[#FDF8F1]/40 to-transparent z-20" />
         
-        {/* Content ตรงกลาง */}
         <div className="container relative z-30 px-4 text-center mx-auto">
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-1000">
-          </div>
-          
           <h1 className="animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-300 font-black text-6xl sm:text-8xl lg:text-9xl text-[#4A4A4A] drop-shadow-sm leading-[0.9]">
             ไปไหนดี... <br/>
             <span className="text-[#FF8E6E] inline-block hover:scale-105 transition-transform cursor-default drop-shadow-md">ให้อารมณ์บอก</span>
@@ -78,24 +90,21 @@ export default function Index() {
       </section>
 
       {/* --- CONTENT SECTION --- */}
-      <main className="container mx-auto  px-4 -mt-20 relative z-40 space-y-32 pb-32">
+      <main className="container mx-auto px-4 -mt-20 relative z-40 space-y-32 pb-32">
         
-        {/* Mood Selector Card */}
         <section className="mt-10 mb-10 bg-white/90 backdrop-blur-2xl rounded-[3rem] p-12 md:p-16 shadow-[0_32px_64px_-16px_rgba(74,69,58,0.1)] text-center border border-white transform hover:-translate-y-2 transition-all duration-500 mx-auto max-w-4xl">
-  <h2 className="text-4xl font-black mb-6 tracking-tight" style={{ color: "#4A4A4A" }}>
-    วันนี้รู้สึกยังไง? 🤔
-  </h2>
-  
-  <p className="text-lg font-medium mb-10" style={{ color: "#8E8E8E", lineHeight: "1.6" }}>
-    คลิกเลือกอารมณ์ของคุณเพื่อเริ่มการเดินทาง
-  </p>
-  
-  <div className="mt-4">
-    <MoodSelector />
-  </div>
-</section>
+          <h2 className="text-4xl font-black mb-6 tracking-tight" style={{ color: "#4A4A4A" }}>
+            วันนี้รู้สึกยังไง? 🤔
+          </h2>
+          <p className="text-lg font-medium mb-10" style={{ color: "#8E8E8E", lineHeight: "1.6" }}>
+            คลิกเลือกอารมณ์ของคุณเพื่อเริ่มการเดินทาง
+          </p>
+          <div className="mt-4">
+            <MoodSelector />
+          </div>
+        </section>
 
-        {/* Places Grid */}
+        {/* Places Grid: เปลี่ยนจาก SAMPLE_PLACES มาเป็นข้อมูลจาก Backend */}
         <section>
           <div className="flex justify-between items-end mb-12">
             <div>
@@ -103,14 +112,20 @@ export default function Index() {
               <p className="text-[#7E7869] text-lg font-medium">คัดสรรมาแล้วจากอารมณ์ของเพื่อนๆ</p>
             </div>
           </div>
+          
           <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
-            {SAMPLE_PLACES.slice(0, 4).map(place => (
-              <PlaceCard key={place.id} place={place} />
-            ))}
+            {loading ? (
+              <div className="col-span-full text-center py-10 font-bold text-gray-400">กำลังดึงข้อมูลสถานที่...</div>
+            ) : places.length > 0 ? (
+              places.slice(0, 4).map(place => (
+                <PlaceCard key={place.id} place={place} />
+              ))
+            ) : (
+              <div className="col-span-full text-center py-10 font-bold text-gray-400">ไม่พบข้อมูลสถานที่ในขณะนี้</div>
+            )}
           </div>
         </section>
       </main>
-      
     </div>
   );
 }

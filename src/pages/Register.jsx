@@ -3,32 +3,32 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Eye, EyeOff, ArrowLeft, User, Mail, Lock, UserCircle } from "lucide-react";
 import Swal from 'sweetalert2';
+import axios from "axios";
 
 export default function AuthPage() {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // ตรวจสอบโหมดจาก URL Path จริง
+  // ตรวจสอบโหมดจาก URL Path
   const isLogin = location.pathname === '/login';
   
+  // --- States Management ---
   const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState({ firstName: "", lastName: "", email: "", password: "", gender: "" });
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
 
-  // เล่น Animation ทุกครั้งที่เปลี่ยน Path (URL เปลี่ยน)
   useEffect(() => { 
     setIsVisible(true); 
   }, [location.pathname]);
 
-  // ฟังก์ชันสลับหน้าผ่านการ Navigate URL
   const handleNavigation = (path) => {
     if (location.pathname === path) return;
-    setIsVisible(false); // Fade out ก่อน
+    setIsVisible(false);
     setTimeout(() => {
       navigate(path);
-      setErrors({}); // ล้าง error เมื่อเปลี่ยนหน้า
+      setErrors({});
     }, 250);
   };
 
@@ -46,6 +46,7 @@ export default function AuthPage() {
     }
     if (!form.email.trim()) e.email = "กรุณากรอกอีเมล";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = "รูปแบบอีเมลไม่ถูกต้อง";
+    
     if (!form.password) e.password = "กรุณากรอกรหัสผ่าน";
     else if (form.password.length < 6) e.password = "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร";
     
@@ -53,29 +54,62 @@ export default function AuthPage() {
     return Object.keys(e).length === 0;
   };
 
+  // --- ฟังก์ชันจัดการการส่งฟอร์มไปยัง Backend ---
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
     setSubmitting(true);
 
-    // จำลองการยิง API
-    setTimeout(() => {
+    try {
+      // URL ของ Backend บน Render
+      const baseUrl = "https://moodlocationfinder-backend.onrender.com/api/v1";
+      const endpoint = isLogin ? '/auth/login' : '/auth/register';
+      
+      const response = await axios.post(`${baseUrl}${endpoint}`, form);
+
+      if (response.data) {
+        // 1. บันทึก Token และข้อมูล User ลง LocalStorage
+        if (response.data.token) {
+          localStorage.setItem('token', response.data.token);
+        }
+        
+        // บันทึกข้อมูล user (ดึงจาก response ตามโครงสร้าง API)
+        const userData = response.data.user || response.data;
+        localStorage.setItem('user', JSON.stringify(userData));
+
+        // 2. ✨ ส่งสัญญาณบอก Navbar (Header) ให้เปลี่ยนสถานะทันที ✨
+        window.dispatchEvent(new Event("authChange"));
+
+        await Swal.fire({
+          icon: 'success',
+          title: isLogin ? 'เข้าสู่ระบบสำเร็จ!' : 'สมัครสมาชิกสำเร็จ!',
+          showConfirmButton: false,
+          timer: 1500,
+          customClass: { popup: 'rounded-[30px]' }
+        });
+
+        if (!isLogin) {
+          handleNavigation('/login');
+        } else {
+          navigate('/'); // กลับไปหน้าหลัก
+        }
+      }
+    } catch (error) {
+      console.error("Auth Error:", error.response?.data);
       Swal.fire({
-        icon: 'success',
-        title: isLogin ? 'เข้าสู่ระบบสำเร็จ!' : 'สมัครสมาชิกสำเร็จ!',
-        showConfirmButton: false,
-        timer: 1500,
-        customClass: { popup: 'rounded-[30px]' }
+        icon: 'error',
+        title: isLogin ? 'เข้าสู่ระบบไม่สำเร็จ' : 'สมัครสมาชิกไม่สำเร็จ',
+        text: error.response?.data?.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์',
+        confirmButtonColor: '#FF7F67'
       });
+    } finally {
       setSubmitting(false);
-      if (isLogin) navigate('/Login'); 
-    }, 1500);
+    }
   };
 
   return (
     <main className="min-h-screen w-full flex items-center justify-center bg-[#F9F4E8] py-12 px-4 relative overflow-hidden font-['IBM_Plex_Sans_Thai']">
       
-      {/* Background Decor */}
       <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-[#FF7F67]/5 rounded-full blur-[100px]" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-[#FF7F67]/10 rounded-full blur-[100px]" />
@@ -83,25 +117,25 @@ export default function AuthPage() {
 
       <div className={`w-full max-w-lg relative z-10 transition-all duration-500 transform ${isVisible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-10 scale-95'}`}>
         
-        {/* ปุ่มกดย้อนกลับ */}
         <button onClick={() => navigate(-1)} className="mb-6 flex items-center gap-2 text-gray-500 hover:text-[#FF7F67] transition-colors font-medium group">
           <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" /> ย้อนกลับ
         </button>
 
         <div className="bg-white rounded-[40px] p-8 md:p-12 shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-white">
           
-          {/* 1. TOP TOGGLE (Login/Register) - Logic ควบคุมผ่าน URL */}
           <div className="relative flex bg-gray-100 p-1.5 rounded-2xl mb-10 h-14 items-center border border-gray-200/50">
             <div 
-  className={`absolute top-1.5 bottom-1.5 transition-all duration-500 cubic-bezier(0.34, 1.56, 0.64, 1) rounded-xl shadow-md bg-gradient-to-r from-[#FF7F67] to-[#FFB385] w-[calc(50%-6px)] ${isLogin ? 'left-1.5' : 'left-1/2'}`}
-/>
+              className={`absolute top-1.5 bottom-1.5 transition-all duration-500 cubic-bezier(0.34, 1.56, 0.64, 1) rounded-xl shadow-md bg-gradient-to-r from-[#FF7F67] to-[#FFB385] w-[calc(50%-6px)] ${isLogin ? 'left-1.5' : 'left-1/2'}`}
+            />
             <button 
+              type="button"
               onClick={() => handleNavigation('/login')}
               className={`relative flex-1 h-full text-sm font-bold z-10 transition-colors duration-300 ${isLogin ? 'text-white' : 'text-gray-400'}`}
             >
               เข้าสู่ระบบ
             </button>
             <button 
+              type="button"
               onClick={() => handleNavigation('/register')}
               className={`relative flex-1 h-full text-sm font-bold z-10 transition-colors duration-300 ${!isLogin ? 'text-white' : 'text-gray-400'}`}
             >
@@ -117,7 +151,6 @@ export default function AuthPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* โชว์เฉพาะ Register */}
             {!isLogin && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 duration-500">
                 <div className="space-y-1.5">
@@ -158,7 +191,6 @@ export default function AuthPage() {
               {errors.password && <p className="text-xs text-red-500 ml-1">{errors.password}</p>}
             </div>
 
-            {/* ส่วนเลือกเพศ (เฉพาะ Register) - Slider Style */}
             {!isLogin && (
               <div className="space-y-3 animate-in fade-in duration-700">
                 <label className="text-sm font-bold text-[#475569] ml-1">เพศ</label>
@@ -174,13 +206,13 @@ export default function AuthPage() {
               </div>
             )}
 
-           <button 
-  className="w-full h-14 rounded-2xl text-lg font-bold bg-gradient-to-r from-[#FF7F67] to-[#FFB385] text-white shadow-lg shadow-[#FF7F67]/30 hover:scale-[1.02] hover:shadow-xl active:scale-95 transition-all mt-6" 
-  type="submit" 
-  disabled={submitting}
->
-  {submitting ? "กำลังประมวลผล..." : isLogin ? "เข้าสู่ระบบ" : "สร้างบัญชีสมาชิก"}
-</button>
+            <button 
+              className="w-full h-14 rounded-2xl text-lg font-bold bg-gradient-to-r from-[#FF7F67] to-[#FFB385] text-white shadow-lg shadow-[#FF7F67]/30 hover:scale-[1.02] hover:shadow-xl active:scale-95 transition-all mt-6" 
+              type="submit" 
+              disabled={submitting}
+            >
+              {submitting ? "กำลังประมวลผล..." : isLogin ? "เข้าสู่ระบบ" : "สร้างบัญชีสมาชิก"}
+            </button>
           </form>
 
           {isLogin && (
