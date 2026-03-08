@@ -1,139 +1,186 @@
 'use client';
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
-import { 
-  ArrowLeft, Mail, Phone, MapPin, 
-  Send, MessageCircle 
-} from "lucide-react";
-import Swal from 'sweetalert2';
+import { motion, AnimatePresence } from "framer-motion";
+import { ArrowLeft, Send, Sparkles, ChevronRight } from "lucide-react";
 
 export default function ContactPage() {
   const navigate = useNavigate();
+  const scrollRef = useRef(null);
+  const [message, setMessage] = useState("");
+  const [selectedAdmin, setSelectedAdmin] = useState(null);
+  
+  const admins = [
+    { id: 1, name: "ผู้ดูแลระบบ", status: "ออนไลน์", avatar: "https://i.pravatar.cc/150?u=admin1" },
+    { id: 2, name: "ฝ่ายเทคนิค", status: "ออฟไลน์", avatar: "https://i.pravatar.cc/150?u=admin2" }
+  ];
 
-  const handleSubmit = (e) => {
+  const [chatLog, setChatLog] = useState([
+    { id: 1, text: "สวัสดีครับ", sender: "user" },
+    { id: 2, text: "ระบบมีปัญหา", sender: "user" }
+  ]);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [chatLog, selectedAdmin]);
+
+  const handleSendMessage = (e) => {
     e.preventDefault();
-    Swal.fire({
-      icon: 'success',
-      title: 'ส่งข้อความสำเร็จ!',
-      text: 'เราจะติดต่อกลับหาคุณโดยเร็วที่สุด',
-      confirmButtonColor: '#FF8E6E',
-      customClass: { popup: 'rounded-[2rem]' }
-    });
+    if (!message.trim()) return;
+    setChatLog([...chatLog, { id: Date.now(), text: message, sender: "user" }]);
+    setMessage("");
   };
 
   return (
-    <div className="min-h-screen bg-[#F9F4E8] text-[#4A453A] font-['Prompt',sans-serif] overflow-x-hidden">
-      
-      {/* --- HERO SECTION --- */} 
-      <section className="relative w-full h-[40vh] md:h-[50vh] min-h-[350px] flex items-center justify-center overflow-hidden bg-[#4A453A] text-white">
-        
-        <div className="absolute inset-0 opacity-20">
-          <img src="/src/assets/ContactHero.png" alt="CHero" className="w-full h-full object-cover" />
-        </div>
+    <div className="min-h-screen bg-[#FDF8F1] pt-24 pb-10 px-4 font-['Kanit',sans-serif]">
+      {/* 📥 Import Font Kanit ผ่าน Style Tag */}
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600;800&display=swap');
+        * { font-family: 'Kanit', sans-serif; }
+      `}</style>
 
-        <div className="container relative z-10 px-6 text-center">
-          {/* ปุ่มย้อนกลับ: ปรับตำแหน่งให้เหมาะสมกับ Mobile */}
-          <motion.button 
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
+      <div className="max-w-4xl mx-auto">
+        
+        {/* --- 🏷️ Header: ขนาด 48px --- */}
+        <div className="flex items-center gap-4 mb-8">
+          <button 
             onClick={() => navigate(-1)}
-            className="absolute top-[-100px] left-0 md:top-[-150px] md:left-4 flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-white/40 backdrop-blur-md border border-white/30 text-[#4A453A] hover:text-[#FF8E6E] hover:bg-white transition-all font-bold shadow-lg"
+            className="p-3 bg-white rounded-2xl shadow-sm text-[#7E7869] hover:text-[#FF8E6E] transition-all"
           >
             <ArrowLeft className="w-5 h-5" />
-            <span className="hidden sm:inline">ย้อนกลับ</span>
-          </motion.button>
-
-          <motion.div
-            initial={{ y: 30, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.6 }}
+          </button>
+          <h1 
+            style={{ fontSize: '48px' }} 
+            className="font-black text-[#4A453A] leading-tight tracking-tight"
           >
-            <h1 className="text-4xl md:text-7xl font-black mb-4 md:mb-6 leading-tight">
-              ติดต่อ <span className="text-[#FF8E6E]">MoodPlace</span>
-            </h1>
-            <p className="text-white/70 text-sm md:text-lg max-w-2xl mx-auto font-medium leading-relaxed px-4">
-              มีคำแนะนำ มีปัญหาการใช้งาน หรืออยากร่วมเป็นพาร์ทเนอร์กับเรา? 
-              เราพร้อมรับฟังทุกความรู้สึกของคุณ
-            </p>
-          </motion.div>
+            ติดต่อ <span className="text-[#FF8E6E]">แอดมิน</span>
+          </h1>
         </div>
-      </section>
 
-      {/* --- CONTENT SECTION --- */}
-      <main className="container mx-auto px-6 -mt-16 md:-mt-20 relative z-20 pb-20">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           
-          {/* Contact Info Cards: ปรับระยะ Margin บน Mobile */}
-          <motion.div 
-            initial={{ x: -30, opacity: 0 }}
-            whileInView={{ x: 0, opacity: 1 }}
-            viewport={{ once: true }}
-            className="lg:col-span-1 space-y-4 md:space-y-6 md:mt-10" 
-          >
-            {[
-              { icon: <Mail />, title: "Email", detail: "hello@moodplace.com", bg: "bg-blue-50", text: "text-blue-600" },
-              { icon: <Phone />, title: "Phone", detail: "02-123-4567", bg: "bg-orange-50", text: "text-orange-600" },
-              { icon: <MapPin />, title: "Office", detail: "Bangkok, Thailand", bg: "bg-purple-50", text: "text-purple-600" }
-            ].map((item, i) => (
-              <div key={i} className="bg-white p-5 md:p-6 rounded-[2rem] shadow-sm border border-white flex items-center gap-5 md:gap-6 hover:scale-[1.02] transition-all duration-300">
-                <div className={`${item.bg} ${item.text} p-3 md:p-4 rounded-2xl flex-shrink-0`}>
-                  {item.icon}
+          {/* --- 🟢 ส่วนที่ 1: รายชื่อแอดมิน (หัวข้อ 18px / ชื่อ 18px / สถานะ 16px) --- */}
+          <div className="lg:col-span-4 space-y-3">
+            <p 
+              style={{ fontSize: '18px' }} 
+              className="font-bold text-[#7E7869] uppercase tracking-widest ml-2 mb-4"
+            >
+              ผู้ดูแลระบบ
+            </p>
+            {admins.map((admin) => (
+              <button 
+                key={admin.id}
+                onClick={() => setSelectedAdmin(admin)}
+                className={`w-full p-4 rounded-[2rem] border transition-all flex items-center justify-between group ${
+                  selectedAdmin?.id === admin.id 
+                  ? 'bg-[#4A453A] border-[#4A453A] text-white shadow-xl' 
+                  : 'bg-white border-white text-[#4A453A] hover:border-[#FF8E6E]/30'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <img src={admin.avatar} className="w-12 h-12 rounded-2xl object-cover" alt="" />
+                    <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-4 ${selectedAdmin?.id === admin.id ? 'border-[#4A453A]' : 'border-white'} ${admin.status === 'ออนไลน์' ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                  </div>
+                  <div className="text-left leading-tight">
+                    <p style={{ fontSize: '18px' }} className="font-bold">{admin.name}</p>
+                    <p style={{ fontSize: '16px' }} className={`font-medium ${selectedAdmin?.id === admin.id ? 'text-gray-300' : 'text-gray-400'}`}>
+                      {admin.status}
+                    </p>
+                  </div>
                 </div>
-                <div className="space-y-0.5">
-                  <h3 className="text-[10px] md:text-xs font-black uppercase tracking-wider text-[#8E8E8E]">
-                    {item.title}
-                  </h3>
-                  <p className="text-base md:text-lg font-bold text-[#4A4A4A]">
-                    {item.detail}
-                  </p>
-                </div>
-              </div>
+                <ChevronRight className={`w-4 h-4 transition-opacity ${selectedAdmin?.id === admin.id ? 'opacity-100' : 'opacity-0'}`} />
+              </button>
             ))}
-          </motion.div>
+          </div>
 
-          {/* Contact Form: ฝั่งขวา */}
-          <motion.div 
-            initial={{ y: 30, opacity: 0 }}
-            whileInView={{ y: 0, opacity: 1 }}
-            viewport={{ once: true }}
-            className="lg:col-span-2 bg-white rounded-[2.5rem] md:rounded-[3rem] p-8 md:p-12 shadow-xl border border-white md:mt-10"
-          >
-            <div className="flex items-center gap-3 mb-8 md:mb-10">
-              <div className="w-10 h-10 bg-[#FF8E6E]/10 rounded-xl flex items-center justify-center text-[#FF8E6E]">
-                <MessageCircle className="w-6 h-6" />
-              </div>
-              <h2 className="text-2xl md:text-3xl font-black">ส่งข้อความหาเรา</h2>
-            </div>
-
-            <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-gray-500 ml-2">ชื่อของคุณ</label>
-                <input type="text" placeholder="John Doe" className="w-full bg-[#F8FAFC] border-none rounded-2xl px-6 py-4 outline-none focus:ring-2 focus:ring-[#FF8E6E]/50 transition-all font-medium text-black" required />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-gray-500 ml-2">อีเมล</label>
-                <input type="email" placeholder="example@mail.com" className="w-full bg-[#F8FAFC] border-none rounded-2xl px-6 py-4 outline-none focus:ring-2 focus:ring-[#FF8E6E]/50 transition-all font-medium text-black" required />
-              </div>
-              <div className="md:col-span-2 space-y-2">
-                <label className="text-sm font-bold text-gray-500 ml-2">หัวข้อเรื่อง</label>
-                <input type="text" placeholder="ระบุหัวข้อที่ต้องการติดต่อ" className="w-full bg-[#F8FAFC] border-none rounded-2xl px-6 py-4 outline-none focus:ring-2 focus:ring-[#FF8E6E]/50 transition-all font-medium text-black" required />
-              </div>
-              <div className="md:col-span-2 space-y-2">
-                <label className="text-sm font-bold text-gray-500 ml-2">ข้อความ</label>
-                <textarea rows="4" md:rows="5" placeholder="พิมพ์ข้อความของคุณที่นี่..." className="w-full bg-[#F8FAFC] border-none rounded-3xl px-6 py-4 outline-none focus:ring-2 focus:ring-[#FF8E6E]/50 transition-all font-medium text-black resize-none" required></textarea>
-              </div>
-              <div className="md:col-span-2 mt-2">
-                <button 
-                  type="submit"
-                  className="w-full md:w-auto px-10 md:px-12 py-4 bg-[#FF8E6E] text-white rounded-2xl font-black shadow-lg shadow-[#FF8E6E]/30 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2"
+          {/* --- 💬 ส่วนที่ 2: หน้าต่างแชท (ชื่อแอดมิน 32px / แชท 18px / ข้อความระบบ 16px) --- */}
+          <div className="lg:col-span-8">
+            <AnimatePresence mode="wait">
+              {selectedAdmin ? (
+                <motion.div 
+                  key={selectedAdmin.id}
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="bg-white rounded-[2.5rem] shadow-[0_20px_50px_rgba(74,69,58,0.05)] border border-white overflow-hidden flex flex-col h-[600px]"
                 >
-                  <Send className="w-5 h-5" /> ส่งข้อความ
-                </button>
-              </div>
-            </form>
-          </motion.div>
+                  {/* Chat Top Bar */}
+                  <div className="p-5 border-b border-gray-50 flex items-center justify-between bg-white">
+                    <div className="flex items-center gap-3">
+                      <img src={selectedAdmin.avatar} className="w-10 h-10 rounded-xl" alt="" />
+                      <div>
+                        <p style={{ fontSize: '32px' }} className="font-black text-[#4A453A] leading-none mb-1">
+                          {selectedAdmin.name}
+                        </p>
+                        <p style={{ fontSize: '16px' }} className="font-bold text-green-500 uppercase tracking-tighter">
+                          {selectedAdmin.status}
+                        </p>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: '16px' }} className="font-bold text-gray-300 text-right leading-none">
+                      แชทโดย<br/>คุณ
+                    </div>
+                  </div>
+
+                  {/* Chat Content Area */}
+                  <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-4 bg-[#FDF8F1]/30">
+                    <div className="text-center mb-8">
+                      <span 
+                        style={{ fontSize: '16px' }} 
+                        className="px-5 py-2 bg-gray-100/80 rounded-full font-bold text-gray-400"
+                      >
+                        ยินดีต้อนรับสู่ช่องแชท{selectedAdmin.name}
+                      </span>
+                    </div>
+
+                    {chatLog.map((log) => (
+                      <div key={log.id} className="flex justify-end items-end gap-2">
+                        <div 
+                          style={{ fontSize: '18px' }} 
+                          className="max-w-[75%] px-5 py-3 bg-white rounded-3xl rounded-br-none shadow-sm border border-gray-100 text-[#4A453A] leading-relaxed"
+                        >
+                          {log.text}
+                        </div>
+                        <img src="https://ui-avatars.com/api/?name=User&background=FF8E6E&color=fff" className="w-7 h-7 rounded-lg mb-1 shadow-sm" alt="" />
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Chat Input Bar */}
+                  <form onSubmit={handleSendMessage} className="p-5 bg-white border-t border-gray-50 flex items-center gap-3">
+                    <input 
+                      type="text" 
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      placeholder="พิมพ์ข้อความที่นี่..." 
+                      style={{ fontSize: '18px', color: '#4A453A' }} 
+                      className="flex-1 bg-[#FDF8F1] border-none rounded-2xl px-6 py-4 outline-none focus:ring-2 focus:ring-[#FF8E6E]/20 transition-all font-medium placeholder:text-gray-400"
+                    />
+                    <button 
+                      type="submit"
+                      disabled={!message.trim()}
+                      className="w-12 h-12 bg-[#FF8E6E] text-white rounded-full flex items-center justify-center shadow-lg active:scale-90 disabled:opacity-50 transition-all"
+                    >
+                      <Send className="w-5 h-5 rotate-[-15deg]" />
+                    </button>
+                  </form>
+                </motion.div>
+              ) : (
+                <div className="bg-white/60 backdrop-blur-md rounded-[2.5rem] h-[600px] flex flex-col items-center justify-center text-center p-10 border border-dashed border-gray-200">
+                  <h3 
+                    style={{ fontSize: '32px' }} 
+                    className="font-black text-[#4A453A] mb-4 opacity-30"
+                  >
+                    เลือกแอดมินเพื่อเริ่มแชท
+                  </h3>
+                </div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }
