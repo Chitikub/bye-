@@ -12,7 +12,7 @@ export default function CategoryChip({ category }) {
   };
 
   return (
-    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/90 border border-[#E2DCCB]/50 shadow-sm text-xs font-bold text-[#4A453A] transition-all hover:bg-white hover:shadow-md">
+    <span className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-2xl bg-white border border-[#E2DCCB] shadow-sm text-sm md:text-base font-black text-[#4A453A] transition-all hover:shadow-md active:scale-95">
       <span>{categoryIcons[category] || "📍"}</span>
       {category}
     </span>

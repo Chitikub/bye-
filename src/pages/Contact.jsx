@@ -1,139 +1,150 @@
 'use client';
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
-import { 
-  ArrowLeft, Mail, Phone, MapPin, 
-  Send, MessageCircle 
-} from "lucide-react";
-import Swal from 'sweetalert2';
+import { motion, AnimatePresence } from "framer-motion";
+import { ArrowLeft, Send, X, MessageSquare, ShieldCheck, UserCircle } from "lucide-react";
+import axios from "axios";
+import { io } from "socket.io-client";
 
 export default function ContactPage() {
   const navigate = useNavigate();
+  const [admins, setAdmins] = useState([]);
+  const [selectedAdmin, setSelectedAdmin] = useState(null);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [message, setMessage] = useState("");
+  const [chatHistory, setChatHistory] = useState([]);
+  const [socket, setSocket] = useState(null);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    Swal.fire({
-      icon: 'success',
-      title: 'ส่งข้อความสำเร็จ!',
-      text: 'เราจะติดต่อกลับหาคุณโดยเร็วที่สุด',
-      confirmButtonColor: '#FF8E6E',
-      customClass: { popup: 'rounded-[2rem]' }
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    const user = JSON.parse(localStorage.getItem("user"));
+    const baseUrl = "https://moodlocationfinder-backend.onrender.com";
+
+    const fetchAdmins = async () => {
+  try {
+    const token = localStorage.getItem("token");
+    const baseUrl = "https://moodlocationfinder-backend.onrender.com/api/v1";
+    
+    // พยายามดึงข้อมูล
+    const res = await axios.get(`${baseUrl}/admin/users`, {
+      headers: { Authorization: `Bearer ${token}` }
     });
+    
+    const data = res.data.users || res.data;
+    const adminList = Array.isArray(data) ? data.filter(u => u.role === 'admin') : [];
+    
+    if (adminList.length > 0) {
+      setAdmins(adminList);
+    } else {
+      setAdmins([{ _id: 'admin_default', firstName: 'ฝ่ายสนับสนุน', role: 'admin' }]);
+    }
+  } catch (err) { 
+    // ✨ เมื่อเกิด 403 (Forbidden) จะตกลงมาที่นี่
+    console.warn("เซิร์ฟเวอร์ปฏิเสธการเข้าถึงรายชื่อ Admin (403): ระบบจะใช้โหมดฝ่ายสนับสนุนรวม");
+    
+    // ตั้งค่าแอดมินจำลองเพื่อให้ User กดเปิด Modal แชทได้
+    setAdmins([{ 
+      _id: 'admin_group_support', 
+      firstName: 'ฝ่ายสนับสนุน', 
+      role: 'admin',
+      profileImage: null 
+    }]);
+  }
+};
+    const newSocket = io(baseUrl);
+    setSocket(newSocket);
+
+    newSocket.on("connect", () => {
+      if (user?._id) newSocket.emit("join_room", user._id);
+    });
+
+    // ✨ รับข้อความตอบกลับจากแอดมินคนไหนก็ได้
+    newSocket.on("receive_message", (data) => {
+      if (data.role === 'admin') {
+        setChatHistory((prev) => [...prev, { role: 'admin', text: data.message }]);
+      }
+    });
+
+    return () => {
+      newSocket.off("receive_message");
+      newSocket.close();
+    };
+  }, []);
+
+  const handleSendMessage = (e) => {
+  e.preventDefault();
+  if (!message.trim() || !socket) return;
+  const user = JSON.parse(localStorage.getItem("user"));
+
+  const messageData = { 
+    message: message, 
+    to: "admin_room", // ✨ ส่งเข้าห้องรวมแอดมิน
+    from: user?._id,
+    fromName: user?.firstName || "ผู้ใช้งาน",
+    role: "user",
+    time: new Date()
   };
 
+  // ส่งผ่าน socket
+  socket.emit("send_message", messageData);
+
+  setChatHistory([...chatHistory, { role: 'user', text: message }]);
+  setMessage("");
+};
+
   return (
-    <div className="min-h-screen bg-[#F9F4E8] text-[#4A453A] font-['Prompt',sans-serif] overflow-x-hidden">
-      
-      {/* --- HERO SECTION --- */} 
-      <section className="relative w-full h-[40vh] md:h-[50vh] min-h-[350px] flex items-center justify-center overflow-hidden bg-[#4A453A] text-white">
-        
-        <div className="absolute inset-0 opacity-20">
-          <img src="/src/assets/ContactHero.png" alt="CHero" className="w-full h-full object-cover" />
-        </div>
-
-        <div className="container relative z-10 px-6 text-center">
-          {/* ปุ่มย้อนกลับ: ปรับตำแหน่งให้เหมาะสมกับ Mobile */}
-          <motion.button 
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            onClick={() => navigate(-1)}
-            className="absolute top-[-100px] left-0 md:top-[-150px] md:left-4 flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-white/40 backdrop-blur-md border border-white/30 text-[#4A453A] hover:text-[#FF8E6E] hover:bg-white transition-all font-bold shadow-lg"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            <span className="hidden sm:inline">ย้อนกลับ</span>
-          </motion.button>
-
-          <motion.div
-            initial={{ y: 30, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.6 }}
-          >
-            <h1 className="text-4xl md:text-7xl font-black mb-4 md:mb-6 leading-tight">
-              ติดต่อ <span className="text-[#FF8E6E]">MoodPlace</span>
-            </h1>
-            <p className="text-white/70 text-sm md:text-lg max-w-2xl mx-auto font-medium leading-relaxed px-4">
-              มีคำแนะนำ มีปัญหาการใช้งาน หรืออยากร่วมเป็นพาร์ทเนอร์กับเรา? 
-              เราพร้อมรับฟังทุกความรู้สึกของคุณ
-            </p>
-          </motion.div>
+    <div className="min-h-screen bg-[#FDF8F1] font-['Kanit'] text-[#4A453A]">
+      <section className="h-[45vh] bg-[#4A453A] flex items-center justify-center text-white relative">
+        <button onClick={() => navigate(-1)} className="absolute top-10 left-10 flex items-center gap-2 text-white/70 hover:text-white font-bold transition-all"><ArrowLeft className="w-5 h-5" /> ย้อนกลับ</button>
+        <div className="text-center px-6">
+          <h1 className="text-5xl md:text-6xl font-black mb-4">คุยกับ <span className="text-[#FF8E6E]">แอดมิน</span></h1>
+          <p className="text-xl opacity-70">แอดมินทุกคนพร้อมสแตนบายตอบคำถามคุณ</p>
         </div>
       </section>
 
-      {/* --- CONTENT SECTION --- */}
-      <main className="container mx-auto px-6 -mt-16 md:-mt-20 relative z-20 pb-20">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-          {/* Contact Info Cards: ปรับระยะ Margin บน Mobile */}
-          <motion.div 
-            initial={{ x: -30, opacity: 0 }}
-            whileInView={{ x: 0, opacity: 1 }}
-            viewport={{ once: true }}
-            className="lg:col-span-1 space-y-4 md:space-y-6 md:mt-10" 
-          >
-            {[
-              { icon: <Mail />, title: "Email", detail: "hello@moodplace.com", bg: "bg-blue-50", text: "text-blue-600" },
-              { icon: <Phone />, title: "Phone", detail: "02-123-4567", bg: "bg-orange-50", text: "text-orange-600" },
-              { icon: <MapPin />, title: "Office", detail: "Bangkok, Thailand", bg: "bg-purple-50", text: "text-purple-600" }
-            ].map((item, i) => (
-              <div key={i} className="bg-white p-5 md:p-6 rounded-[2rem] shadow-sm border border-white flex items-center gap-5 md:gap-6 hover:scale-[1.02] transition-all duration-300">
-                <div className={`${item.bg} ${item.text} p-3 md:p-4 rounded-2xl flex-shrink-0`}>
-                  {item.icon}
-                </div>
-                <div className="space-y-0.5">
-                  <h3 className="text-[10px] md:text-xs font-black uppercase tracking-wider text-[#8E8E8E]">
-                    {item.title}
-                  </h3>
-                  <p className="text-base md:text-lg font-bold text-[#4A4A4A]">
-                    {item.detail}
-                  </p>
-                </div>
+      <main className="container mx-auto px-6 -mt-16 pb-20">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {admins.map((admin) => (
+            <motion.div key={admin._id} whileHover={{ y: -10 }} onClick={() => { setSelectedAdmin(admin); setIsChatOpen(true); }} className="bg-white p-8 rounded-[3.5rem] shadow-2xl border border-white cursor-pointer flex flex-col items-center text-center group transition-all">
+              <div className="relative mb-6">
+                <img src={admin.profileImage || `https://ui-avatars.com/api/?name=${admin.firstName}&background=FF8E6E&color=fff`} className="w-32 h-32 rounded-[2.5rem] object-cover border-4 border-[#FDF8F1] group-hover:border-[#FF8E6E]" alt="admin" />
+                <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-green-500 border-4 border-white rounded-full" />
               </div>
-            ))}
-          </motion.div>
-
-          {/* Contact Form: ฝั่งขวา */}
-          <motion.div 
-            initial={{ y: 30, opacity: 0 }}
-            whileInView={{ y: 0, opacity: 1 }}
-            viewport={{ once: true }}
-            className="lg:col-span-2 bg-white rounded-[2.5rem] md:rounded-[3rem] p-8 md:p-12 shadow-xl border border-white md:mt-10"
-          >
-            <div className="flex items-center gap-3 mb-8 md:mb-10">
-              <div className="w-10 h-10 bg-[#FF8E6E]/10 rounded-xl flex items-center justify-center text-[#FF8E6E]">
-                <MessageCircle className="w-6 h-6" />
-              </div>
-              <h2 className="text-2xl md:text-3xl font-black">ส่งข้อความหาเรา</h2>
-            </div>
-
-            <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-gray-500 ml-2">ชื่อของคุณ</label>
-                <input type="text" placeholder="John Doe" className="w-full bg-[#F8FAFC] border-none rounded-2xl px-6 py-4 outline-none focus:ring-2 focus:ring-[#FF8E6E]/50 transition-all font-medium text-black" required />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-gray-500 ml-2">อีเมล</label>
-                <input type="email" placeholder="example@mail.com" className="w-full bg-[#F8FAFC] border-none rounded-2xl px-6 py-4 outline-none focus:ring-2 focus:ring-[#FF8E6E]/50 transition-all font-medium text-black" required />
-              </div>
-              <div className="md:col-span-2 space-y-2">
-                <label className="text-sm font-bold text-gray-500 ml-2">หัวข้อเรื่อง</label>
-                <input type="text" placeholder="ระบุหัวข้อที่ต้องการติดต่อ" className="w-full bg-[#F8FAFC] border-none rounded-2xl px-6 py-4 outline-none focus:ring-2 focus:ring-[#FF8E6E]/50 transition-all font-medium text-black" required />
-              </div>
-              <div className="md:col-span-2 space-y-2">
-                <label className="text-sm font-bold text-gray-500 ml-2">ข้อความ</label>
-                <textarea rows="4" md:rows="5" placeholder="พิมพ์ข้อความของคุณที่นี่..." className="w-full bg-[#F8FAFC] border-none rounded-3xl px-6 py-4 outline-none focus:ring-2 focus:ring-[#FF8E6E]/50 transition-all font-medium text-black resize-none" required></textarea>
-              </div>
-              <div className="md:col-span-2 mt-2">
-                <button 
-                  type="submit"
-                  className="w-full md:w-auto px-10 md:px-12 py-4 bg-[#FF8E6E] text-white rounded-2xl font-black shadow-lg shadow-[#FF8E6E]/30 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2"
-                >
-                  <Send className="w-5 h-5" /> ส่งข้อความ
-                </button>
-              </div>
-            </form>
-          </motion.div>
+              <h3 className="text-2xl font-black mb-2">แอดมิน {admin.firstName}</h3>
+              <div className="px-4 py-2 bg-orange-50 text-[#FF8E6E] rounded-full text-xs font-black mb-6 uppercase tracking-widest">Support Team</div>
+              <p className="text-[#7E7869] font-bold flex items-center gap-2 group-hover:text-[#FF8E6E]"><MessageSquare className="w-5 h-5" /> คลิกเพื่อเริ่มแชท</p>
+            </motion.div>
+          ))}
         </div>
       </main>
+
+      <AnimatePresence>
+        {isChatOpen && (
+          <motion.div initial={{ opacity: 0, y: 100 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 100 }} className="fixed bottom-6 right-6 w-[90%] max-w-[420px] h-[600px] bg-white rounded-[3rem] shadow-2xl z-[1000] flex flex-col overflow-hidden border-4 border-white">
+            <div className="p-6 bg-[#4A453A] text-white flex justify-between items-center">
+              <div className="flex items-center gap-4">
+                <UserCircle className="w-10 h-10 text-[#FF8E6E]" />
+                <div>
+                  <h4 className="font-black text-lg">ศูนย์ช่วยเหลือออนไลน์</h4>
+                  <p className="text-[10px] text-green-400 font-black uppercase">Admin Team is Online</p>
+                </div>
+              </div>
+              <button onClick={() => setIsChatOpen(false)} className="p-2 hover:bg-white/10 rounded-2xl transition-all text-white"><X size={28} /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-[#FDF8F1]">
+              {chatHistory.map((msg, i) => (
+                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[85%] p-4 rounded-[1.5rem] font-bold shadow-sm ${msg.role === 'user' ? 'bg-[#FF8E6E] text-white rounded-tr-none' : 'bg-white text-[#4A453A] rounded-tl-none border border-gray-100'}`}>{msg.text}</div>
+                </div>
+              ))}
+            </div>
+            <form onSubmit={handleSendMessage} className="p-6 bg-white border-t border-gray-100 flex gap-3">
+              <input value={message} onChange={(e) => setMessage(e.target.value)} placeholder="พิมพ์ข้อความหาแอดมิน..." className="flex-1 bg-gray-50 rounded-2xl px-6 py-4 outline-none text-[#4A453A] font-medium" />
+              <button type="submit" className="w-14 h-14 bg-[#FF8E6E] text-white rounded-2xl flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all"><Send size={24} /></button>
+            </form>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
