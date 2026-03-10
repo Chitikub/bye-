@@ -6,7 +6,7 @@ import api from "@/api/axios";
 import Swal from "sweetalert2";
 
 export default function PlaceDetail() {
-  const { id } = useParams(); 
+  const { id } = useParams(); // id ของสถานที่จาก URL
   const navigate = useNavigate();
   const [place, setPlace] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -17,19 +17,23 @@ export default function PlaceDetail() {
   const [comment, setComment] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // ฟังก์ชันดึง Token จาก Cookie
   const getToken = () => {
     return document.cookie.split("; ").find(row => row.startsWith("token="))?.split("=")[1];
   };
 
   const fetchData = async () => {
     try {
+      // 1. ดึงข้อมูลสถานที่เฉพาะ ID นี้
       const placeRes = await api.get(`/places/${id}`);
       const placeData = placeRes.data.place || placeRes.data;
       setPlace(placeData);
 
+      // 2. ดึงรีวิวเฉพาะของสถานที่นี้ (แยกตาม id)
       const reviewRes = await api.get(`/reviews/place/${id}`);
       setReviews(reviewRes.data.reviews || []);
 
+      // 3. ตรวจสอบสถานะ Favorite
       const favorites = JSON.parse(localStorage.getItem("user_favorites") || "[]");
       setIsFavorite(favorites.some(fav => fav.id === (placeData._id || placeData.id)));
     } catch (error) {
@@ -43,6 +47,7 @@ export default function PlaceDetail() {
     fetchData();
   }, [id]);
 
+  // คำนวณดาวเฉลี่ยแยกตามสถานที่
   const calculateRealAverageRating = () => {
     if (!reviews || reviews.length === 0) return "0.0";
     const total = reviews.reduce((sum, rev) => sum + rev.rating, 0);
@@ -106,7 +111,7 @@ export default function PlaceDetail() {
         category: place.category,
         description: place.description,
         googleMapsUrl: targetUrl,
-        date: new Date().toLocaleDateString('th-TH'), // บันทึกวันที่ปัจจุบัน
+        date: new Date().toLocaleDateString('th-TH'), // บันทึกวันที่ปัจจุบันรูปแบบไทย
       };
 
       // 3. กรองอันซ้ำออกและเอาอันล่าสุดไว้บนสุด
@@ -116,7 +121,7 @@ export default function PlaceDetail() {
       // 4. บันทึกลง LocalStorage
       localStorage.setItem("navigation_history", JSON.stringify(newHistory));
 
-      // 5. แจ้งส่วนอื่นๆ ของแอปให้รับรู้การเปลี่ยนแปลง
+      // 5. แจ้งส่วนอื่นๆ ของแอปให้รับรู้การเปลี่ยนแปลง (เช่น Navbar)
       window.dispatchEvent(new Event("authChange"));
     } catch (err) {
       console.error("Save History Error:", err);
