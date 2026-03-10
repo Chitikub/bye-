@@ -1,280 +1,231 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
-import { io } from "socket.io-client";
-import { Send, Search, MessageSquare } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Trash2, Search, Mail, MessageSquare, User, Clock, AlertCircle, Send, X, FileText } from "lucide-react";
 import axios from "axios";
+import Swal from "sweetalert2";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function AdminMessages() {
-  const [chats, setChats] = useState([]);
-  const [selectedChat, setSelectedChat] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [inputMessage, setInputMessage] = useState("");
-  const [socket, setSocket] = useState(null);
+  const [reports, setReports] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const scrollRef = useRef(null);
+  const [selectedReport, setSelectedReport] = useState(null); // สำหรับ Modal รายละเอียดและตอบกลับ
+  const [replyText, setReplyText] = useState("");
 
-  const selectedChatRef = useRef(null);
-  useEffect(() => {
-    selectedChatRef.current = selectedChat;
-  }, [selectedChat]);
+  const baseUrl = "https://moodlocationfinder-backend.onrender.com/api/v1";
+  const getToken = () => document.cookie.split("; ").find(row => row.startsWith("token="))?.split("=")[1];
 
-  // ✅ ฟังก์ชันช่วยดึง Token จาก Cookie
-  const getTokenFromCookie = () => {
-    return document.cookie
-      .split("; ")
-      .find((row) => row.startsWith("token="))
-      ?.split("=")[1];
+  const fetchReports = async () => {
+    try {
+      const res = await axios.get(`${baseUrl}/contact`, {
+        headers: { Authorization: `Bearer ${getToken()}` }
+      });
+      // ดึงข้อมูลและเรียงจากใหม่ไปเก่า
+      const data = res.data.contacts || res.data;
+      setReports(Array.isArray(data) ? data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) : []);
+    } catch (err) {
+      console.error("Fetch error");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => {
-    // ✅ เปลี่ยนมาดึงจาก Cookie
-    const token = getTokenFromCookie();
-    const baseUrl = "https://moodlocationfinder-backend.onrender.com";
+  useEffect(() => { fetchReports(); }, []);
 
-    const newSocket = io(baseUrl);
-    setSocket(newSocket);
-
-    newSocket.on("connect", () => {
-      newSocket.emit("join_room", "admin_room");
+  const handleDelete = async (e, id) => {
+    e.stopPropagation(); // กันไม่ให้ไปเปิด Modal เมื่อกดลบ
+    if (!id) return;
+    
+    const result = await Swal.fire({
+      title: 'ยืนยันการลบ?',
+      text: "ข้อมูลรายงานนี้จะถูกลบถาวร",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      confirmButtonText: 'ลบข้อมูล',
+      background: '#FDF8F1',
+      customClass: { popup: 'rounded-[2rem]' }
     });
 
-    const fetchChatList = async () => {
-      // ถ้าไม่มี Token ไม่ต้องยิง API ให้เสียเที่ยว
-      if (!token) return;
-
+    if (result.isConfirmed) {
       try {
-        const res = await axios.get(`${baseUrl}/api/v1/admin/users`, {
-          headers: { Authorization: `Bearer ${token}` },
+        await axios.delete(`${baseUrl}/contact/${id}`, {
+          headers: { Authorization: `Bearer ${getToken()}` }
         });
-        const users = res.data.users || res.data;
-        setChats(
-          Array.isArray(users) ? users.filter((u) => u.role === "user") : [],
-        );
+        Swal.fire({ title: 'ลบสำเร็จ!', icon: 'success', timer: 1000, showConfirmButton: false });
+        fetchReports();
       } catch (err) {
-        console.error("API Error");
-        // ✅ ถ้า 401 ให้จัดการดีดออกหรือล้างสถานะ
-        if (err.response?.status === 401) {
-          document.cookie =
-            "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-          localStorage.clear();
-          window.location.href = "/login";
-        }
+        Swal.fire('ผิดพลาด', 'ไม่สามารถลบได้', 'error');
       }
-    };
-    fetchChatList();
-
-    newSocket.on("receive_message", (data) => {
-      if (data.role === "user") {
-        const senderId = data.from;
-
-        setChats((prev) => {
-          const exists = prev.find((c) => c._id === senderId);
-          const newMessageData = {
-            _id: senderId,
-            firstName: data.fromName || "New User",
-            lastMsg: data.message,
-            unread: true,
-            updatedAt: new Date().toISOString(),
-          };
-
-          if (!exists) {
-            return [newMessageData, ...prev];
-          } else {
-            const filtered = prev.filter((c) => c._id !== senderId);
-            return [newMessageData, ...filtered];
-          }
-        });
-
-        if (selectedChatRef.current?._id === senderId) {
-          setMessages((prev) => [
-            ...prev,
-            {
-              role: "user",
-              text: data.message,
-              time: Date.now(),
-              id: Math.random(),
-            },
-          ]);
-        }
-      }
-    });
-
-    return () => newSocket.close();
-  }, []);
-
-  useEffect(() => {
-    scrollRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  const handleSendMessage = (e) => {
-    e.preventDefault();
-    if (!inputMessage.trim() || !selectedChat || !socket) return;
-
-    socket.emit("send_message", {
-      to: selectedChat._id,
-      message: inputMessage,
-      from: "admin",
-      role: "admin",
-    });
-
-    setMessages([
-      ...messages,
-      {
-        role: "admin",
-        text: inputMessage,
-        time: Date.now(),
-        id: Math.random(),
-      },
-    ]);
-    setInputMessage("");
-
-    setChats((prev) =>
-      prev.map((c) =>
-        c._id === selectedChat._id ? { ...c, unread: false } : c,
-      ),
-    );
+    }
   };
 
-  const filteredChats = chats.filter((c) =>
-    `${c.firstName || ""} ${c.lastName || ""}`
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase()),
+  const handleSendReply = async (e) => {
+    e.preventDefault();
+    const reportId = selectedReport.id || selectedReport._id;
+    try {
+      await axios.put(`${baseUrl}/contact/${reportId}`, {
+        adminReply: replyText,
+        status: 'replied'
+      }, {
+        headers: { Authorization: `Bearer ${getToken()}` }
+      });
+
+      Swal.fire({ icon: 'success', title: 'ส่งข้อความตอบกลับแล้ว', timer: 1500, showConfirmButton: false });
+      setSelectedReport(null);
+      setReplyText("");
+      fetchReports();
+    } catch (err) {
+      Swal.fire('ผิดพลาด', 'ไม่สามารถส่งข้อความได้', 'error');
+    }
+  };
+
+  const filteredReports = reports.filter(r => 
+    r.subject?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    r.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
-    <div className="flex-1 p-8 md:p-12 overflow-hidden bg-[#FDF8F1] flex flex-col font-['Kanit'] text-[#4A453A]">
-      <div className="mb-8 flex justify-between items-end">
+    <div className="flex-1 p-8 md:p-12 bg-[#FDF8F1] min-h-screen font-['Prompt'] text-[#4A453A]">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-12">
         <div>
-          <h1 className="text-5xl font-black">
-            แชท <span className="text-[#FF8E6E]">ส่วนกลาง</span>
-          </h1>
-          <p className="text-lg opacity-70 font-bold mt-2">
-            แอดมินทุกคนช่วยกันตอบได้ที่นี่
-          </p>
+          <h1 className="text-5xl font-black text-[#4A453A]">รายงาน <span className="text-[#FF8E6E]">จากผู้ใช้</span></h1>
+          <p className="text-lg opacity-60 font-bold mt-2">จัดการและตอบกลับปัญหาผ่านระบบ Popup</p>
         </div>
-        <div className="bg-white px-6 py-3 rounded-2xl shadow-sm border border-[#EFE9D9]">
-          <span className="flex items-center gap-2 font-bold">
-            {socket?.connected ? "🟢 ออนไลน์" : "🔴 กำลังเชื่อมต่อ..."}
-          </span>
+        <div className="relative w-full md:w-80">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input 
+            type="text" 
+            placeholder="ค้นหาหัวข้อหรือชื่อ..." 
+            className="w-full pl-12 pr-6 py-4 rounded-2xl bg-white border-none shadow-sm focus:ring-2 focus:ring-[#FF8E6E]/20 font-bold outline-none" 
+            onChange={(e) => setSearchTerm(e.target.value)} 
+          />
         </div>
-      </div>
+      </header>
 
-      <div className="flex-1 flex bg-white rounded-[3.5rem] shadow-2xl overflow-hidden border-4 border-white h-[65vh]">
-        {/* Sidebar: รายชื่อคนทัก */}
-        <aside className="w-85 border-r border-[#EFE9D9] flex flex-col bg-[#FDF8F1]/40">
-          <div className="p-6">
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="ค้นหาชื่อลูกค้า..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-11 pr-4 py-3 rounded-2xl bg-white outline-none shadow-sm focus:ring-2 focus:ring-[#FF8E6E]/20 text-[#4A453A] font-bold"
-              />
-            </div>
-          </div>
-          <div className="flex-1 overflow-y-auto px-4 pb-6 space-y-2">
-            {filteredChats.map((user) => (
-              <button
-                key={`user-card-${user._id}`}
-                onClick={() => {
-                  setSelectedChat(user);
-                  setMessages([]);
-                }}
-                className={`w-full p-5 rounded-[2.2rem] flex items-center gap-4 transition-all duration-300 ${selectedChat?._id === user._id ? "bg-[#4A453A] text-white shadow-xl scale-[1.02]" : "hover:bg-white text-[#4A453A]"}`}
-              >
-                <div className="relative flex-shrink-0">
-                  <img
-                    src={`https://ui-avatars.com/api/?name=${user.firstName}&background=FF8E6E&color=fff`}
-                    className="w-13 h-13 rounded-2xl shadow-sm border-2 border-white"
-                    alt="avatar"
-                  />
-                  {user.unread && (
-                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 border-4 border-white rounded-full animate-bounce" />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0 text-left">
-                  <p className="font-black text-[17px] truncate">
-                    {user.firstName}
-                  </p>
-                  <p
-                    className={`text-[12px] truncate ${selectedChat?._id === user._id ? "text-white/60" : "opacity-50"}`}
-                  >
-                    {user.lastMsg || "ลูกค้าทักข้อความใหม่..."}
-                  </p>
-                </div>
-              </button>
-            ))}
-          </div>
-        </aside>
+      {loading ? (
+        <div className="text-center py-20 animate-pulse font-black text-2xl opacity-20">กำลังโหลด...</div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredReports.map((report) => (
+            <motion.div 
+              layout 
+              key={report.id || report._id} 
+              onClick={() => {
+                setSelectedReport(report);
+                setReplyText(report.adminReply || "");
+              }}
+              className="bg-white rounded-[2.5rem] p-6 shadow-md border-4 border-white cursor-pointer hover:shadow-xl hover:scale-[1.02] transition-all relative overflow-hidden group"
+            >
+              <div className={`absolute top-0 right-0 px-4 py-1.5 font-black text-[9px] uppercase tracking-tighter rounded-bl-2xl ${report.status === 'replied' ? 'bg-green-500 text-white' : 'bg-orange-400 text-white animate-pulse'}`}>
+                {report.status === 'replied' ? 'ตอบกลับแล้ว' : 'ใหม่'}
+              </div>
 
-        {/* จอกลาง: แชทโต้ตอบ */}
-        <section className="flex-1 flex flex-col bg-white overflow-hidden">
-          <AnimatePresence mode="wait">
-            {selectedChat ? (
-              <motion.div
-                key={selectedChat._id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="flex flex-col h-full"
-              >
-                <header className="p-6 border-b border-gray-50 flex items-center gap-4 bg-gray-50/20">
-                  <div className="w-10 h-10 bg-[#FF8E6E] rounded-xl flex items-center justify-center text-white font-black">
-                    {selectedChat.firstName[0]}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center text-[#FF8E6E]">
+                    <FileText size={20} />
                   </div>
-                  <h3 className="font-black text-xl">
-                    คุณ {selectedChat.firstName}
-                  </h3>
-                </header>
-
-                <div className="flex-1 overflow-y-auto p-8 space-y-6 bg-[#FDF8F1]/10">
-                  {messages.map((msg) => (
-                    <div
-                      key={`msg-key-${msg.id || msg.time}`}
-                      className={`flex ${msg.role === "admin" ? "justify-end" : "justify-start"}`}
-                    >
-                      <div
-                        className={`p-4 rounded-[1.8rem] max-w-[75%] font-bold shadow-sm ${msg.role === "admin" ? "bg-[#FF8E6E] text-white rounded-tr-none" : "bg-white text-[#4A453A] rounded-tl-none border border-gray-100"}`}
-                      >
-                        {msg.text}
-                      </div>
-                    </div>
-                  ))}
-                  <div ref={scrollRef} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] font-black opacity-40 uppercase truncate">{report.subject}</p>
+                    <p className="font-bold text-[#4A453A] truncate">{report.name}</p>
+                  </div>
                 </div>
 
-                <form
-                  onSubmit={handleSendMessage}
-                  className="p-6 border-t border-gray-100 flex gap-4 bg-white"
-                >
-                  <input
-                    value={inputMessage}
-                    onChange={(e) => setInputMessage(e.target.value)}
-                    placeholder={`ตอบกลับคุณ ${selectedChat.firstName}...`}
-                    className="flex-1 bg-[#FDF8F1] rounded-2xl px-6 py-4 outline-none border-2 border-transparent focus:border-[#FF8E6E]/30 text-[#4A453A] font-bold"
-                  />
-                  <button
-                    type="submit"
-                    className="w-14 h-14 bg-[#FF8E6E] text-white rounded-2xl flex items-center justify-center shadow-lg hover:bg-[#FF7A52] active:scale-95 transition-all"
+                <p className="text-sm text-gray-500 line-clamp-2 h-10 leading-relaxed font-medium">
+                  {report.message}
+                </p>
+
+                <div className="flex justify-between items-center pt-4 border-t border-gray-50">
+                  <span className="text-[10px] font-bold text-gray-400 flex items-center gap-1">
+                    <Clock size={12}/> {new Date(report.createdAt).toLocaleDateString('th-TH')}
+                  </span>
+                  <button 
+                    onClick={(e) => handleDelete(e, report.id || report._id)}
+                    className="p-2 text-gray-300 hover:text-rose-500 transition-colors"
                   >
-                    <Send size={24} />
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
+
+      {/* --- Popup Modal: ดูรายละเอียดและตอบกลับ --- */}
+      <AnimatePresence>
+        {selectedReport && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6 bg-[#4A453A]/60 backdrop-blur-md">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }} 
+              animate={{ scale: 1, opacity: 1, y: 0 }} 
+              exit={{ scale: 0.9, opacity: 0, y: 20 }} 
+              className="bg-white rounded-[3.5rem] w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col border-8 border-white"
+            >
+              {/* Header */}
+              <div className="p-8 border-b border-gray-100 flex justify-between items-start bg-gray-50/50">
+                <div>
+                  <span className="px-4 py-1 bg-orange-100 text-[#FF8E6E] rounded-full text-xs font-black uppercase mb-2 inline-block">
+                    {selectedReport.subject}
+                  </span>
+                  <h3 className="text-3xl font-black text-[#2D2A26]">รายละเอียดรายงาน</h3>
+                </div>
+                <button onClick={() => setSelectedReport(null)} className="p-3 bg-white shadow-sm rounded-2xl hover:bg-gray-100 transition-all border border-gray-100 text-gray-400">
+                  <X size={24}/>
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-8 space-y-8">
+                {/* ข้อมูลผู้ส่ง */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 bg-[#FDF8F1] rounded-2xl border border-orange-50">
+                    <p className="text-[10px] font-black opacity-40 uppercase mb-1">ผู้แจ้งเรื่อง</p>
+                    <p className="font-bold flex items-center gap-2"><User size={14} className="text-[#FF8E6E]"/> {selectedReport.name}</p>
+                  </div>
+                  <div className="p-4 bg-[#FDF8F1] rounded-2xl border border-orange-50">
+                    <p className="text-[10px] font-black opacity-40 uppercase mb-1">ช่องทางติดต่อ</p>
+                    <p className="font-bold flex items-center gap-2"><Mail size={14} className="text-[#FF8E6E]"/> {selectedReport.email}</p>
+                  </div>
+                </div>
+
+                {/* ข้อความจากผู้ใช้ */}
+                <div className="space-y-3">
+                  <p className="text-sm font-black text-[#4A453A] flex items-center gap-2">
+                    <MessageSquare size={16} className="text-[#FF8E6E]"/> ข้อความที่แจ้งมา:
+                  </p>
+                  <div className="p-6 bg-gray-50 rounded-[2rem] text-lg text-[#4A453A] leading-relaxed font-medium italic border border-gray-100">
+                    "{selectedReport.message}"
+                  </div>
+                </div>
+
+                <hr className="border-gray-100" />
+
+                {/* ส่วนตอบกลับ */}
+                <form onSubmit={handleSendReply} className="space-y-4">
+                  <p className="text-sm font-black text-[#4A453A] flex items-center gap-2">
+                    <Send size={16} className="text-blue-500"/> พิมพ์ข้อความตอบกลับ:
+                  </p>
+                  <textarea 
+                    required 
+                    rows="4" 
+                    className="w-full p-6 bg-[#FDF8F1] rounded-[2rem] outline-none focus:ring-4 focus:ring-[#FF8E6E]/20 font-bold text-[#4A453A] resize-none border-none placeholder:opacity-30" 
+                    placeholder="แอดมินตอบกลับว่า..." 
+                    value={replyText} 
+                    onChange={(e) => setReplyText(e.target.value)} 
+                  />
+                  <button 
+                    type="submit" 
+                    className="w-full py-5 bg-[#FF8E6E] text-white rounded-[2rem] font-black text-xl shadow-xl shadow-[#FF8E6E]/30 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3"
+                  >
+                    {selectedReport.status === 'replied' ? 'อัปเดตการตอบกลับ' : 'ยืนยันการตอบกลับ'}
                   </button>
                 </form>
-              </motion.div>
-            ) : (
-              <div className="flex-1 flex flex-col items-center justify-center text-[#7E7869] opacity-20 grayscale">
-                <MessageSquare size={120} />
-                <p className="font-black text-2xl mt-6">
-                  รอข้อความใหม่จากลูกค้า...
-                </p>
               </div>
-            )}
-          </AnimatePresence>
-        </section>
-      </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

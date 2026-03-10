@@ -8,12 +8,14 @@ import ContactPage from "../pages/Contact";
 import Favorites from "../pages/favorites";
 import Profile from "../pages/profile";
 import History from "../pages/history";
-import PlaceDetail from "../pages/PlaceDetail";
+import PlaceDetail from "../pages/PlaceDetail"; // เก็บไว้ตัวเดียว
 import AdminDashboard from "../pages/admin/AdminDashboard";
 import AdminPlaces from "../pages/admin/AdminPlaces";
 import AdminUsers from "../pages/admin/AdminUsers";
 import AdminMessages from "../pages/admin/AdminMessages";
 import AdminProfile from "../pages/admin/AdminProfile";
+import AdminPlaceDetail from "../pages/admin/AdminPlaceDetail";
+import FilterPage from "../pages/FilterPage";
 
 // ฟังก์ชันช่วยดึง Token จาก Cookie
 const getTokenFromCookie = () => {
@@ -29,7 +31,6 @@ const AuthRoute = ({ children }) => {
     const user = JSON.parse(localStorage.getItem("user"));
     
     if (token && user) {
-        // ถ้าเป็น Admin ไป /admin, ถ้าเป็น User ไป /
         return <Navigate to={user.role === 'admin' ? "/admin" : "/"} replace />;
     }
     return children;
@@ -40,7 +41,6 @@ const ProtectedAdminRoute = ({ children }) => {
     const user = JSON.parse(localStorage.getItem("user"));
     const token = getTokenFromCookie();
     
-    // 💡 แก้จุดนี้: ถ้าไม่มีสิทธิ์ ให้ดีดไป /login แทนการไปหน้าแรก เพื่อป้องกัน Loop
     if (!token || user?.role !== 'admin') {
         return <Navigate to="/login" replace />;
     }
@@ -52,7 +52,6 @@ const ProtectedUserRoute = ({ children }) => {
     const user = JSON.parse(localStorage.getItem("user"));
     const token = getTokenFromCookie();
 
-    // ถ้าเป็น Admin ห้ามเข้าหน้า User ให้ไปหน้า Dashboard ของตัวเอง
     if (token && user?.role === 'admin') {
         return <Navigate to="/admin" replace />;
     }
@@ -71,8 +70,9 @@ const router = createBrowserRouter([
             { path: "favorites", element: <ProtectedUserRoute><Favorites /></ProtectedUserRoute> },
             { path: "history", element: <ProtectedUserRoute><History /></ProtectedUserRoute> },
             { path: "place/:id", element: <ProtectedUserRoute><PlaceDetail /></ProtectedUserRoute> },
+            { path: "filter", element: <ProtectedUserRoute><FilterPage /></ProtectedUserRoute> },
             
-            // หน้าที่เข้าได้ทั้งคู่ (หรือจัดการข้างในเอง)
+            // หน้าที่เข้าได้ทั้งคู่
             { path: "profile", element: <Profile /> }, 
 
             // หน้า Auth: Login แล้วห้ามเข้า
@@ -99,6 +99,10 @@ const router = createBrowserRouter([
             { 
                 path: "admin/profile", 
                 element: <ProtectedAdminRoute><AdminProfile /></ProtectedAdminRoute> 
+            },
+            { 
+                path: "admin/place/:id", 
+                element: <ProtectedAdminRoute><AdminPlaceDetail /></ProtectedAdminRoute> 
             }
         ]
     },

@@ -8,9 +8,10 @@ import {
   ArrowRight, 
   Navigation, 
   Sparkles,
-  Calendar
+  Calendar,
+  AlertCircle
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion"; // เพิ่ม framer-motion สำหรับอนิเมชั่น
+import { motion, AnimatePresence } from "framer-motion";
 import Swal from "sweetalert2";
 import CategoryChip from "@/components/Category"; 
 
@@ -22,6 +23,7 @@ export default function UserActivityPage() {
   const [isVisible, setIsVisible] = useState(false);
 
   const isFavoritePage = location.pathname === '/favorites';
+  const MAX_LIMIT = 10; 
 
   useEffect(() => {
     setIsVisible(true);
@@ -33,14 +35,48 @@ export default function UserActivityPage() {
     const storedData = localStorage.getItem(storageKey);
     
     if (storedData) {
-      setData(JSON.parse(storedData));
+      let parsedData = JSON.parse(storedData);
+      
+      if (parsedData.length > MAX_LIMIT) {
+        parsedData = parsedData.slice(0, MAX_LIMIT);
+        localStorage.setItem(storageKey, JSON.stringify(parsedData));
+      }
+      
+      setData(parsedData);
     } else {
-      setData([]); // กรณีไม่มีข้อมูล
+      setData([]);
     }
     setLoading(false);
   };
 
-  // --- ฟังก์ชันยกเลิกหัวใจ หรือ ลบประวัติ ---
+  // 🌟 ฟังก์ชันจัดการการนำทาง (Logic เหมือนหน้า Place Detail)
+  const handleNavigate = (item) => {
+    const targetUrl = item.googleMapsUrl || item.mapUrl;
+    if (!targetUrl) return Swal.fire("ไม่พบลิงก์", "สถานที่นี้ยังไม่ได้ระบุพิกัด", "error");
+
+    // 1. บันทึกลงประวัติการนำทางในเครื่อง (localStorage)
+    const history = JSON.parse(localStorage.getItem("navigation_history") || "[]");
+    const now = new Date().toLocaleDateString('th-TH'); // บันทึกวันที่รูปแบบ DD/MM/YYYY
+    
+    // กรองอันเก่าออกถ้ามีซ้ำ เพื่อเลื่อนขึ้นมาเป็นอันล่าสุด
+    const filteredHistory = history.filter(h => h.id !== item.id);
+    const newHistory = [{ ...item, date: now }, ...filteredHistory];
+    
+    // เก็บประวัติ (จำกัด 10 รายการล่าสุด)
+    localStorage.setItem("navigation_history", JSON.stringify(newHistory.slice(0, 10)));
+    
+    // 2. ถ้าอยู่หน้าประวัติ ให้รีเฟรชข้อมูลในหน้าด้วย
+    if (!isFavoritePage) {
+        fetchData();
+    }
+
+    // 3. ส่งสัญญาณบอก Navbar หรือส่วนอื่นๆ ของแอป
+    window.dispatchEvent(new Event("authChange"));
+
+    // 4. เปิดแผนที่ไปยังหน้าต่างใหม่
+    window.open(targetUrl, "_blank", "noopener,noreferrer");
+  };
+
   const handleDelete = (id, name) => {
     const title = isFavoritePage ? 'เลิกกดหัวใจ?' : 'ลบประวัติการเดินทาง?';
     const text = isFavoritePage 
@@ -65,9 +101,8 @@ export default function UserActivityPage() {
         const newData = currentData.filter(item => item.id !== id);
         
         localStorage.setItem(storageKey, JSON.stringify(newData));
-        setData(newData); // อัปเดต UI ทันที
+        setData(newData);
         
-        // ส่งสัญญาณบอก Header/Navbar
         window.dispatchEvent(new Event("authChange"));
 
         Swal.fire({
@@ -93,30 +128,34 @@ export default function UserActivityPage() {
             <h1 className="text-4xl md:text-5xl font-black text-[#4A453A]">
               {isFavoritePage ? 'รายการ' : 'ประวัติการ'} <span className="text-[#FF8E6E]">{isFavoritePage ? 'โปรด' : 'นำทาง'}</span>
             </h1>
+            
+            <div className="flex items-center gap-2">
+              <div className="flex-1 h-2 w-32 bg-gray-200 rounded-full overflow-hidden">
+                <motion.div 
+                  className={`h-full ${data.length >= MAX_LIMIT ? 'bg-red-400' : 'bg-[#FF8E6E]'}`}
+                  initial={{ width: 0 }}
+                  animate={{ width: `${(data.length / MAX_LIMIT) * 100}%` }}
+                />
+              </div>
+              <span className={`text-sm font-black ${data.length >= MAX_LIMIT ? 'text-red-500' : 'text-[#7E7869]'}`}>
+                {data.length} / {MAX_LIMIT}
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* --- 🌟 Toggle Switch (Framer Motion Slide) 🌟 --- */}
+        {/* --- Toggle Switch --- */}
         <div className="relative flex bg-[#EFE9D9]/50 backdrop-blur-md p-1.5 rounded-2xl mb-12 h-14 items-center border border-white max-w-[340px] mx-auto md:mx-0">
-          {/* แถบสไลด์สีส้ม */}
           <motion.div 
             className="absolute top-1.5 bottom-1.5 rounded-xl shadow-lg bg-gradient-to-r from-[#FF7F67] to-[#FFB385] w-[calc(50%-6px)]"
             initial={false}
             animate={{ x: isFavoritePage ? 0 : '100%' }}
             transition={{ type: "spring", stiffness: 400, damping: 30 }}
           />
-          
-          <button 
-            onClick={() => navigate('/favorites')} 
-            className={`relative flex-1 h-full text-sm font-bold z-10 transition-colors duration-300 flex items-center justify-center gap-2 ${isFavoritePage ? 'text-white' : 'text-gray-400'}`}
-          >
+          <button onClick={() => navigate('/favorites')} className={`relative flex-1 h-full text-sm font-bold z-10 flex items-center justify-center gap-2 ${isFavoritePage ? 'text-white' : 'text-gray-400'}`}>
             <Heart className={`w-4 h-4 ${isFavoritePage ? 'fill-white' : ''}`} /> รายการโปรด
           </button>
-          
-          <button 
-            onClick={() => navigate('/history')} 
-            className={`relative flex-1 h-full text-sm font-bold z-10 transition-colors duration-300 flex items-center justify-center gap-2 ${!isFavoritePage ? 'text-white' : 'text-gray-400'}`}
-          >
+          <button onClick={() => navigate('/history')} className={`relative flex-1 h-full text-sm font-bold z-10 flex items-center justify-center gap-2 ${!isFavoritePage ? 'text-white' : 'text-gray-400'}`}>
             <Clock className="w-4 h-4" /> ประวัติ
           </button>
         </div>
@@ -134,7 +173,7 @@ export default function UserActivityPage() {
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.5 }}
-                  className="group relative bg-white rounded-[2.5rem] overflow-hidden border border-white shadow-[0_20px_50px_rgba(0,0,0,0.03)] hover:shadow-2xl transition-all duration-500 hover:-translate-y-2"
+                  className="group relative bg-white rounded-[2.5rem] overflow-hidden border border-white shadow-sm hover:shadow-2xl transition-all duration-500 hover:-translate-y-2"
                 >
                   <div className="h-56 relative overflow-hidden">
                     <img src={item.image} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
@@ -146,7 +185,6 @@ export default function UserActivityPage() {
                       </div>
                     )}
 
-                    {/* ปุ่มยกเลิกหัวใจ / ลบประวัติ */}
                     <button 
                       onClick={() => handleDelete(item.id, item.name)} 
                       className="absolute top-4 right-4 w-10 h-10 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center text-gray-400 hover:text-red-500 shadow-lg transition-all active:scale-90"
@@ -162,7 +200,12 @@ export default function UserActivityPage() {
                       <button onClick={() => navigate(`/place/${item.id}`)} className="text-[#FF8E6E] font-black text-sm flex items-center gap-2 group/btn">
                         รายละเอียด <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-2 transition-transform" />
                       </button>
-                      <button className="flex items-center gap-2 px-5 py-2.5 bg-[#4A453A] text-white rounded-xl text-xs font-bold hover:bg-[#FF8E6E] transition-colors shadow-lg active:scale-95">
+                      
+                      {/* 🌟 ปุ่มนำทางที่เพิ่ม handleNavigate เข้าไป */}
+                      <button 
+                        onClick={() => handleNavigate(item)}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-[#4A453A] text-white rounded-xl text-xs font-bold hover:bg-[#FF8E6E] transition-colors shadow-lg active:scale-95"
+                      >
                         <Navigation className="w-3.5 h-3.5" /> นำทาง
                       </button>
                     </div>
@@ -172,11 +215,7 @@ export default function UserActivityPage() {
             </AnimatePresence>
           </div>
         ) : (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="bg-white/60 backdrop-blur-xl rounded-[3rem] p-20 text-center border border-white shadow-xl"
-          >
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-white/60 backdrop-blur-xl rounded-[3rem] p-20 text-center border border-white shadow-xl">
             <Sparkles className="w-12 h-12 text-[#FF8E6E] mx-auto mb-6 animate-pulse" />
             <h2 className="text-2xl font-black text-[#4A453A] mb-8">ยังไม่มีข้อมูลในส่วนนี้</h2>
             <button onClick={() => navigate("/")} className="bg-[#4A453A] text-white px-10 py-4 rounded-2xl font-bold hover:bg-[#FF8E6E] transition-all">ไปสำรวจกันเลย</button>

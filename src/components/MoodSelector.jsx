@@ -1,10 +1,11 @@
-export default function MoodSelector() {
+// src/components/MoodSelector.jsx
+export default function MoodSelector({ onSelectMood }) { // เพิ่ม prop นี้
   const moods = [
     { label: "มีความสุข", emoji: "😁", color: "#FF8E6E" },
-  { label: "เบื่อ", emoji: "😫", color: "#FFB385" },
-  { label: "โกรธ", emoji: "😡", color: "#FF4D4D" },
-  { label: "เครียด", emoji: "🤯", color: "#A855F7" },
-  { label: "เศร้า", emoji: "😢", color: "#60A5FA" },
+    { label: "เบื่อ", emoji: "😫", color: "#FFB385" },
+    { label: "โกรธ", emoji: "😡", color: "#FF4D4D" },
+    { label: "เครียด", emoji: "🤯", color: "#A855F7" },
+    { label: "เศร้า", emoji: "😢", color: "#60A5FA" },
   ];
 
   return (
@@ -12,6 +13,7 @@ export default function MoodSelector() {
       {moods.map((mood, index) => (
         <button
           key={index}
+          onClick={() => onSelectMood(mood.label)} // เมื่อคลิกให้ส่งชื่ออารมณ์กลับไป
           className="group flex flex-col items-center justify-center bg-white border border-gray-100 rounded-[2rem] p-6 w-32 h-32 shadow-[0_10px_30px_rgba(0,0,0,0.03)] hover:shadow-xl hover:-translate-y-2 transition-all duration-300"
         >
           <span className="text-4xl mb-3 group-hover:scale-125 transition-transform duration-300">
