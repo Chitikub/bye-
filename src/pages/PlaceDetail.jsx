@@ -115,13 +115,13 @@ export default function PlaceDetail() {
       };
 
       // 3. กรองอันซ้ำออกและเอาอันล่าสุดไว้บนสุด
-      const filteredHistory = history.filter(item => item.id !== placeId);
+      const filteredHistory = history.filter(item => (item.id !== placeId && item._id !== placeId));
       const newHistory = [newHistoryItem, ...filteredHistory];
 
-      // 4. บันทึกลง LocalStorage
-      localStorage.setItem("navigation_history", JSON.stringify(newHistory));
+      // 4. บันทึกลง LocalStorage (จำกัด 10-20 รายการตามต้องการ)
+      localStorage.setItem("navigation_history", JSON.stringify(newHistory.slice(0, 20)));
 
-      // 5. แจ้งส่วนอื่นๆ ของแอปให้รับรู้การเปลี่ยนแปลง (เช่น Navbar)
+      // 5. แจ้ง Navbar ให้รับรู้การเปลี่ยนแปลง
       window.dispatchEvent(new Event("authChange"));
     } catch (err) {
       console.error("Save History Error:", err);
