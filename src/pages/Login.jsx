@@ -56,13 +56,22 @@ export default function AuthPage() {
       const baseUrl = "https://moodlocationfinder-backend.onrender.com/api/v1";
       const endpoint = isLogin ? '/auth/login' : '/auth/register';
       
-      const response = await axios.post(`${baseUrl}${endpoint}`, form);
+      // ✨ แก้ไขตรงนี้: ถ้าเป็น Login ให้ส่งเฉพาะ email และ password เท่านั้น
+      const payload = isLogin 
+        ? { email: form.email, password: form.password } 
+        : form;
+
+      console.log("ยิงไปที่:", endpoint, "ข้อมูลที่ส่ง:", payload); // เอาไว้เช็คใน Console
+
+      const response = await axios.post(`${baseUrl}${endpoint}`, payload);
 
       if (response.data) {
+        // เก็บ Token
         if (response.data.token) {
           localStorage.setItem('token', response.data.token);
         }
         
+        // เก็บข้อมูล User
         const userData = response.data.user || response.data;
         localStorage.setItem('user', JSON.stringify(userData));
 
@@ -79,7 +88,6 @@ export default function AuthPage() {
         if (!isLogin) {
           handleNavigation('/login');
         } else {
-          // ✨ ส่วนสำคัญ: ถ้าเป็น Admin ให้เด้งไปหน้า Dashboard ทันที
           if (userData.role === 'admin') {
             navigate('/admin');
           } else {
@@ -88,10 +96,12 @@ export default function AuthPage() {
         }
       }
     } catch (error) {
+      console.error("Login Error Detail:", error.response?.data);
       Swal.fire({
         icon: 'error',
         title: 'เข้าสู่ระบบไม่สำเร็จ',
-        text: error.response?.data?.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์',
+        // ✨ โชว์ข้อความจาก Backend จริงๆ
+        text: error.response?.data?.message || 'อีเมลหรือรหัสผ่านไม่ถูกต้อง',
         customClass: { popup: 'rounded-[30px]' }
       });
     } finally {

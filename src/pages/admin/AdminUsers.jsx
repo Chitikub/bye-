@@ -1,14 +1,11 @@
 'use client';
 import { useState, useEffect } from "react";
-import { useOutletContext } from "react-router-dom"; // ✨ ใช้ดึงฟังก์ชันจาก Layout
-import { 
-  Users, Trash2, Search, Ban, CheckCircle 
-} from "lucide-react";
+import { useOutletContext } from "react-router-dom"; 
+import { Trash2, Search, Ban, CheckCircle, Users } from "lucide-react";
 import axios from "axios";
 import Swal from "sweetalert2";
 
 export default function AdminUsers() {
-  // ดึง setTab มาจาก Context ที่ส่งมาจาก Admin.jsx หรือ Layout.jsx
   const context = useOutletContext();
   const setTab = context?.setTab;
 
@@ -18,9 +15,10 @@ export default function AdminUsers() {
 
   const fetchAllUsers = async () => {
     try {
+      setLoading(true);
       const token = localStorage.getItem("token");
       const baseUrl = "https://moodlocationfinder-backend.onrender.com/api/v1";
-      const res = await axios.get(`${baseUrl}/admin/users`, {
+      const res = await axios.get(`${baseUrl}/admin/users?t=${Date.now()}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = res.data.users || res.data;
@@ -35,8 +33,9 @@ export default function AdminUsers() {
   useEffect(() => { fetchAllUsers(); }, []);
 
   const handleToggleBan = async (user) => {
-    const userId = user._id || user.id;
-    const isBanned = user.isBanned === true || user.status === 'banned';
+    const userId = user.id || user._id;
+    const isBanned = user.status === 'banned' || user.isBanned === true;
+    
     const result = await Swal.fire({
       title: isBanned ? 'ปลดระงับสมาชิก?' : 'ระงับการใช้งาน?',
       text: `ยืนยันรายการสำหรับคุณ ${user.firstName}`,
@@ -52,13 +51,63 @@ export default function AdminUsers() {
     if (result.isConfirmed) {
       try {
         const token = localStorage.getItem("token");
-        await axios.put(`https://moodlocationfinder-backend.onrender.com/api/v1/admin/users/${userId}/ban`, 
-          { isBanned: !isBanned }, { headers: { Authorization: `Bearer ${token}` } }
+        const baseUrl = "https://moodlocationfinder-backend.onrender.com/api/v1";
+        
+        const endpoint = isBanned ? 'unban' : 'ban';
+        await axios.put(`${baseUrl}/admin/users/${userId}/${endpoint}`, 
+          { isBanned: !isBanned, status: isBanned ? 'active' : 'banned' }, 
+          { headers: { Authorization: `Bearer ${token}` } }
         );
+
         Swal.fire({ title: 'สำเร็จ!', icon: 'success', timer: 1000, showConfirmButton: false });
         fetchAllUsers();
       } catch (e) { 
         Swal.fire('ผิดพลาด', 'ทำรายการไม่สำเร็จ', 'error'); 
+      }
+    }
+  };
+
+  // ✨ ฟังก์ชันลบสมาชิกที่เพิ่มเข้าไปใหม่
+  const handleDeleteUser = async (user) => {
+    const userId = user.id || user._id;
+    
+    // ป้องกันการลบ Admin ตามเงื่อนไข Backend
+    if (user.role === 'admin') {
+      return Swal.fire('คำเตือน', 'ไม่สามารถลบผู้ดูแลระบบได้', 'warning');
+    }
+
+    const { value: confirmText } = await Swal.fire({
+      title: 'ลบสมาชิกถาวร?',
+      text: `กรุณาพิมพ์คำว่า "DELETE" เพื่อยืนยันการลบคุณ ${user.firstName}`,
+      icon: 'error',
+      input: 'text',
+      inputPlaceholder: 'พิมพ์ DELETE ที่นี่...',
+      showCancelButton: true,
+      confirmButtonColor: '#EF4444',
+      confirmButtonText: 'ยืนยันการลบ',
+      cancelButtonText: 'ยกเลิก',
+      background: '#FDF8F1',
+      customClass: { popup: 'rounded-[2rem]' },
+      inputValidator: (value) => {
+        if (value !== 'DELETE') return 'กรุณาพิมพ์คำว่า DELETE ให้ถูกต้อง';
+      }
+    });
+
+    if (confirmText === 'DELETE') {
+      try {
+        const token = localStorage.getItem("token");
+        const baseUrl = "https://moodlocationfinder-backend.onrender.com/api/v1";
+        
+        // เรียกใช้ API DELETE ตามที่ระบุใน adminRoutes
+        await axios.delete(`${baseUrl}/admin/users/${userId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+          data: { confirmText: 'DELETE' } // ส่ง payload ยืนยันตามที่ adminController ต้องการ
+        });
+
+        Swal.fire({ title: 'สำเร็จ!', text: 'ลบสมาชิกออกจากระบบเรียบร้อยแล้ว', icon: 'success', timer: 1500, showConfirmButton: false });
+        fetchAllUsers();
+      } catch (e) {
+        Swal.fire('ผิดพลาด', e.response?.data?.message || 'ไม่สามารถลบข้อมูลได้', 'error');
       }
     }
   };
@@ -69,93 +118,95 @@ export default function AdminUsers() {
   );
 
   return (
-    <div className="p-8 md:p-12 animate-fade-in font-['Kanit'] bg-[#FDF8F1]">
-      {/* Header Section */}
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
+    <div className="p-6 md:p-10 animate-fade-in font-['Kanit'] bg-[#FDF8F1] min-h-screen">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10">
         <div>
-          <h1 style={{ fontSize: '48px' }} className="font-black text-[#4A453A] leading-tight">จัดการ <span className="text-[#FF8E6E]">สมาชิก</span></h1>
-          <p style={{ fontSize: '18px' }} className="text-[#7E7869]">ควบคุมสิทธิ์และสถานะการเข้าใช้งานของผู้ใช้ทั้งหมด</p>
+          <h1 className="text-4xl font-black text-[#4A453A] leading-tight">จัดการ <span className="text-[#FF8E6E]">สมาชิก</span></h1>
+          <p className="text-base text-[#7E7869] font-medium">ควบคุมสิทธิ์และสถานะการเข้าใช้งานของผู้ใช้</p>
         </div>
-        <div className="relative w-full md:w-[350px]">
-          <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+        <div className="relative w-full md:w-[320px]">
+          <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
           <input 
-            style={{ fontSize: '18px' }}
             type="text" 
             placeholder="ค้นหาสมาชิก..." 
-            className="w-full pl-14 pr-6 py-4 rounded-[1.5rem] bg-white border-none shadow-sm focus:shadow-md outline-none transition-all text-black"
+            className="w-full pl-12 pr-6 py-3 rounded-2xl bg-white border-none shadow-sm focus:shadow-md outline-none transition-all text-sm font-bold"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
       </header>
 
-      {/* Table Section */}
-      <div className="bg-white rounded-[3rem] shadow-2xl shadow-[#4A453A]/5 overflow-hidden border border-white">
+      <div className="bg-white rounded-[2.5rem] shadow-xl shadow-[#4A453A]/5 overflow-hidden border border-white">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead className="bg-[#4A453A] text-white">
               <tr>
-                <th className="p-8 font-bold text-[16px] uppercase tracking-widest rounded-tl-[3rem]">ข้อมูลสมาชิก</th>
-                <th className="p-8 font-bold text-[16px] uppercase tracking-widest">อีเมล</th>
-                <th className="p-8 font-bold text-[16px] uppercase tracking-widest text-center">ระดับ (Role)</th>
-                <th className="p-8 font-bold text-[16px] uppercase tracking-widest text-center rounded-tr-[3rem]">จัดการ</th>
+                <th className="p-6 font-bold text-sm uppercase tracking-widest rounded-tl-[2.5rem]">ข้อมูลสมาชิก</th>
+                <th className="p-6 font-bold text-sm uppercase tracking-widest">อีเมล</th>
+                <th className="p-8 font-bold text-sm uppercase tracking-widest text-center">สถานะ</th>
+                <th className="p-8 font-bold text-sm uppercase tracking-widest text-center rounded-tr-[2.5rem]">จัดการ</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-  {loading ? (
-    <tr><td colSpan="4" className="p-32 text-center text-[#7E7869] animate-pulse font-bold text-xl italic">กำลังโหลดข้อมูล...</td></tr>
-  ) : filteredUsers.length > 0 ? (
-    filteredUsers.map((u, index) => { // ✨ เพิ่ม index เข้ามาเป็นตัวช่วยสำรอง
-      const isBanned = u.isBanned === true || u.status === 'banned';
-      
-      // ✨ สร้าง Unique Key ที่ปลอดภัยที่สุด: ใช้ ID ถ้าไม่มีให้ใช้ index
-      const rowKey = u._id || u.id || `user-row-${index}`; 
+              {loading ? (
+                <tr><td colSpan="4" className="p-20 text-center text-[#7E7869] animate-pulse font-bold text-lg italic opacity-50">กำลังโหลดข้อมูล...</td></tr>
+              ) : filteredUsers.length > 0 ? (
+                filteredUsers.map((u, index) => {
+                  const isBanned = u.status === 'banned' || u.isBanned === true;
+                  const rowKey = u.id || u._id || `user-row-${index}`; 
 
-      return (
-        <tr key={rowKey} className={`transition-all ${isBanned ? 'bg-red-50/40 opacity-70' : 'hover:bg-gray-50/50'}`}>
-          <td className="p-8">
-            <div className="flex items-center gap-5">
-              <img 
-                src={u.profileImage || `https://ui-avatars.com/api/?name=${u.firstName}&background=FF7F67&color=fff`} 
-                className="w-16 h-16 rounded-2xl object-cover shadow-sm border-2 border-white" 
-                alt="user" 
-              />
-              <div className="flex flex-col">
-                 <span style={{ fontSize: '19px' }} className="font-black text-[#4A453A]">{u.firstName} {u.lastName}</span>
-                 {isBanned && (
-                   <span className="text-[11px] text-red-500 font-black uppercase tracking-widest mt-1 flex items-center gap-1">
-                     <Ban size={12} /> ถูกระงับการใช้งาน
-                   </span>
-                 )}
-              </div>
-            </div>
-          </td>
-          <td className="p-8 text-[#4A453A] font-medium text-[17px]">{u.email}</td>
-          <td className="p-8 text-center">
-            <span className={`px-5 py-2 rounded-xl font-black text-sm border-2 transition-all ${u.role === 'admin' ? 'bg-orange-50 text-[#FF8E6E] border-orange-100' : 'bg-blue-50 text-blue-500 border-blue-100'}`}>
-              {u.role?.toUpperCase() || 'USER'}
-            </span>
-          </td>
-          <td className="p-8">
-            <div className="flex justify-center gap-3">
-              <button 
-                onClick={() => handleToggleBan(u)} 
-                className={`p-3.5 rounded-2xl transition-all shadow-sm active:scale-90 ${isBanned ? 'bg-green-100 text-green-600 hover:bg-green-200' : 'bg-red-50 text-red-500 hover:bg-red-100'}`}
-              >
-                {isBanned ? <CheckCircle className="w-6 h-6" /> : <Ban className="w-6 h-6" />}
-              </button>
-              <button className="p-3.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all active:scale-90">
-                <Trash2 className="w-6 h-6" />
-              </button>
-            </div>
-          </td>
-        </tr>
-      );
-    })
-  ) : (
-    <tr><td colSpan="4" className="p-32 text-center text-gray-400 font-bold text-lg italic">ไม่มีข้อมูลสมาชิกที่ตรงตามเงื่อนไข</td></tr>
-  )}
-</tbody>
+                  return (
+                    <tr key={rowKey} className={`transition-all ${isBanned ? 'bg-red-50/40' : 'hover:bg-gray-50/50'}`}>
+                      <td className="p-6">
+                        <div className="flex items-center gap-4">
+                          <img 
+                            src={u.profileImage || `https://ui-avatars.com/api/?name=${u.firstName}&background=FF7F67&color=fff`} 
+                            className="w-12 h-12 rounded-xl object-cover shadow-sm border-2 border-white" 
+                            alt="avatar" 
+                          />
+                          <div className="flex flex-col">
+                             <span className="font-black text-[#4A453A] text-lg leading-tight">{u.firstName} {u.lastName}</span>
+                             {isBanned && (
+                               <span className="text-[10px] text-red-500 font-black uppercase tracking-widest mt-0.5 flex items-center gap-1">
+                                 <Ban size={10} /> ถูกระงับ
+                               </span>
+                             )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="p-6 text-[#4A453A] font-medium text-sm">{u.email}</td>
+                      <td className="p-6 text-center">
+                        <span className={`px-4 py-1.5 rounded-xl font-black text-[10px] border-2 transition-all ${isBanned ? 'bg-red-100 text-red-600 border-red-100' : 'bg-green-100 text-green-600 border-green-100'}`}>
+                          {isBanned ? 'BANNED' : 'ACTIVE'}
+                        </span>
+                      </td>
+                      <td className="p-6">
+                        <div className="flex justify-center gap-2">
+                          <button 
+                            onClick={() => handleToggleBan(u)} 
+                            title={isBanned ? "ปลดแบน" : "ระงับการใช้งาน"}
+                            className={`p-3 rounded-xl transition-all shadow-sm active:scale-90 ${isBanned ? 'bg-green-500 text-white hover:bg-green-600' : 'bg-red-50 text-red-500 hover:bg-red-100'}`}
+                          >
+                            {isBanned ? <CheckCircle size={18} /> : <Ban size={18} />}
+                          </button>
+                          
+                          {/* ปุ่มลบสมาชิกที่เรียกใช้ handleDeleteUser */}
+                          <button 
+                            onClick={() => handleDeleteUser(u)}
+                            title="ลบสมาชิก"
+                            className="p-3 text-gray-300 hover:text-white hover:bg-red-600 rounded-xl transition-all active:scale-90"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr><td colSpan="4" className="p-20 text-center text-gray-400 font-bold text-base italic">ไม่พบข้อมูลสมาชิก</td></tr>
+              )}
+            </tbody>
           </table>
         </div>
       </div>
