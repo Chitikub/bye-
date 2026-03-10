@@ -1,7 +1,7 @@
 'use client';
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { MapPin, ArrowLeft, Star, Heart, Share2, Navigation, MessageCircle, Send } from "lucide-react";
+import { MapPin, ArrowLeft, Star, Heart, Share2, Navigation, MessageCircle, Send, AlertCircle } from "lucide-react";
 import api from "@/api/axios";
 import Swal from "sweetalert2";
 
@@ -24,20 +24,22 @@ export default function PlaceDetail() {
 
   const fetchData = async () => {
     try {
+      setLoading(true);
       // 1. ดึงข้อมูลสถานที่เฉพาะ ID นี้
       const placeRes = await api.get(`/places/${id}`);
       const placeData = placeRes.data.place || placeRes.data;
       setPlace(placeData);
 
-      // 2. ดึงรีวิวเฉพาะของสถานที่นี้ (แยกตาม id)
+      // 2. ดึงรีวิวเฉพาะของสถานที่นี้
       const reviewRes = await api.get(`/reviews/place/${id}`);
       setReviews(reviewRes.data.reviews || []);
 
       // 3. ตรวจสอบสถานะ Favorite
       const favorites = JSON.parse(localStorage.getItem("user_favorites") || "[]");
-      setIsFavorite(favorites.some(fav => fav.id === (placeData._id || placeData.id)));
+      setIsFavorite(favorites.some(fav => String(fav.id) === String(placeData._id || placeData.id)));
     } catch (error) {
       console.error("Fetch Error:", error);
+      setPlace(null);
     } finally {
       setLoading(false);
     }
@@ -47,7 +49,7 @@ export default function PlaceDetail() {
     fetchData();
   }, [id]);
 
-  // คำนวณดาวเฉลี่ยแยกตามสถานที่
+  // คำนวณดาวเฉลี่ย
   const calculateRealAverageRating = () => {
     if (!reviews || reviews.length === 0) return "0.0";
     const total = reviews.reduce((sum, rev) => sum + rev.rating, 0);
@@ -87,7 +89,7 @@ export default function PlaceDetail() {
     if (!place) return;
     const favorites = JSON.parse(localStorage.getItem("user_favorites") || "[]");
     const placeId = place._id || place.id;
-    let newFavorites = isFavorite ? favorites.filter(fav => fav.id !== placeId) : [{ id: placeId, ...place }, ...favorites];
+    let newFavorites = isFavorite ? favorites.filter(fav => String(fav.id) !== String(placeId)) : [{ id: placeId, ...place }, ...favorites];
     localStorage.setItem("user_favorites", JSON.stringify(newFavorites));
     setIsFavorite(!isFavorite);
     window.dispatchEvent(new Event("authChange"));
@@ -99,11 +101,9 @@ export default function PlaceDetail() {
     if (!targetUrl) return Swal.fire("ไม่พบลิงก์", "สถานที่นี้ยังไม่ได้ระบุพิกัด", "error");
 
     try {
-      // 1. ดึงประวัติเดิมจาก LocalStorage
       const history = JSON.parse(localStorage.getItem("navigation_history") || "[]");
       const placeId = place._id || place.id;
       
-      // 2. สร้างข้อมูลที่จะบันทึก
       const newHistoryItem = {
         id: placeId,
         name: place.name,
@@ -111,30 +111,38 @@ export default function PlaceDetail() {
         category: place.category,
         description: place.description,
         googleMapsUrl: targetUrl,
-        date: new Date().toLocaleDateString('th-TH'), // บันทึกวันที่ปัจจุบันรูปแบบไทย
+        date: new Date().toLocaleDateString('th-TH'),
       };
 
-      // 3. กรองอันซ้ำออกและเอาอันล่าสุดไว้บนสุด
-      const filteredHistory = history.filter(item => (item.id !== placeId && item._id !== placeId));
+      const filteredHistory = history.filter(item => String(item.id) !== String(placeId));
       const newHistory = [newHistoryItem, ...filteredHistory];
 
-      // 4. บันทึกลง LocalStorage (จำกัด 10-20 รายการตามต้องการ)
       localStorage.setItem("navigation_history", JSON.stringify(newHistory.slice(0, 20)));
-
-      // 5. แจ้ง Navbar ให้รับรู้การเปลี่ยนแปลง
       window.dispatchEvent(new Event("authChange"));
     } catch (err) {
       console.error("Save History Error:", err);
     }
 
-    // 6. เปิด Google Maps
     window.open(targetUrl, "_blank", "noopener,noreferrer");
   };
 
+  // --- ส่วนจัดการ Loading ---
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-[#FDF8F1]">
       <div className="animate-bounce bg-[#FF8E6E] p-4 rounded-full shadow-lg">
         <Heart className="text-white fill-white" size={32} />
+      </div>
+    </div>
+  );
+
+  // 🌟 ส่วนจัดการ Error 404 / ไม่พบข้อมูล (ป้องกัน TypeError)
+  if (!place) return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[#FDF8F1] font-['Prompt'] px-6 text-center">
+      <div className="bg-white p-12 rounded-[3rem] shadow-xl border-4 border-white max-w-md">
+        <AlertCircle className="w-20 h-20 text-gray-200 mx-auto mb-6" />
+        <h2 className="text-3xl font-black mb-4 text-[#4A453A]">ไม่พบข้อมูลสถานที่</h2>
+        <p className="text-[#7E7869] mb-8 font-medium">ขออภัย ไม่พบสถานที่รหัสนี้ในระบบ ข้อมูลอาจถูกลบไปแล้ว</p>
+        <button onClick={() => navigate('/')} className="w-full py-4 bg-[#4A453A] text-white rounded-2xl font-bold hover:bg-[#FF8E6E] transition-all shadow-lg">กลับสู่หน้าหลัก</button>
       </div>
     </div>
   );
