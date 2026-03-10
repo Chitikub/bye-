@@ -13,34 +13,41 @@ import AdminDashboard from "../pages/admin/AdminDashboard";
 import AdminPlaces from "../pages/admin/AdminPlaces";
 import AdminUsers from "../pages/admin/AdminUsers";
 import AdminMessages from "../pages/admin/AdminMessages";
+import AdminProfile from "../pages/admin/AdminProfile";
 
-// 🔒 1. สำหรับหน้า Login/Register: ถ้า Login แล้ว "ห้ามเข้า"
+// ฟังก์ชันช่วยดึง Token จาก Cookie (เพราะคุณเก็บใน Cookie)
+const getTokenFromCookie = () => {
+    return document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("token="))
+        ?.split("=")[1];
+};
+
+// 🔒 1. สำหรับหน้า Login/Register: ถ้า Login แล้ว ห้ามเข้า
 const AuthRoute = ({ children }) => {
-    const token = localStorage.getItem("token");
+    const token = getTokenFromCookie(); // ดึงจาก cookie แทน
     const user = JSON.parse(localStorage.getItem("user"));
-
+    
     if (token && user) {
-        // ถ้าเป็น Admin ให้ไปหน้า Admin, ถ้าเป็น User ให้ไปหน้าแรก
         return <Navigate to={user.role === 'admin' ? "/admin" : "/"} replace />;
     }
     return children;
 };
 
-// 🔒 2. สำหรับหน้า Admin: User ทั่วไป "ห้ามเข้า"
+// 🔒 2. สำหรับหน้า Admin เท่านั้น: User ห้ามเข้า
 const ProtectedAdminRoute = ({ children }) => {
     const user = JSON.parse(localStorage.getItem("user"));
-    const token = localStorage.getItem("token");
-
+    const token = getTokenFromCookie(); // ดึงจาก cookie แทน
+    
     if (!token || !user || user.role !== 'admin') {
         return <Navigate to="/" replace />;
     }
     return children;
 };
 
-// 🔒 3. สำหรับหน้าบ้าน: Admin "ห้ามเข้า" (ยกเว้น Profile และ Home)
+// 🔒 3. สำหรับหน้า User เท่านั้น: Admin ห้ามเข้า
 const ProtectedUserRoute = ({ children }) => {
     const user = JSON.parse(localStorage.getItem("user"));
-    
     if (user?.role === 'admin') {
         return <Navigate to="/admin" replace />;
     }
@@ -52,22 +59,15 @@ const router = createBrowserRouter([
         path: "/", 
         element: <Layout />,
         children: [
-            // --- หน้าสาธารณะ ---
-            { index: true, element: <Home /> },
-            { path: "place/:id", element: <PlaceDetail /> },
-            { path: "profile", element: <Profile /> }, // ทั้ง Admin และ User เข้าได้
-
-            // --- หน้า Login/Register (ถ้า Login แล้วจะเข้าไม่ได้) ---
-            { path: "login", element: <AuthRoute><Login /></AuthRoute> },
-            { path: "register", element: <AuthRoute><Register /></AuthRoute> },
-
-            // --- หน้าบ้านสำหรับ User (Admin ห้ามเข้า) ---
+            { index: true, element: <ProtectedUserRoute><Home /></ProtectedUserRoute> },
             { path: "guide", element: <ProtectedUserRoute><GuidePage /></ProtectedUserRoute> },
             { path: "contact", element: <ProtectedUserRoute><ContactPage /></ProtectedUserRoute> },
             { path: "favorites", element: <ProtectedUserRoute><Favorites /></ProtectedUserRoute> },
             { path: "history", element: <ProtectedUserRoute><History /></ProtectedUserRoute> },
-            
-            // --- หน้าระบบ Admin (User ห้ามเข้า) ---
+            { path: "place/:id", element: <ProtectedUserRoute><PlaceDetail /></ProtectedUserRoute> },
+            { path: "profile", element: <Profile /> }, 
+            { path: "login", element: <AuthRoute><Login /></AuthRoute> },
+            { path: "register", element: <AuthRoute><Register /></AuthRoute> },
             { 
                 path: "admin", 
                 element: <ProtectedAdminRoute><AdminDashboard /></ProtectedAdminRoute> 
@@ -83,9 +83,14 @@ const router = createBrowserRouter([
             { 
                 path: "admin/messages", 
                 element: <ProtectedAdminRoute><AdminMessages /></ProtectedAdminRoute> 
+            },
+            { 
+                path: "admin/profile", 
+                element: <ProtectedAdminRoute><AdminProfile /></ProtectedAdminRoute> 
             }
         ]
     },
+    { path: "*", element: <Navigate to="/" replace /> }
 ]);
     
 export default function Routers() {

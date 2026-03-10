@@ -9,19 +9,41 @@ export default function AdminDashboard({ setTab }) {
   const [stats, setStats] = useState({ users: 0, places: 0, contacts: 0 });
   const [loading, setLoading] = useState(true);
 
+  // ✅ ฟังก์ชันช่วยดึง Token จาก Cookie
+  const getTokenFromCookie = () => {
+    return document.cookie
+      .split("; ")
+      .find((row) => row.startsWith("token="))
+      ?.split("=")[1];
+  };
+
   useEffect(() => {
-    // ดึงข้อมูลแอดมินจาก LocalStorage
+    // ดึงข้อมูลแอดมินจาก LocalStorage (ส่วนข้อมูลโปรไฟล์ยังอยู่ในนี้ได้)
     const user = JSON.parse(localStorage.getItem("user"));
-    const token = localStorage.getItem("token");
+    
+    // ✅ แก้ไข: ดึง token จาก Cookie แทน localStorage
+    const token = getTokenFromCookie();
+
     if (user) setAdminData(user);
+    
+    // เรียกฟังก์ชันดึงสถิติโดยใช้ token จาก cookie
     fetchDashboardStats(token);
   }, []);
 
   const fetchDashboardStats = async (token) => {
+    if (!token) {
+      console.error("No token found in cookies");
+      setLoading(false);
+      return;
+    }
+
     try {
-      // ใช้ Base URL เดียวกับระบบจัดการสมาชิก
       const baseUrl = "https://moodlocationfinder-backend.onrender.com/api/v1";
-      const config = { headers: { Authorization: `Bearer ${token}` } };
+      const config = { 
+        headers: { 
+          Authorization: `Bearer ${token}` 
+        } 
+      };
       
       const [resUsers, resPlaces] = await Promise.all([
         axios.get(`${baseUrl}/admin/users`, config),
@@ -31,7 +53,7 @@ export default function AdminDashboard({ setTab }) {
       setStats({
         users: resUsers.data.count || resUsers.data.length || 0,
         places: resPlaces.data.count || resPlaces.data.length || 0,
-        contacts: 0 // จะถูกอัปเดตแบบ Real-time จาก Socket ในไฟล์หลัก
+        contacts: 0 
       });
     } catch (error) { 
       console.error("Error fetching stats:", error); 
@@ -40,7 +62,6 @@ export default function AdminDashboard({ setTab }) {
     }
   };
 
-  // ฟังก์ชันสลับหน้า Tab (ใช้ฟังก์ชันที่ส่งมาจาก Admin.jsx)
   const handleTabChange = (target) => {
     if (typeof setTab === 'function') {
       setTab(target);
@@ -72,9 +93,8 @@ export default function AdminDashboard({ setTab }) {
             {stats.contacts > 0 && <span className="absolute top-3 right-3 w-3 h-3 bg-red-500 border-2 border-white rounded-full animate-pulse"></span>}
           </div>
 
-          {/* ✨ ปรับปรุง: ครอบรูปภาพด้วย Link เพื่อไปหน้าแก้ไขโปรไฟล์ */}
           <Link 
-            to="/profile" 
+            to="/admin/profile" 
             title="แก้ไขโปรไฟล์"
             className="relative group cursor-pointer active:scale-95 transition-all"
           >
@@ -83,7 +103,6 @@ export default function AdminDashboard({ setTab }) {
               className="w-16 h-16 rounded-[1.5rem] border-4 border-white shadow-xl object-cover group-hover:border-[#FF8E6E] transition-all" 
               alt="profile"
             />
-            {/* Overlay แสดงสถานะว่าคลิกได้เมื่อ Hover */}
             <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 rounded-[1.5rem] transition-opacity flex items-center justify-center">
                <span className="text-[10px] text-white font-black uppercase tracking-tighter bg-[#FF8E6E] px-2 py-0.5 rounded-lg shadow-sm">Edit</span>
             </div>
@@ -112,7 +131,6 @@ export default function AdminDashboard({ setTab }) {
         </div>
       </div>
 
-      {/* Connection Status Card */}
       <div className="bg-white rounded-[3.5rem] p-10 shadow-sm border border-white">
         <div className="flex items-center gap-8 p-8 bg-[#FDF8F1] rounded-[2.5rem] border border-[#EFE9D9]">
           <div className="relative">

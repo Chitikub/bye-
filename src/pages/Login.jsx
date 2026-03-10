@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { Eye, EyeOff, ArrowLeft, User, Mail, Lock, UserCircle } from "lucide-react";
 import Swal from 'sweetalert2';
 import axios from "axios";
+import Cookies from 'js-cookie';
 
 export default function AuthPage() {
   const navigate = useNavigate();
@@ -56,25 +57,24 @@ export default function AuthPage() {
       const baseUrl = "https://moodlocationfinder-backend.onrender.com/api/v1";
       const endpoint = isLogin ? '/auth/login' : '/auth/register';
       
-      // ✨ แก้ไขตรงนี้: ถ้าเป็น Login ให้ส่งเฉพาะ email และ password เท่านั้น
       const payload = isLogin 
         ? { email: form.email, password: form.password } 
         : form;
 
-      console.log("ยิงไปที่:", endpoint, "ข้อมูลที่ส่ง:", payload); // เอาไว้เช็คใน Console
-
       const response = await axios.post(`${baseUrl}${endpoint}`, payload);
 
       if (response.data) {
-        // เก็บ Token
+        // ✨ ส่วนสำคัญ: เก็บ Token ลงใน Cookies แทน localStorage
         if (response.data.token) {
-          localStorage.setItem('token', response.data.token);
+          // เก็บไว้ 1 วัน และตั้ง path เป็น / เพื่อให้เข้าถึงได้ทั้งเว็บ
+          Cookies.set('token', response.data.token, { expires: 1, path: '/' });
         }
         
-        // เก็บข้อมูล User
+        // เก็บข้อมูล User พื้นฐานลง localStorage (เพื่อใช้แสดงชื่อ/รูปใน UI)
         const userData = response.data.user || response.data;
         localStorage.setItem('user', JSON.stringify(userData));
 
+        // แจ้งเตือน Navbar ให้เปลี่ยนสถานะ
         window.dispatchEvent(new Event("authChange"));
 
         await Swal.fire({
@@ -88,6 +88,7 @@ export default function AuthPage() {
         if (!isLogin) {
           handleNavigation('/login');
         } else {
+          // ตรวจสอบสิทธิ์ Admin เพื่อแยกหน้า Redirect
           if (userData.role === 'admin') {
             navigate('/admin');
           } else {
@@ -96,12 +97,11 @@ export default function AuthPage() {
         }
       }
     } catch (error) {
-      console.error("Login Error Detail:", error.response?.data);
+      console.error("Auth Error:", error.response?.data);
       Swal.fire({
         icon: 'error',
-        title: 'เข้าสู่ระบบไม่สำเร็จ',
-        // ✨ โชว์ข้อความจาก Backend จริงๆ
-        text: error.response?.data?.message || 'อีเมลหรือรหัสผ่านไม่ถูกต้อง',
+        title: isLogin ? 'เข้าสู่ระบบไม่สำเร็จ' : 'สมัครสมาชิกไม่สำเร็จ',
+        text: error.response?.data?.message || 'ข้อมูลไม่ถูกต้องหรือเซิร์ฟเวอร์ขัดข้อง',
         customClass: { popup: 'rounded-[30px]' }
       });
     } finally {
@@ -123,7 +123,7 @@ export default function AuthPage() {
 
       <div className={`w-full max-w-lg relative z-10 transition-all duration-500 transform ${isVisible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-10 scale-95'}`}>
         
-        <button onClick={() => navigate(-1)} style={{ fontSize: '18px' }} className="mb-6 flex items-center gap-2 text-gray-500 hover:text-[#FF7F67] transition-colors font-medium group">
+        <button onClick={() => navigate(-1)} className="mb-6 flex items-center gap-2 text-gray-500 hover:text-[#FF7F67] transition-colors font-medium group">
           <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" /> ย้อนกลับ
         </button>
 
@@ -136,7 +136,6 @@ export default function AuthPage() {
             <button 
               type="button"
               onClick={() => handleNavigation('/login')}
-              style={{ fontSize: '16px' }}
               className={`relative flex-1 h-full font-bold z-10 transition-colors duration-300 ${isLogin ? 'text-white' : 'text-gray-400'}`}
             >
               เข้าสู่ระบบ
@@ -144,7 +143,6 @@ export default function AuthPage() {
             <button 
               type="button"
               onClick={() => handleNavigation('/register')}
-              style={{ fontSize: '16px' }}
               className={`relative flex-1 h-full font-bold z-10 transition-colors duration-300 ${!isLogin ? 'text-white' : 'text-gray-400'}`}
             >
               สมัครสมาชิก
@@ -152,45 +150,45 @@ export default function AuthPage() {
           </div>
 
           <div className="text-center mb-8">
-            <h1 style={{ fontSize: '32px' }} className="font-black text-[#4A453A] leading-tight">
+            <h1 className="text-3xl font-black text-[#4A453A] leading-tight">
               {isLogin ? 'ยินดีต้อนรับกลับมา' : 'สร้างบัญชีใหม่'}
             </h1>
-            <p style={{ fontSize: '16px' }} className="text-gray-500 mt-2">เริ่มต้นการเดินทางไปกับ MoodPlace</p>
+            <p className="text-gray-500 mt-2">เริ่มต้นการเดินทางไปกับ MoodPlace</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {!isLogin && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 duration-500">
                 <div className="space-y-1.5">
-                  <label style={{ fontSize: '16px' }} className="font-bold text-[#475569] ml-1">ชื่อ</label>
+                  <label className="text-sm font-bold text-[#475569] ml-1">ชื่อ</label>
                   <div className={inputWrapperClass("firstName")}>
                     <User className="w-4 h-4 text-gray-400" />
-                    <input style={{ fontSize: '18px' }} type="text" placeholder="ชื่อจริง" className="bg-transparent outline-none w-full text-[#4A453A] font-medium" value={form.firstName} onChange={(e) => setForm({...form, firstName: e.target.value})} />
+                    <input type="text" placeholder="ชื่อจริง" className="bg-transparent outline-none w-full text-[#4A453A] font-medium" value={form.firstName} onChange={(e) => setForm({...form, firstName: e.target.value})} />
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <label style={{ fontSize: '16px' }} className="font-bold text-[#475569] ml-1">นามสกุล</label>
+                  <label className="text-sm font-bold text-[#475569] ml-1">นามสกุล</label>
                   <div className={inputWrapperClass("lastName")}>
                     <UserCircle className="w-4 h-4 text-gray-400" />
-                    <input style={{ fontSize: '18px' }} type="text" placeholder="นามสกุล" className="bg-transparent outline-none w-full text-[#4A453A] font-medium" value={form.lastName} onChange={(e) => setForm({...form, lastName: e.target.value})} />
+                    <input type="text" placeholder="นามสกุล" className="bg-transparent outline-none w-full text-[#4A453A] font-medium" value={form.lastName} onChange={(e) => setForm({...form, lastName: e.target.value})} />
                   </div>
                 </div>
               </div>
             )}
 
             <div className="space-y-1.5">
-              <label style={{ fontSize: '16px' }} className="font-bold text-[#475569] ml-1">อีเมล</label>
+              <label className="text-sm font-bold text-[#475569] ml-1">อีเมล</label>
               <div className={inputWrapperClass("email")}>
                 <Mail className="w-4 h-4 text-gray-400" />
-                <input style={{ fontSize: '18px' }} type="email" placeholder="your@email.com" className="bg-transparent outline-none w-full text-[#4A453A] font-medium" value={form.email} onChange={(e) => setForm({...form, email: e.target.value})} />
+                <input type="email" placeholder="your@email.com" className="bg-transparent outline-none w-full text-[#4A453A] font-medium" value={form.email} onChange={(e) => setForm({...form, email: e.target.value})} />
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <label style={{ fontSize: '16px' }} className="font-bold text-[#475569] ml-1">รหัสผ่าน</label>
+              <label className="text-sm font-bold text-[#475569] ml-1">รหัสผ่าน</label>
               <div className={inputWrapperClass("password")}>
                 <Lock className="w-4 h-4 text-gray-400" />
-                <input style={{ fontSize: '18px' }} type={showPassword ? "text" : "password"} placeholder="รหัสผ่านของคุณ" className="bg-transparent outline-none w-full text-[#4A453A] font-medium" value={form.password} onChange={(e) => setForm({...form, password: e.target.value})} />
+                <input type={showPassword ? "text" : "password"} placeholder="รหัสผ่านของคุณ" className="bg-transparent outline-none w-full text-[#4A453A] font-medium" value={form.password} onChange={(e) => setForm({...form, password: e.target.value})} />
                 <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-gray-400 hover:text-[#FF7F67]">
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -199,11 +197,11 @@ export default function AuthPage() {
 
             {!isLogin && (
               <div className="space-y-3 animate-in fade-in duration-700">
-                <label style={{ fontSize: '16px' }} className="font-bold text-[#475569] ml-1">เพศ</label>
+                <label className="text-sm font-bold text-[#475569] ml-1">เพศ</label>
                 <div className="relative flex bg-gray-100 p-1 rounded-2xl h-11 items-center">
                   <div className={`absolute top-1 bottom-1 transition-all duration-500 rounded-xl z-0 ${form.gender === 'male' ? 'left-1 w-[32%] bg-blue-500' : form.gender === 'female' ? 'left-[34%] w-[32%] bg-pink-500' : form.gender === 'other' ? 'left-[67%] w-[32%] bg-purple-500' : 'opacity-0'}`} />
                   {['male', 'female', 'other'].map((g) => (
-                    <button key={g} type="button" onClick={() => setForm({...form, gender: g})} style={{ fontSize: '16px' }} className={`relative flex-1 h-full font-bold z-10 transition-colors ${form.gender === g ? 'text-white' : 'text-gray-400'}`}>
+                    <button key={g} type="button" onClick={() => setForm({...form, gender: g})} className={`relative flex-1 h-full font-bold z-10 transition-colors ${form.gender === g ? 'text-white' : 'text-gray-400'}`}>
                       {g === 'male' ? 'ชาย' : g === 'female' ? 'หญิง' : 'อื่นๆ'}
                     </button>
                   ))}
@@ -213,7 +211,6 @@ export default function AuthPage() {
 
             <button 
               className="w-full h-14 rounded-2xl font-bold bg-gradient-to-r from-[#FF7F67] to-[#FFB385] text-white shadow-lg shadow-[#FF7F67]/30 hover:scale-[1.02] hover:shadow-xl active:scale-95 transition-all mt-6" 
-              style={{ fontSize: '18px' }}
               type="submit" 
               disabled={submitting}
             >

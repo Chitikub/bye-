@@ -55,7 +55,14 @@ export default function Header() {
       background: colors.warmCream, 
     }).then((res) => {
       if (res.isConfirmed) {
+        // 1. ลบ Token ใน Cookies (สำคัญมาก!)
+        // กำหนดให้ expires เป็นวันที่ในอดีต เพื่อให้ browser ลบทิ้งทันที
+        document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+
+        // 2. ล้างข้อมูลใน LocalStorage (สำหรับข้อมูล user)
         localStorage.clear();
+        
+        // 3. อัปเดต State และนำทาง
         setUser(null);
         setIsProfileOpen(false);
         window.dispatchEvent(new Event("authChange"));

@@ -2,23 +2,28 @@
 import { Outlet, useLocation } from "react-router-dom";
 import Footer from "./Footer";
 import Header from "./Header";
+import AdminSidebar from "./AdminSidebar"; // ✨ Import Sidebar มาใช้
 
 function Layout() {
     const location = useLocation();
-
-    // 🚫 ตรวจสอบว่าเส้นทางปัจจุบันขึ้นต้นด้วย /admin หรือไม่
     const isAdminPage = location.pathname.startsWith('/admin');
 
     return (
         <div className="flex flex-col min-h-screen">
-            {/* แสดง Header เฉพาะเมื่อไม่ใช่หน้า Admin */}
+            {/* 1. แสดง Header เฉพาะหน้าบ้านปกติ */}
             {!isAdminPage && <Header />}
             
-            <main className={`flex-grow ${!isAdminPage ? 'container mx-auto p-4' : ''}`}>
-                <Outlet />
-            </main>
+            <div className={isAdminPage ? "flex flex-1" : "flex flex-col flex-grow"}>
+                {/* 2. แสดง Sidebar เฉพาะหน้าแอดมิน (อยู่ซ้ายมือ) */}
+                {isAdminPage && <AdminSidebar />}
+
+                {/* 3. ส่วนเนื้อหาหลัก */}
+                <main className={`flex-grow ${!isAdminPage ? 'container mx-auto p-4' : 'w-full bg-[#FDF8F1]'}`}>
+                    <Outlet />
+                </main>
+            </div>
             
-            {/* แสดง Footer เฉพาะเมื่อไม่ใช่หน้า Admin */}
+            {/* 4. แสดง Footer เฉพาะหน้าบ้านปกติ */}
             {!isAdminPage && <Footer />}
         </div>
     );
