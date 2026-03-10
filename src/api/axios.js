@@ -1,23 +1,22 @@
 import axios from 'axios';
-import Cookies from 'js-cookie';
 
 const api = axios.create({
-  // ใช้ URL จาก env หรือใส่ตรงๆ ตามที่คุณระบุในไฟล์อื่น
-  baseURL: import.meta.env.VITE_API_BASE_URL || "https://moodlocationfinder-backend.onrender.com/api/v1",
+  // ดึงค่าจาก Environment Variable (VITE_API_BASE_URL) และเติม /api/v1 ต่อท้ายอัตโนมัติ
+  baseURL: (import.meta.env.VITE_API_BASE_URL || "https://moodlocationfinder-backend.onrender.com") + "/api/v1",
   withCredentials: true, 
   headers: {
     'Content-Type': 'application/json'
   }
 });
 
-// ✨ เพิ่ม Interceptor เพื่อส่ง Token ไปกับทุก Request
+// ✨ เพิ่ม Interceptor เพื่อส่ง Token ไปกับทุก Request ผ่าน LocalStorage
 api.interceptors.request.use(
   (config) => {
-    // ดึง token จาก cookie ชื่อ 'token'
-    const token = Cookies.get('token');
+    // เปลี่ยนจาก Cookies มาใช้ localStorage เพื่อความชัวร์เมื่อใช้งานบน Vercel
+    const token = localStorage.getItem('token');
     
     if (token) {
-      // แนบไปใน Header ตามที่ Backend ต้องการ (Bearer Token)
+      // แนบ Bearer Token ไปใน Header
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
@@ -32,9 +31,11 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
-      // ถ้า Token หมดอายุ ให้ลบ Cookie และเด้งไปหน้า Login
-      Cookies.remove('token');
+      // ถ้า Token หมดอายุ ให้ล้างค่าในเครื่อง
+      localStorage.removeItem('token');
       localStorage.removeItem('user');
+      
+      // เลือกเปิดใช้งานบรรทัดล่างนี้หากต้องการให้เด้งไปหน้า Login ทันที
       // window.location.href = '/login'; 
     }
     return Promise.reject(error);
