@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { User, Mail, Camera, ArrowLeft, Save, Lock, Eye, EyeOff, ShieldCheck } from "lucide-react";
-// 🌟 เปลี่ยนจาก import axios เป็น import api จากไฟล์ที่เราตั้งค่าไว้
+// 🌟 นำเข้า api ที่ตั้งค่า Interceptor ไว้แล้ว
 import api from "@/api/axios"; 
 import Swal from "sweetalert2";
 
@@ -43,7 +43,7 @@ export default function Profile() {
     Swal.fire({ icon: 'success', title: 'อัปเดตข้อมูลเรียบร้อย!', timer: 1500, showConfirmButton: false, customClass: { popup: 'rounded-[30px]' } });
   };
 
-  // 🌟 ฟังก์ชันอัปเดตรหัสผ่านที่แก้ไขแล้ว
+  // 🌟 ฟังก์ชันอัปเดตรหัสผ่านที่เชื่อมต่อกับ Backend
   const handleUpdatePassword = async (e) => {
     e.preventDefault();
     if (passwords.newPassword !== passwords.confirmPassword) {
@@ -51,7 +51,7 @@ export default function Profile() {
     }
 
     try {
-      // 🌟 ใช้ api.put แทน axios.put (ไม่ต้องใส่ URL เต็ม และไม่ต้องแนบ Headers เองแล้ว)
+      // 🌟 ใช้ api.put (Interceptor จะจัดการแนบ Bearer Token ให้อัตโนมัติจาก localStorage)
       const payload = {
         currentPassword: passwords.oldPassword,
         newPassword: passwords.newPassword
@@ -63,7 +63,6 @@ export default function Profile() {
       setPasswords({ oldPassword: "", newPassword: "", confirmPassword: "" });
       setIsPasswordMode(false);
     } catch (err) {
-      // ดึง Error จาก Backend มาโชว์
       const errorMsg = err.response?.data?.message || 'ข้อมูลไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง';
       
       if (err.response?.status === 401) {

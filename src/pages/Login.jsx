@@ -4,7 +4,6 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { Eye, EyeOff, ArrowLeft, User, Mail, Lock, UserCircle } from "lucide-react";
 import Swal from 'sweetalert2';
 import axios from "axios";
-import Cookies from 'js-cookie';
 
 export default function AuthPage() {
   const navigate = useNavigate();
@@ -64,13 +63,12 @@ export default function AuthPage() {
       const response = await axios.post(`${baseUrl}${endpoint}`, payload);
 
       if (response.data) {
-        // ✨ ส่วนสำคัญ: เก็บ Token ลงใน Cookies แทน localStorage
+        // ✨ จุดที่แก้ไข: เก็บ Token ลงใน localStorage ตามที่ axios.js ของคุณเรียกใช้
         if (response.data.token) {
-          // เก็บไว้ 1 วัน และตั้ง path เป็น / เพื่อให้เข้าถึงได้ทั้งเว็บ
-          Cookies.set('token', response.data.token, { expires: 1, path: '/' });
+          localStorage.setItem('token', response.data.token);
         }
         
-        // เก็บข้อมูล User พื้นฐานลง localStorage (เพื่อใช้แสดงชื่อ/รูปใน UI)
+        // เก็บข้อมูล User ลง localStorage
         const userData = response.data.user || response.data;
         localStorage.setItem('user', JSON.stringify(userData));
 
