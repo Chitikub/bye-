@@ -34,9 +34,7 @@ api.interceptors.response.use(
       // ถ้า Token หมดอายุ ให้ล้างค่าในเครื่อง
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      
-      // เลือกเปิดใช้งานบรรทัดล่างนี้หากต้องการให้เด้งไปหน้า Login ทันที
-      // window.location.href = '/login'; 
+
     }
     return Promise.reject(error);
   }
