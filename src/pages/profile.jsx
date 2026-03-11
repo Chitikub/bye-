@@ -2,7 +2,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { User, Mail, Camera, ArrowLeft, Save, Lock, Eye, EyeOff, ShieldCheck } from "lucide-react";
-import axios from "axios";
+// 🌟 เปลี่ยนจาก import axios เป็น import api จากไฟล์ที่เราตั้งค่าไว้
+import api from "@/api/axios"; 
 import Swal from "sweetalert2";
 
 export default function Profile() {
@@ -42,7 +43,7 @@ export default function Profile() {
     Swal.fire({ icon: 'success', title: 'อัปเดตข้อมูลเรียบร้อย!', timer: 1500, showConfirmButton: false, customClass: { popup: 'rounded-[30px]' } });
   };
 
-  // ✨ 2. ฟังก์ชันอัปเดตรหัสผ่าน (แก้ไขชื่อ Key ให้ตรงตาม Postman)
+  // 🌟 ฟังก์ชันอัปเดตรหัสผ่านที่แก้ไขแล้ว
   const handleUpdatePassword = async (e) => {
     e.preventDefault();
     if (passwords.newPassword !== passwords.confirmPassword) {
@@ -50,26 +51,27 @@ export default function Profile() {
     }
 
     try {
-      const token = localStorage.getItem("token");
-      const baseUrl = "https://moodlocationfinder-backend.onrender.com/api/v1";
-      
-      // ✨ แก้ไขจาก oldPassword เป็น currentPassword ตามที่ Backend ต้องการ
+      // 🌟 ใช้ api.put แทน axios.put (ไม่ต้องใส่ URL เต็ม และไม่ต้องแนบ Headers เองแล้ว)
       const payload = {
         currentPassword: passwords.oldPassword,
         newPassword: passwords.newPassword
       };
 
-      await axios.put(`${baseUrl}/users/change-password`, payload, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.put("/users/change-password", payload);
 
       Swal.fire({ icon: 'success', title: 'เปลี่ยนรหัสผ่านสำเร็จ!', showConfirmButton: false, timer: 1500 });
       setPasswords({ oldPassword: "", newPassword: "", confirmPassword: "" });
       setIsPasswordMode(false);
     } catch (err) {
-      // ดึง Error จาก Backend มาโชว์ (เช่น "รหัสผ่านเดิมไม่ถูกต้อง")
+      // ดึง Error จาก Backend มาโชว์
       const errorMsg = err.response?.data?.message || 'ข้อมูลไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง';
-      Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: errorMsg });
+      
+      if (err.response?.status === 401) {
+        Swal.fire({ icon: 'error', title: 'เซสชั่นหมดอายุ', text: 'กรุณาเข้าสู่ระบบใหม่อีกครั้ง' });
+        navigate('/login');
+      } else {
+        Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: errorMsg });
+      }
     }
   };
 
