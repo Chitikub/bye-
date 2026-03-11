@@ -1,9 +1,12 @@
 import axios from 'axios';
 import Cookies from 'js-cookie';
+export const IMAGE_BASE_URL = "https://moodlocationfinder-backend.onrender.com";
 
 const api = axios.create({
+  
   // ใช้ URL จาก env หรือใส่ตรงๆ ตามที่คุณระบุในไฟล์อื่น
   baseURL: import.meta.env.VITE_API_BASE_URL || "https://moodlocationfinder-backend.onrender.com/api/v1",
+
   withCredentials: true, 
   headers: {
     'Content-Type': 'application/json'

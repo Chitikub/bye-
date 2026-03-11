@@ -30,6 +30,16 @@ export default function UserActivityPage() {
     fetchData();
   }, [location.pathname]);
 
+const toggleFavorite = async () => {
+  try {
+    await api.post("/favorites/toggle", { placeId: id });
+    setIsFavorite(!isFavorite);
+    // แจ้งเตือนความสำเร็จ
+  } catch (err) {
+    Swal.fire("กรุณาเข้าสู่ระบบ", "เพื่อบันทึกสถานที่โปรด", "warning");
+  }
+};
+
   const fetchData = () => {
     const storageKey = isFavoritePage ? "user_favorites" : "navigation_history";
     const storedData = localStorage.getItem(storageKey);

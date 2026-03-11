@@ -1,9 +1,10 @@
 'use client';
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { MapPin, ArrowLeft, Star, Heart, Share2, Navigation, MessageCircle, Send } from "lucide-react";
-import api from "@/api/axios";
+import { MapPin, ArrowLeft, Star, Heart, Share2, Navigation, MessageCircle, Send, AlertCircle } from "lucide-react";
+import api, { IMAGE_BASE_URL } from "@/api/axios"; 
 import Swal from "sweetalert2";
+import Cookies from 'js-cookie';
 
 export default function PlaceDetail() {
   const { id } = useParams(); 
@@ -18,22 +19,33 @@ export default function PlaceDetail() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const getToken = () => {
-    return document.cookie.split("; ").find(row => row.startsWith("token="))?.split("=")[1];
+    return Cookies.get('token');
   };
 
   const fetchData = async () => {
     try {
+      setLoading(true);
+      // 1. ดึงข้อมูลสถานที่จาก API
       const placeRes = await api.get(`/places/${id}`);
       const placeData = placeRes.data.place || placeRes.data;
       setPlace(placeData);
 
+      // 2. ดึงรีวิวจาก Database จริง
       const reviewRes = await api.get(`/reviews/place/${id}`);
       setReviews(reviewRes.data.reviews || []);
 
-      const favorites = JSON.parse(localStorage.getItem("user_favorites") || "[]");
-      setIsFavorite(favorites.some(fav => fav.id === (placeData._id || placeData.id)));
+      // 3. ตรวจสอบสถานะ Favorite
+      try {
+        const favRes = await api.get(`/favorites/check/${id}`);
+        setIsFavorite(favRes.data.isFavorite);
+      } catch (err) {
+        // แผนสำรองเช็คจาก localStorage
+        const localFavs = JSON.parse(localStorage.getItem("user_favorites") || "[]");
+        setIsFavorite(localFavs.some(fav => String(fav.id) === String(id)));
+      }
     } catch (error) {
       console.error("Fetch Error:", error);
+      setPlace(null);
     } finally {
       setLoading(false);
     }
@@ -63,8 +75,6 @@ export default function PlaceDetail() {
         placeId: id,
         rating: userRating,
         comment: comment
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
       });
 
       Swal.fire({ title: "รีวิวสำเร็จ!", icon: "success", timer: 1500, showConfirmButton: false });
@@ -78,51 +88,37 @@ export default function PlaceDetail() {
     }
   };
 
-  const toggleFavorite = () => {
-    if (!place) return;
-    const favorites = JSON.parse(localStorage.getItem("user_favorites") || "[]");
-    const placeId = place._id || place.id;
-    let newFavorites = isFavorite ? favorites.filter(fav => fav.id !== placeId) : [{ id: placeId, ...place }, ...favorites];
-    localStorage.setItem("user_favorites", JSON.stringify(newFavorites));
-    setIsFavorite(!isFavorite);
-    window.dispatchEvent(new Event("authChange"));
+  const toggleFavorite = async () => {
+    try {
+      await api.post("/favorites/toggle", { placeId: id });
+      setIsFavorite(!isFavorite);
+      window.dispatchEvent(new Event("authChange"));
+    } catch (err) {
+      Swal.fire("กรุณาเข้าสู่ระบบ", "เพื่อบันทึกสถานที่โปรด", "warning");
+    }
   };
 
-  // 🌟 ฟังก์ชันเปิดลิงก์และบันทึกประวัติการนำทาง
   const handleOpenLink = () => {
     const targetUrl = place?.googleMapsUrl || place?.mapUrl;
     if (!targetUrl) return Swal.fire("ไม่พบลิงก์", "สถานที่นี้ยังไม่ได้ระบุพิกัด", "error");
 
     try {
-      // 1. ดึงประวัติเดิมจาก LocalStorage
       const history = JSON.parse(localStorage.getItem("navigation_history") || "[]");
       const placeId = place._id || place.id;
-      
-      // 2. สร้างข้อมูลที่จะบันทึก
       const newHistoryItem = {
         id: placeId,
         name: place.name,
         image: place.image,
         category: place.category,
-        description: place.description,
         googleMapsUrl: targetUrl,
-        date: new Date().toLocaleDateString('th-TH'), // บันทึกวันที่ปัจจุบัน
+        date: new Date().toLocaleDateString('th-TH'),
       };
-
-      // 3. กรองอันซ้ำออกและเอาอันล่าสุดไว้บนสุด
-      const filteredHistory = history.filter(item => item.id !== placeId);
-      const newHistory = [newHistoryItem, ...filteredHistory];
-
-      // 4. บันทึกลง LocalStorage
-      localStorage.setItem("navigation_history", JSON.stringify(newHistory));
-
-      // 5. แจ้งส่วนอื่นๆ ของแอปให้รับรู้การเปลี่ยนแปลง
+      const filteredHistory = history.filter(item => String(item.id) !== String(placeId));
+      localStorage.setItem("navigation_history", JSON.stringify([newHistoryItem, ...filteredHistory]));
       window.dispatchEvent(new Event("authChange"));
     } catch (err) {
       console.error("Save History Error:", err);
     }
-
-    // 6. เปิด Google Maps
     window.open(targetUrl, "_blank", "noopener,noreferrer");
   };
 
@@ -133,6 +129,19 @@ export default function PlaceDetail() {
       </div>
     </div>
   );
+
+  if (!place) return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[#FDF8F1] font-['Prompt'] text-center px-6">
+      <AlertCircle size={64} className="text-gray-300 mb-4" />
+      <h2 className="text-2xl font-black text-[#4A453A]">ไม่พบข้อมูลสถานที่</h2>
+      <button onClick={() => navigate('/')} className="mt-6 bg-[#4A453A] text-white px-8 py-3 rounded-2xl font-bold">กลับหน้าแรก</button>
+    </div>
+  );
+
+  // 🌟 จัดการ URL ของรูปภาพ
+  const displayImage = place.image?.startsWith('http') 
+    ? place.image 
+    : `${IMAGE_BASE_URL}${place.image}`;
 
   const mood = ((score) => {
     if (score >= 21) return { label: "มีความสุข", color: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-100" };
@@ -146,7 +155,7 @@ export default function PlaceDetail() {
     <div className="min-h-screen bg-[#FDF8F1] font-['Prompt'] text-[#4A453A] pb-20 pt-10">
       <div className="container mx-auto px-5">
         <div className="relative h-[45vh] md:h-[60vh] w-full overflow-hidden rounded-[3rem] shadow-2xl">
-          <img src={place.image} className="w-full h-full object-cover" alt={place.name} />
+          <img src={displayImage} className="w-full h-full object-cover" alt={place.name} />
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
           <div className="absolute top-6 left-6 right-6 flex justify-between items-center z-20">
             <button onClick={() => navigate(-1)} className="p-4 bg-white/90 backdrop-blur-md rounded-2xl shadow-xl hover:bg-[#FF8E6E] hover:text-white transition-all"><ArrowLeft size={24} /></button>
@@ -156,14 +165,13 @@ export default function PlaceDetail() {
       </div>
 
       <div className="container mx-auto px-5 -mt-20 relative z-30 space-y-8 max-w-6xl">
-        <div className="bg-white/95 backdrop-blur-2xl rounded-[3rem] p-8 md:p-12 shadow-[0_20px_50px_rgba(74,69,58,0.1)] border border-white">
+        <div className="bg-white/95 backdrop-blur-2xl rounded-[3rem] p-8 md:p-12 shadow-lg border border-white">
           <div className="flex flex-col md:flex-row justify-between items-start gap-8">
             <div className="flex-1">
               <div className={`inline-flex items-center px-4 py-1.5 rounded-2xl border ${mood.border} ${mood.bg} ${mood.color} text-sm font-bold mb-5 shadow-sm`}>✨ เหมาะสำหรับอารมณ์{mood.label}</div>
               <h1 className="text-4xl md:text-6xl font-black text-[#2D2A26] mb-4 leading-tight">{place.name}</h1>
               <div className="flex items-center gap-3 text-[#7E7869] font-medium bg-gray-50 px-4 py-2 rounded-2xl w-fit"><MapPin size={18} className="text-[#FF8E6E]" /><span>{place.category} • นครปฐม</span></div>
             </div>
-            
             <div className="flex flex-row md:flex-col items-center gap-4 bg-[#2D2A26] p-7 rounded-[2.5rem] text-white min-w-[160px] justify-center shadow-xl">
               <Star className="fill-[#FF8E6E] text-[#FF8E6E]" size={32} />
               <div className="text-center">

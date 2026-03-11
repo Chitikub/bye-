@@ -2,7 +2,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { User, Mail, Camera, ArrowLeft, Save, Lock, Eye, EyeOff, ShieldCheck } from "lucide-react";
-import axios from "axios";
+// 🌟 ใช้ api ที่ตั้งค่า baseURL และ Interceptor สำหรับ Token ไว้แล้ว
+import api, { IMAGE_BASE_URL } from "@/api/axios"; 
 import Swal from "sweetalert2";
 
 export default function Profile() {
@@ -13,6 +14,7 @@ export default function Profile() {
   const [isPasswordMode, setIsPasswordMode] = useState(false);
   const [passwords, setPasswords] = useState({ oldPassword: "", newPassword: "", confirmPassword: "" });
   const [showPass, setShowPass] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -23,26 +25,68 @@ export default function Profile() {
     }
   }, [navigate]);
 
+  // 🌟 ฟังก์ชันจัดการเลือกรูปภาพและแสดง Preview
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    
     const fileSizeInMB = file.size / (1024 * 1024);
     if (fileSizeInMB > 10) {
       Swal.fire({ icon: 'error', title: 'ไฟล์ใหญ่เกินไป!', text: 'กรุณาเลือกไฟล์ที่ไม่เกิน 10MB', confirmButtonColor: '#FF7F67' });
       return;
     }
+
     const reader = new FileReader();
-    reader.onloadend = () => setUser({ ...user, profileImage: reader.result });
+    reader.onloadend = () => {
+      // เก็บไฟล์จริงไว้ใน state เพื่อเตรียมส่งแบบ FormData
+      setUser({ ...user, profileImage: reader.result, imageFile: file });
+    };
     reader.readAsDataURL(file);
   };
 
-  const handleUpdateProfile = () => {
-    localStorage.setItem("user", JSON.stringify(user));
-    window.dispatchEvent(new Event("authChange"));
-    Swal.fire({ icon: 'success', title: 'อัปเดตข้อมูลเรียบร้อย!', timer: 1500, showConfirmButton: false, customClass: { popup: 'rounded-[30px]' } });
+  // 🌟 ฟังก์ชันอัปเดตข้อมูลส่วนตัวลง Database (PostgreSQL)
+  const handleUpdateProfile = async () => {
+    setLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append("firstName", user.firstName);
+      formData.append("lastName", user.lastName);
+      formData.append("gender", user.gender);
+      
+      // ถ้ามีการเลือกไฟล์รูปภาพใหม่ ให้แนบไปด้วย
+      if (user.imageFile) {
+        formData.append("profileImage", user.imageFile);
+      }
+
+      // ยิง API PUT /users/profile (ต้องส่งเป็น multipart/form-data สำหรับรูปภาพ)
+      const res = await api.put("/users/profile", formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+
+      // อัปเดตข้อมูลใน localStorage
+      const updatedUser = res.data.user || res.data;
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+      setUser(updatedUser);
+
+      // แจ้งเตือน Navbar/Header ให้เปลี่ยนรูปตาม
+      window.dispatchEvent(new Event("authChange"));
+
+      Swal.fire({ 
+        icon: 'success', 
+        title: 'อัปเดตข้อมูลเรียบร้อย!', 
+        timer: 1500, 
+        showConfirmButton: false, 
+        customClass: { popup: 'rounded-[30px]' } 
+      });
+    } catch (err) {
+      console.error("Update Error:", err);
+      Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: err.response?.data?.message || 'ไม่สามารถอัปเดตข้อมูลได้' });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // ✨ 2. ฟังก์ชันอัปเดตรหัสผ่าน (แก้ไขชื่อ Key ให้ตรงตาม Postman)
+  // 🌟 ฟังก์ชันอัปเดตรหัสผ่าน
   const handleUpdatePassword = async (e) => {
     e.preventDefault();
     if (passwords.newPassword !== passwords.confirmPassword) {
@@ -50,27 +94,29 @@ export default function Profile() {
     }
 
     try {
-      const token = localStorage.getItem("token");
-      const baseUrl = "https://moodlocationfinder-backend.onrender.com/api/v1";
-      
-      // ✨ แก้ไขจาก oldPassword เป็น currentPassword ตามที่ Backend ต้องการ
       const payload = {
         currentPassword: passwords.oldPassword,
         newPassword: passwords.newPassword
       };
 
-      await axios.put(`${baseUrl}/users/change-password`, payload, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      // ใช้ api instance ที่เราดึง token จาก localStorage ให้อัตโนมัติแล้ว
+      await api.put("/users/change-password", payload);
 
       Swal.fire({ icon: 'success', title: 'เปลี่ยนรหัสผ่านสำเร็จ!', showConfirmButton: false, timer: 1500 });
       setPasswords({ oldPassword: "", newPassword: "", confirmPassword: "" });
       setIsPasswordMode(false);
     } catch (err) {
-      // ดึง Error จาก Backend มาโชว์ (เช่น "รหัสผ่านเดิมไม่ถูกต้อง")
       const errorMsg = err.response?.data?.message || 'ข้อมูลไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง';
       Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: errorMsg });
     }
+  };
+
+  // จัดการการแสดงผลรูปโปรไฟล์
+  const getProfileImage = () => {
+    if (!user.profileImage) return `https://ui-avatars.com/api/?name=${user.firstName}&background=FF7F67&color=fff&size=200`;
+    if (user.profileImage.startsWith('data:')) return user.profileImage; // สำหรับ Preview
+    if (user.profileImage.startsWith('http')) return user.profileImage;
+    return `${IMAGE_BASE_URL}${user.profileImage}`; // สำหรับดึงจาก Backend
   };
 
   return (
@@ -95,8 +141,12 @@ export default function Profile() {
             <div className="bg-white p-8 rounded-[3rem] shadow-xl border border-white w-full flex flex-col items-center">
               <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
               <div className="relative group cursor-pointer mb-6" onClick={() => fileInputRef.current.click()}>
-                <div className="w-40 h-40 sm:w-48 sm:h-48 rounded-full border-[6px] border-[#FDF8F1] overflow-hidden shadow-xl">
-                  <img src={user.profileImage || `https://ui-avatars.com/api/?name=${user.firstName}&background=FF7F67&color=fff&size=200`} alt="Profile" className="w-full h-full object-cover transition-transform group-hover:scale-110 duration-500" />
+                <div className="w-40 h-40 sm:w-48 sm:h-48 rounded-full border-[6px] border-[#FDF8F1] overflow-hidden shadow-xl bg-gray-100">
+                  <img 
+                    src={getProfileImage()} 
+                    alt="Profile" 
+                    className="w-full h-full object-cover transition-transform group-hover:scale-110 duration-500" 
+                  />
                 </div>
                 <div className="absolute inset-0 rounded-full bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white"><Camera className="w-8 h-8" /></div>
               </div>
@@ -128,13 +178,25 @@ export default function Profile() {
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-bold text-[#4A453A] ml-1">เพศ</label>
-                    <select value={user.gender} onChange={(e) => setUser({...user, gender: e.target.value})} className="w-full bg-[#FDF8F1] px-5 py-4 rounded-2xl border-2 border-transparent focus-within:border-[#FF7F67]/30 outline-none text-[#4A453A] font-medium cursor-pointer"><option value="male">ชาย</option><option value="female">หญิง</option><option value="other">อื่นๆ</option></select>
+                    <select value={user.gender} onChange={(e) => setUser({...user, gender: e.target.value})} className="w-full bg-[#FDF8F1] px-5 py-4 rounded-2xl border-2 border-transparent focus-within:border-[#FF7F67]/30 outline-none text-[#4A453A] font-medium cursor-pointer">
+                      <option value="male">ชาย</option>
+                      <option value="female">หญิง</option>
+                      <option value="other">อื่นๆ</option>
+                    </select>
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-bold text-[#4A453A] ml-1">อีเมล (แก้ไขไม่ได้)</label>
                     <div className="flex items-center gap-3 bg-gray-50 px-5 py-4 rounded-2xl border-2 border-gray-100 opacity-70"><Mail className="w-5 h-5 text-gray-400" /><input type="email" value={user.email} className="bg-transparent outline-none w-full text-gray-500 font-medium" readOnly /></div>
                   </div>
-                  <div className="pt-4"><button onClick={handleUpdateProfile} className="w-full py-4 rounded-2xl font-bold bg-gradient-to-r from-[#FF8E6E] to-[#FFB385] text-white shadow-lg hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2"><Save className="w-5 h-5" /> บันทึกการเปลี่ยนแปลง</button></div>
+                  <div className="pt-4">
+                    <button 
+                      onClick={handleUpdateProfile} 
+                      disabled={loading}
+                      className="w-full py-4 rounded-2xl font-bold bg-gradient-to-r from-[#FF8E6E] to-[#FFB385] text-white shadow-lg hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      <Save className="w-5 h-5" /> {loading ? 'กำลังบันทึก...' : 'บันทึกการเปลี่ยนแปลง'}
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <form onSubmit={handleUpdatePassword} className="space-y-6 animate-in slide-in-from-right-4 duration-500">

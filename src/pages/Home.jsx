@@ -1,27 +1,39 @@
 'use client';
 import { Search } from "lucide-react";
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom"; // เพิ่ม useNavigate
+import { Link, useNavigate } from "react-router-dom";
 import heroBg from "@/assets/hero-bg.png";
 import MoodSelector from "@/components/MoodSelector";
 import PlaceCard from "@/components/PlaceCard";
-import api from "@/api/axios"; 
+import api, { IMAGE_BASE_URL } from "@/api/axios"; // 🌟 นำเข้า IMAGE_BASE_URL
 
 export default function Index() {
   const [searchQuery, setSearchQuery] = useState("");
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [places, setPlaces] = useState([]);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate(); // สร้างตัวแปร navigate
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchPlaces = async () => {
       try {
-        const response = await api.get("https://moodlocationfinder-backend.onrender.com/api/v1/places");
+        // ใช้ api instance ที่เราตั้งค่าไว้
+        const response = await api.get("/places"); 
+        
         const data = Array.isArray(response.data) 
           ? response.data 
           : (response.data.places || []);
-        setPlaces(data);
+        
+        // 🌟 ปรับแต่ง URL รูปภาพก่อนนำไปใช้งาน
+        const formattedData = data.map(place => ({
+          ...place,
+          // ถ้า image ไม่ได้ขึ้นต้นด้วย http ให้เอา IMAGE_BASE_URL ไปต่อข้างหน้า
+          image: place.image?.startsWith('http') 
+            ? place.image 
+            : `${IMAGE_BASE_URL}${place.image}`
+        }));
+
+        setPlaces(formattedData);
       } catch (error) {
         console.error("เกิดข้อผิดพลาดในการดึงข้อมูล:", error);
         setPlaces([]);
@@ -32,9 +44,7 @@ export default function Index() {
     fetchPlaces();
   }, []);
 
-  // แก้ไขฟังก์ชันนี้: เมื่อกดเลือกอารมณ์ ให้เด้งไปหน้า filter ทันที
   const handleMoodSelect = (moodLabel) => {
-    // ส่งค่า moodLabel ไปทาง URL Query Parameter เช่น /filter?mood=เบื่อ
     navigate(`/filter?mood=${moodLabel}`);
   };
 
@@ -88,7 +98,7 @@ export default function Index() {
           </div>
         </section>
 
-        {/* ส่วนสถานที่ยอดนิยม (แสดงแบบสุ่มหรือทั้งหมด 4 อันแรก) */}
+        {/* ส่วนสถานที่ยอดนิยม */}
         <section>
           <div className="flex flex-col sm:flex-row justify-between items-center sm:items-end mb-8 sm:mb-12 text-center sm:text-left">
             <div className="mb-4 sm:mb-0">
