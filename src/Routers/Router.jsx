@@ -1,3 +1,4 @@
+'use client';
 import { createBrowserRouter, RouterProvider, Navigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import Login from "../pages/Login";
@@ -8,7 +9,7 @@ import ContactPage from "../pages/Contact";
 import Favorites from "../pages/favorites";
 import Profile from "../pages/profile";
 import History from "../pages/history";
-import PlaceDetail from "../pages/PlaceDetail"; // เก็บไว้ตัวเดียว
+import PlaceDetail from "../pages/PlaceDetail";
 import AdminDashboard from "../pages/admin/AdminDashboard";
 import AdminPlaces from "../pages/admin/AdminPlaces";
 import AdminUsers from "../pages/admin/AdminUsers";
@@ -17,17 +18,19 @@ import AdminProfile from "../pages/admin/AdminProfile";
 import AdminPlaceDetail from "../pages/admin/AdminPlaceDetail";
 import FilterPage from "../pages/FilterPage";
 
-// ฟังก์ชันช่วยดึง Token จาก Cookie
-const getTokenFromCookie = () => {
-    return document.cookie
+// 🌟 ฟังก์ชันดึง Token ที่ครอบคลุมทั้ง Cookie และ LocalStorage
+const getToken = () => {
+    const cookieToken = document.cookie
         .split("; ")
         .find((row) => row.startsWith("token="))
         ?.split("=")[1];
+    
+    return cookieToken || localStorage.getItem("token");
 };
 
-// 🔒 1. สำหรับหน้า Login/Register: ถ้ามี Token แล้ว ห้ามเข้าหน้า Login
+// 🔒 1. สำหรับหน้า Login/Register: ถ้ามี Token แล้ว ห้ามเข้าหน้า Login ให้ดีดไปตามยศ
 const AuthRoute = ({ children }) => {
-    const token = getTokenFromCookie();
+    const token = getToken();
     const user = JSON.parse(localStorage.getItem("user"));
     
     if (token && user) {
@@ -38,8 +41,8 @@ const AuthRoute = ({ children }) => {
 
 // 🔒 2. สำหรับหน้า Admin เท่านั้น
 const ProtectedAdminRoute = ({ children }) => {
+    const token = getToken();
     const user = JSON.parse(localStorage.getItem("user"));
-    const token = getTokenFromCookie();
     
     if (!token || user?.role !== 'admin') {
         return <Navigate to="/login" replace />;
@@ -47,10 +50,10 @@ const ProtectedAdminRoute = ({ children }) => {
     return children;
 };
 
-// 🔒 3. สำหรับหน้า User เท่านั้น (Admin ห้ามเข้า)
+// 🔒 3. สำหรับหน้า User เท่านั้น (Admin ห้ามเข้าหน้าบ้าน)
 const ProtectedUserRoute = ({ children }) => {
+    const token = getToken();
     const user = JSON.parse(localStorage.getItem("user"));
-    const token = getTokenFromCookie();
 
     if (token && user?.role === 'admin') {
         return <Navigate to="/admin" replace />;
@@ -63,7 +66,7 @@ const router = createBrowserRouter([
         path: "/", 
         element: <Layout />,
         children: [
-            // หน้าบ้าน: Admin เข้าไม่ได้
+            // หน้าบ้าน: Admin เข้าไม่ได้ (โดนดีดไป /admin)
             { index: true, element: <ProtectedUserRoute><Home /></ProtectedUserRoute> },
             { path: "guide", element: <ProtectedUserRoute><GuidePage /></ProtectedUserRoute> },
             { path: "contact", element: <ProtectedUserRoute><ContactPage /></ProtectedUserRoute> },
@@ -75,11 +78,11 @@ const router = createBrowserRouter([
             // หน้าที่เข้าได้ทั้งคู่
             { path: "profile", element: <Profile /> }, 
 
-            // หน้า Auth: Login แล้วห้ามเข้า
+            // หน้า Auth: Login แล้วห้ามเข้าหน้าพวกนี้ซ้ำ
             { path: "login", element: <AuthRoute><Login /></AuthRoute> },
             { path: "register", element: <AuthRoute><Register /></AuthRoute> },
             
-            // หน้าระบบ Admin: User ห้ามเข้า
+            // หน้าระบบ Admin: User ทั่วไปห้ามเข้า
             { 
                 path: "admin", 
                 element: <ProtectedAdminRoute><AdminDashboard /></ProtectedAdminRoute> 

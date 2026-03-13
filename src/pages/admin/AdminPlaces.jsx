@@ -7,14 +7,15 @@ import {
   Edit3,
   X,
   Save,
-  Image as ImageIcon,
+  ImageIcon,
   ExternalLink,
   AlignLeft,
   Star,
   MessageSquare,
   Sparkles,
+  AlertCircle
 } from "lucide-react";
-import axios from "axios";
+import api, { IMAGE_BASE_URL } from "@/api/axios"; // 🌟 ใช้ api instance และ IMAGE_BASE_URL
 import Swal from "sweetalert2";
 import { motion, AnimatePresence } from "framer-motion";
 import CategoryChip from "../../components/Category";
@@ -37,7 +38,7 @@ export default function AdminPlaces() {
     category: "",
     googleMapsUrl: "",
     rating: 0,
-    workshop: "", // 🌟 ช่อง Workshop ใหม่
+    workshop: "",
   });
 
   const categories = [
@@ -50,27 +51,12 @@ export default function AdminPlaces() {
     { name: "ร้านอาหาร", icon: "🍽️", baseScore: 21 },
   ];
 
-  const baseUrl = "https://moodlocationfinder-backend.onrender.com/api/v1";
-
-  const getTokenFromCookie = () => {
-    return document.cookie
-      .split("; ")
-      .find((row) => row.startsWith("token="))
-      ?.split("=")[1];
-  };
-
-  // 🌟 ฟังก์ชันคำนวณคะแนนแบบ Real-time เพื่อแสดงใน Modal
+  // ฟังก์ชันคำนวณคะแนนแบบ Real-time
   const calculateLiveScore = () => {
     const cat = categories.find((c) => c.name === formData.category);
     let base = cat ? cat.baseScore : 0;
     let bonus = 0;
-    
-    // โบนัส +2: ถ้ากรอกช่อง workshop หรือมีคำว่า workshop ในรายละเอียด
-    if (
-      formData.workshop?.trim() !== "" || 
-      formData.description?.toLowerCase().includes("workshop") || 
-      formData.description?.includes("กิจกรรม")
-    ) {
+    if (formData.workshop?.trim() !== "" || formData.description?.toLowerCase().includes("workshop")) {
       bonus = 2;
     }
     return { base, bonus, total: base + bonus };
@@ -78,13 +64,11 @@ export default function AdminPlaces() {
 
   const currentScores = calculateLiveScore();
 
+  // 🌟 ดึงข้อมูลจากฐานข้อมูลจริง
   const fetchPlaces = async () => {
     setLoading(true);
     try {
-      const token = getTokenFromCookie();
-      const response = await axios.get(`${baseUrl}/places`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await api.get("/places");
       const data = response.data.places || response.data;
 
       if (!Array.isArray(data)) {
@@ -92,13 +76,12 @@ export default function AdminPlaces() {
         return;
       }
 
+      // ดึง Rating จริงจาก Table Reviews มาเฉลี่ย
       const placesWithRatings = await Promise.all(
         data.map(async (place) => {
-          const placeId = place._id || place.id;
-          if (!placeId) return { ...place, realRating: "0.0", reviewCount: 0 };
-
+          const placeId = place.id || place._id;
           try {
-            const revRes = await axios.get(`${baseUrl}/reviews/place/${placeId}`);
+            const revRes = await api.get(`/reviews/place/${placeId}`);
             const revs = revRes.data.reviews || [];
             const avg = revs.length > 0 
               ? (revs.reduce((sum, r) => sum + r.rating, 0) / revs.length).toFixed(1)
@@ -118,44 +101,21 @@ export default function AdminPlaces() {
     }
   };
 
-  const handleShowReviews = async (place) => {
-    const placeId = place._id || place.id;
-    if (!placeId) return;
-    setCurrentPlaceName(place.name);
-    try {
-      const response = await axios.get(`${baseUrl}/reviews/place/${placeId}`);
-      setSelectedPlaceReviews(response.data.reviews || []);
-      setIsReviewModalOpen(true);
-    } catch (error) {
-      Swal.fire("ผิดพลาด", "ไม่สามารถดึงข้อมูลรีวิวได้", "error");
-    }
-  };
-
   useEffect(() => {
     fetchPlaces();
   }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const token = getTokenFromCookie();
-    const targetId = editingPlace?._id || editingPlace?.id;
-    
-    // 🌟 ใช้คะแนนที่คำนวณล่าสุดส่งไปที่ Backend
-    const finalData = {
-      ...formData,
-      rating: currentScores.total,
-    };
+    const targetId = editingPlace?.id || editingPlace?._id;
+    const finalData = { ...formData, rating: currentScores.total };
 
     try {
       if (editingPlace && targetId) {
-        await axios.put(`${baseUrl}/admin/places/${targetId}`, finalData, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        await api.put(`/admin/places/${targetId}`, finalData);
         Swal.fire({ title: "แก้ไขสำเร็จ!", icon: "success", timer: 1500, showConfirmButton: false });
       } else {
-        await axios.post(`${baseUrl}/admin/places`, finalData, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        await api.post("/admin/places", finalData);
         Swal.fire({ title: "เพิ่มสถานที่สำเร็จ!", icon: "success", timer: 1500, showConfirmButton: false });
       }
       setIsModalOpen(false);
@@ -166,7 +126,6 @@ export default function AdminPlaces() {
   };
 
   const handleDelete = (id, name) => {
-    if (!id) return;
     Swal.fire({
       title: "ยืนยันการลบ?",
       text: `ต้องการลบ "${name}" ใช่หรือไม่?`,
@@ -174,14 +133,10 @@ export default function AdminPlaces() {
       showCancelButton: true,
       confirmButtonColor: "#ef4444",
       confirmButtonText: "ลบข้อมูล",
-      background: "#FDF8F1",
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
-          const token = getTokenFromCookie();
-          await axios.delete(`${baseUrl}/admin/places/${id}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
+          await api.delete(`/admin/places/${id}`);
           Swal.fire({ title: "ลบเรียบร้อย!", icon: "success", timer: 1500, showConfirmButton: false });
           fetchPlaces();
         } catch (error) {
@@ -189,6 +144,18 @@ export default function AdminPlaces() {
         }
       }
     });
+  };
+
+  const handleShowReviews = async (place) => {
+    const placeId = place.id || place._id;
+    setCurrentPlaceName(place.name);
+    try {
+      const response = await api.get(`/reviews/place/${placeId}`);
+      setSelectedPlaceReviews(response.data.reviews || []);
+      setIsReviewModalOpen(true);
+    } catch (error) {
+      Swal.fire("ผิดพลาด", "ไม่สามารถดึงข้อมูลรีวิวได้", "error");
+    }
   };
 
   const handleEditClick = (place) => {
@@ -200,7 +167,7 @@ export default function AdminPlaces() {
       category: place.category || "",
       googleMapsUrl: place.googleMapsUrl || "",
       rating: place.rating || 0,
-      workshop: place.workshop || "", // 🌟 โหลดข้อมูล Workshop
+      workshop: place.workshop || "",
     });
     setIsModalOpen(true);
   };
@@ -209,6 +176,12 @@ export default function AdminPlaces() {
     setEditingPlace(null);
     setFormData({ name: "", image: "", description: "", category: "", googleMapsUrl: "", rating: 0, workshop: "" });
     setIsModalOpen(true);
+  };
+
+  // 🌟 ฟังก์ชันจัดการ URL รูปภาพ
+  const getImageUrl = (path) => {
+    if (!path) return "/logo.jpg";
+    return path.startsWith("http") ? path : `${IMAGE_BASE_URL}${path}`;
   };
 
   const filteredPlaces = places.filter((place) =>
@@ -220,12 +193,12 @@ export default function AdminPlaces() {
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
         <div>
           <h1 className="font-black text-4xl md:text-5xl">จัดการ <span className="text-[#FF8E6E]">สถานที่</span></h1>
-          <p className="text-[#4A453A] font-medium opacity-80 mt-2">วิเคราะห์คะแนนอารมณ์ และติดตามรีวิวจากผู้ใช้</p>
+          <p className="text-[#4A453A] font-medium opacity-80 mt-2">วิเคราะห์คะแนนอารมณ์ และติดตามรีวิวจากฐานข้อมูล Postgres</p>
         </div>
         <div className="flex items-center gap-4 w-full md:w-auto">
           <div className="relative flex-1 md:w-[350px]">
             <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <input type="text" placeholder="ค้นหาชื่อพิกัด..." className="w-full pl-14 pr-6 py-4 rounded-[1.5rem] bg-white shadow-sm outline-none border-none" onChange={(e) => setSearchTerm(e.target.value)} />
+            <input type="text" placeholder="ค้นหาชื่อพิกัด..." className="w-full pl-14 pr-6 py-4 rounded-[1.5rem] bg-white shadow-sm outline-none" onChange={(e) => setSearchTerm(e.target.value)} />
           </div>
           <button onClick={handleAddClick} className="bg-[#FF8E6E] text-white p-4 rounded-2xl shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center gap-2 font-bold">
             <Plus size={24} /> เพิ่มสถานที่
@@ -238,24 +211,24 @@ export default function AdminPlaces() {
           <table className="w-full text-left border-collapse">
             <thead className="bg-[#4A453A] text-white">
               <tr>
-                <th className="p-8 font-bold text-[16px] uppercase tracking-widest rounded-tl-[3rem]">สถานที่</th>
-                <th className="p-8 font-bold text-[16px] uppercase tracking-widest text-center">อารมณ์/รีวิว</th>
-                <th className="p-8 font-bold text-[16px] uppercase tracking-widest text-center">จัดการ</th>
+                <th className="p-8 font-bold uppercase rounded-tl-[3rem]">สถานที่</th>
+                <th className="p-8 font-bold uppercase text-center">อารมณ์/รีวิว</th>
+                <th className="p-8 font-bold uppercase text-center">จัดการ</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading ? (
-                <tr><td colSpan="3" className="p-32 text-center animate-pulse font-bold text-xl opacity-60">กำลังโหลด...</td></tr>
+                <tr><td colSpan="3" className="p-32 text-center animate-pulse font-bold text-xl opacity-60">กำลังโหลดข้อมูลจากฐานข้อมูล...</td></tr>
               ) : filteredPlaces.length > 0 ? (
                 filteredPlaces.map((place) => (
-                  <tr key={place._id || place.id} className="hover:bg-gray-50/80 transition-all group">
+                  <tr key={place.id || place._id} className="hover:bg-gray-50/80 transition-all group">
                     <td className="p-8">
                       <div className="flex items-center gap-5">
-                        <img src={place.image} className="w-16 h-16 bg-[#FDF8F1] rounded-2xl object-cover shadow-sm" alt="place" />
+                        <img src={getImageUrl(place.image)} className="w-16 h-16 bg-[#FDF8F1] rounded-2xl object-cover shadow-sm" alt="place" />
                         <div>
                           <div className="flex items-center gap-2">
                             <span className="font-black text-[#4A453A] text-xl block leading-tight">{place.name}</span>
-                            {place.workshop && <Sparkles size={16} className="text-[#FF8E6E]" title="มี Workshop" />}
+                            {place.workshop && <Sparkles size={16} className="text-[#FF8E6E]" />}
                           </div>
                           <CategoryChip category={place.category} />
                         </div>
@@ -267,7 +240,7 @@ export default function AdminPlaces() {
                           <Star size={18} className="fill-[#FF8E6E]" /> {place.realRating}
                         </div>
                         <span className="text-xs font-bold text-gray-400">จาก {place.reviewCount} รีวิว</span>
-                        <div className={`mt-1 px-3 py-1 rounded-full text-[10px] font-black ${place.workshop ? 'bg-orange-100 text-[#FF8E6E]' : 'bg-gray-100'}`}>
+                        <div className="mt-1 px-3 py-1 rounded-full text-[10px] font-black bg-orange-100 text-[#FF8E6E]">
                           Mood Score: {place.rating}
                         </div>
                       </div>
@@ -276,20 +249,20 @@ export default function AdminPlaces() {
                       <div className="flex justify-center gap-3">
                         <button onClick={() => handleShowReviews(place)} className="p-4 bg-orange-50 text-[#FF8E6E] rounded-2xl hover:bg-[#FF8E6E] hover:text-white transition-all"><MessageSquare size={20} /></button>
                         <button onClick={() => handleEditClick(place)} className="p-4 bg-blue-50 text-blue-500 rounded-2xl hover:bg-blue-500 hover:text-white transition-all"><Edit3 size={20} /></button>
-                        <button onClick={() => handleDelete(place._id || place.id, place.name)} className="p-4 bg-rose-50 text-rose-500 rounded-2xl hover:bg-rose-500 hover:text-white transition-all"><Trash2 size={20} /></button>
+                        <button onClick={() => handleDelete(place.id || place._id, place.name)} className="p-4 bg-rose-50 text-rose-500 rounded-2xl hover:bg-rose-500 hover:text-white transition-all"><Trash2 size={20} /></button>
                       </div>
                     </td>
                   </tr>
                 ))
               ) : (
-                <tr><td colSpan="3" className="p-32 text-center text-gray-400 italic">ไม่พบข้อมูล</td></tr>
+                <tr><td colSpan="3" className="p-32 text-center text-gray-400 italic">ไม่พบข้อมูลพิกัดในระบบ</td></tr>
               )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* --- MODAL: จัดการสถานที่ (Add/Edit) --- */}
+      {/* --- MODAL: Add/Edit --- */}
       <AnimatePresence>
         {isModalOpen && (
           <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-[#4A453A]/40 backdrop-blur-md">
@@ -297,14 +270,12 @@ export default function AdminPlaces() {
               <form onSubmit={handleSubmit} className="relative p-10 text-[#4A453A]">
                 <div className="flex justify-between items-center mb-10">
                   <h3 className="text-3xl font-black">{editingPlace ? "แก้ไขข้อมูลพิกัด" : "เพิ่มพิกัดใหม่"}</h3>
-                  
-                  {/* 🌟 แสดงคะแนน Real-time ใน Modal */}
                   <div className="flex gap-4 items-center">
                     <div className="text-right">
                         <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Live Mood Score</div>
                         <div className="text-2xl font-black text-[#FF8E6E] flex items-center gap-2">
                            {currentScores.total} 
-                           {currentScores.bonus > 0 && <span className="text-xs text-green-500">(+{currentScores.bonus} Bonus)</span>}
+                           {currentScores.bonus > 0 && <span className="text-xs text-green-500">(+2 Bonus)</span>}
                         </div>
                     </div>
                     <button type="button" onClick={() => setIsModalOpen(false)} className="p-2 bg-gray-100 rounded-full"><X size={28} /></button>
@@ -315,18 +286,17 @@ export default function AdminPlaces() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="space-y-2">
                       <label className="font-black text-xl">ชื่อสถานที่</label>
-                      <input required className="w-full p-5 bg-[#FDF8F1] rounded-[1.5rem] outline-none border-2 border-transparent focus:border-[#FF8E6E] transition-all font-bold" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
+                      <input required className="w-full p-5 bg-[#FDF8F1] rounded-[1.5rem] outline-none border-2 border-transparent focus:border-[#FF8E6E] font-bold" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
                     </div>
                     <div className="space-y-2">
                       <label className="font-black text-xl">หมวดหมู่</label>
-                      <select required className="w-full p-5 bg-[#FDF8F1] rounded-[1.5rem] outline-none border-2 border-transparent focus:border-[#FF8E6E] transition-all font-bold" value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })}>
+                      <select required className="w-full p-5 bg-[#FDF8F1] rounded-[1.5rem] outline-none font-bold" value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })}>
                         <option value="">เลือกหมวดหมู่...</option>
                         {categories.map((cat) => (<option key={cat.name} value={cat.name}>{cat.icon} {cat.name}</option>))}
                       </select>
                     </div>
                   </div>
 
-                  {/* 🌟 รายละเอียด และ Workshop */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="space-y-2">
                       <label className="font-black text-xl flex items-center gap-2"><AlignLeft size={20} /> รายละเอียด</label>
@@ -334,23 +304,17 @@ export default function AdminPlaces() {
                     </div>
                     <div className="space-y-2">
                       <label className="font-black text-xl flex items-center gap-2 text-[#FF8E6E]"><Sparkles size={20} /> ข้อมูล Workshop (ถ้ามี)</label>
-                      <textarea rows="4" placeholder="บอกรายละเอียด Workshop ที่นี่... (ใส่แล้วได้แต้มเพิ่ม +2)" className="w-full p-6 bg-orange-50/50 rounded-[2rem] outline-none font-bold border-2 border-dashed border-orange-200 focus:border-solid focus:border-[#FF8E6E]" value={formData.workshop} onChange={(e) => setFormData({ ...formData, workshop: e.target.value })} />
+                      <textarea rows="4" placeholder="บอกรายละเอียด Workshop ที่นี่... (+2 คะแนน)" className="w-full p-6 bg-orange-50/50 rounded-[2rem] outline-none border-2 border-dashed border-orange-200" value={formData.workshop} onChange={(e) => setFormData({ ...formData, workshop: e.target.value })} />
                     </div>
                   </div>
 
-                  {/* 🌟 ลิงก์รูปภาพ และ พรีวิวรูปภาพ */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-end">
                     <div className="md:col-span-2 space-y-2">
-                      <label className="font-black text-xl flex items-center gap-2"><ImageIcon size={20} /> ลิงก์รูปภาพ</label>
+                      <label className="font-black text-xl flex items-center gap-2"><ImageIcon size={20} /> ลิงก์รูปภาพ (Path หรือ URL)</label>
                       <input required className="w-full p-5 bg-[#FDF8F1] rounded-[1.5rem] outline-none" value={formData.image} onChange={(e) => setFormData({ ...formData, image: e.target.value })} />
                     </div>
-                    {/* พรีวิวรูปภาพ */}
-                    <div className="h-[90px] w-full bg-[#FDF8F1] rounded-[1.5rem] overflow-hidden border-2 border-white shadow-inner flex items-center justify-center">
-                      {formData.image ? (
-                        <img src={formData.image} alt="Preview" className="w-full h-full object-cover" onError={(e) => e.target.src = 'https://via.placeholder.com/150?text=Invalid+URL'} />
-                      ) : (
-                        <span className="text-gray-300 text-xs font-bold italic">พรีวิวรูปภาพ</span>
-                      )}
+                    <div className="h-[90px] w-full bg-[#FDF8F1] rounded-[1.5rem] overflow-hidden border-2 border-white flex items-center justify-center shadow-inner">
+                      <img src={getImageUrl(formData.image)} alt="Preview" className="w-full h-full object-cover" onError={(e) => e.target.src = 'https://via.placeholder.com/150?text=Invalid'} />
                     </div>
                   </div>
 
@@ -360,8 +324,8 @@ export default function AdminPlaces() {
                   </div>
                 </div>
 
-                <button type="submit" className="w-full mt-12 bg-[#FF8E6E] text-white py-5 rounded-[2rem] font-black text-2xl shadow-xl hover:scale-[1.02] transition-all flex items-center justify-center gap-3">
-                  <Save size={28} /> บันทึกข้อมูล
+                <button type="submit" className="w-full mt-12 bg-[#FF8E6E] text-white py-5 rounded-[2rem] font-black text-2xl shadow-xl hover:scale-[1.02] transition-all">
+                  <Save size={28} className="inline mr-2" /> บันทึกข้อมูลเข้าฐานข้อมูล
                 </button>
               </form>
             </motion.div>
@@ -369,7 +333,7 @@ export default function AdminPlaces() {
         )}
       </AnimatePresence>
 
-      {/* --- MODAL: ดูคอมเมนต์และรีวิว (คงเดิม) --- */}
+      {/* --- MODAL: Reviews (คงเดิม) --- */}
       <AnimatePresence>
         {isReviewModalOpen && (
           <div className="fixed inset-0 z-[130] flex items-center justify-center p-4 bg-[#2D2A26]/60 backdrop-blur-sm">
@@ -377,9 +341,9 @@ export default function AdminPlaces() {
               <div className="p-8 bg-[#4A453A] text-white flex justify-between items-center">
                 <div>
                   <h3 className="text-2xl font-black">{currentPlaceName}</h3>
-                  <p className="text-sm opacity-70">ความคิดเห็นทั้งหมด ({selectedPlaceReviews.length})</p>
+                  <p className="text-sm opacity-70">ความคิดเห็นจากผู้ใช้จริง ({selectedPlaceReviews.length})</p>
                 </div>
-                <button onClick={() => setIsReviewModalOpen(false)} className="bg-white/10 p-2 rounded-full hover:bg-white/20 transition-all"><X size={24} /></button>
+                <button onClick={() => setIsReviewModalOpen(false)} className="bg-white/10 p-2 rounded-full"><X size={24} /></button>
               </div>
               <div className="flex-1 overflow-y-auto p-8 space-y-4 bg-[#FDF8F1]">
                 {selectedPlaceReviews.length > 0 ? (
@@ -387,9 +351,11 @@ export default function AdminPlaces() {
                     <div key={rev._id} className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100">
                       <div className="flex justify-between items-start mb-3">
                         <div className="flex items-center gap-2">
-                          <div className="w-10 h-10 bg-[#FF8E6E]/10 rounded-full flex items-center justify-center font-black text-[#FF8E6E]">{rev.userId?.username?.charAt(0).toUpperCase() || "U"}</div>
+                          <div className="w-10 h-10 bg-[#FF8E6E]/10 rounded-full flex items-center justify-center font-black text-[#FF8E6E]">
+                            {rev.userId?.firstName?.charAt(0).toUpperCase() || "U"}
+                          </div>
                           <div>
-                            <div className="font-bold text-sm">{rev.userId?.username || "ผู้ใช้งาน"}</div>
+                            <div className="font-bold text-sm">{rev.userId?.firstName} {rev.userId?.lastName}</div>
                             <div className="text-[10px] text-gray-400">{new Date(rev.createdAt).toLocaleDateString('th-TH')}</div>
                           </div>
                         </div>

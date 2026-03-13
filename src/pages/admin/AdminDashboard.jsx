@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from "react";
 import { Users, MapPin, MessageSquare, Bell } from "lucide-react";
-import axios from "axios";
+import api from "@/api/axios";
 import { Link } from "react-router-dom";
 
 export default function AdminDashboard({ setTab }) {
@@ -9,58 +9,40 @@ export default function AdminDashboard({ setTab }) {
   const [stats, setStats] = useState({ users: 0, places: 0, contacts: 0 });
   const [loading, setLoading] = useState(true);
 
-  // ✅ ฟังก์ชันช่วยดึง Token จาก Cookie
-  const getTokenFromCookie = () => {
-    return document.cookie
-      .split("; ")
-      .find((row) => row.startsWith("token="))
-      ?.split("=")[1];
+  // 🌟 ฟังก์ชันดึงสถิติโดยการรวมข้อมูลจากหลาย API (เนื่องจากไม่มี /admin/stats)
+  const fetchDashboardStats = async () => {
+    try {
+      setLoading(true);
+      
+      // ดึงข้อมูลพร้อมกัน 3 อย่าง: รายชื่อ User, รายชื่อสถานที่, และรายการข้อความติดต่อ
+      const [usersRes, placesRes, contactRes] = await Promise.all([
+        api.get('/admin/users'),
+        api.get('/places'),
+        api.get('/contact')
+      ]);
+
+      // นับจำนวนจาก Array ที่ส่งกลับมา
+      setStats({
+        users: usersRes.data.users?.length || usersRes.data.length || 0,
+        places: placesRes.data.places?.length || placesRes.data.length || 0,
+        contacts: contactRes.data.contacts?.length || contactRes.data.length || 0
+      });
+
+    } catch (error) {
+      console.error("Fetch Dashboard Error:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    // ดึงข้อมูลแอดมินจาก LocalStorage (ส่วนข้อมูลโปรไฟล์ยังอยู่ในนี้ได้)
+    // 1. ดึงข้อมูลแอดมินจาก LocalStorage
     const user = JSON.parse(localStorage.getItem("user"));
-    
-    // ✅ แก้ไข: ดึง token จาก Cookie แทน localStorage
-    const token = getTokenFromCookie();
-
     if (user) setAdminData(user);
     
-    // เรียกฟังก์ชันดึงสถิติโดยใช้ token จาก cookie
-    fetchDashboardStats(token);
+    // 2. เรียกฟังก์ชันดึงสถิติ (Interceptor ใน api/axios.js จะจัดการ Token ให้เอง)
+    fetchDashboardStats();
   }, []);
-
-  const fetchDashboardStats = async (token) => {
-    if (!token) {
-      console.error("No token found in cookies");
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const baseUrl = "https://moodlocationfinder-backend.onrender.com/api/v1";
-      const config = { 
-        headers: { 
-          Authorization: `Bearer ${token}` 
-        } 
-      };
-      
-      const [resUsers, resPlaces] = await Promise.all([
-        axios.get(`${baseUrl}/admin/users`, config),
-        axios.get(`${baseUrl}/places`, config)
-      ]);
-
-      setStats({
-        users: resUsers.data.count || resUsers.data.length || 0,
-        places: resPlaces.data.count || resPlaces.data.length || 0,
-        contacts: 0 
-      });
-    } catch (error) { 
-      console.error("Error fetching stats:", error); 
-    } finally { 
-      setLoading(false); 
-    }
-  };
 
   const handleTabChange = (target) => {
     if (typeof setTab === 'function') {
