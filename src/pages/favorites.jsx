@@ -1,3 +1,4 @@
+'use client';
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { 
@@ -14,6 +15,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import Swal from "sweetalert2";
 import CategoryChip from "@/components/Category"; 
+import api, { IMAGE_BASE_URL } from "@/api/axios";
 
 export default function UserActivityPage() {
   const navigate = useNavigate();
@@ -25,75 +27,82 @@ export default function UserActivityPage() {
   const isFavoritePage = location.pathname === '/favorites';
   const MAX_LIMIT = 10; 
 
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      if (isFavoritePage) {
+        const res = await api.get("/favorites");
+        const favData = res.data.favorites || res.data || [];
+        setData(Array.isArray(favData) ? favData : []);
+      } else {
+        const storedData = localStorage.getItem("navigation_history");
+        if (storedData) {
+          setData(JSON.parse(storedData).slice(0, MAX_LIMIT));
+        } else {
+          setData([]);
+        }
+      }
+    } catch (err) {
+      console.error("Fetch Data Error:", err);
+      if (isFavoritePage) setData([]); 
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     setIsVisible(true);
     fetchData();
   }, [location.pathname]);
 
-const toggleFavorite = async () => {
-  try {
-    await api.post("/favorites/toggle", { placeId: id });
-    setIsFavorite(!isFavorite);
-    // แจ้งเตือนความสำเร็จ
-  } catch (err) {
-    Swal.fire("กรุณาเข้าสู่ระบบ", "เพื่อบันทึกสถานที่โปรด", "warning");
-  }
-};
-
-  const fetchData = () => {
-    const storageKey = isFavoritePage ? "user_favorites" : "navigation_history";
-    const storedData = localStorage.getItem(storageKey);
+  const handleNavigate = async (item) => {
+    // 🌟 ดึงข้อมูล target ให้ถูกต้อง
+    const targetPlace = item.place || item.Place || item;
+    const itemId = targetPlace.id || targetPlace._id || item.placeId;
     
-    if (storedData) {
-      let parsedData = JSON.parse(storedData);
-      
-      if (parsedData.length > MAX_LIMIT) {
-        parsedData = parsedData.slice(0, MAX_LIMIT);
-        localStorage.setItem(storageKey, JSON.stringify(parsedData));
+    let targetUrl = targetPlace.googleMapsUrl || targetPlace.mapUrl || targetPlace.location_url;
+    
+    if (!targetUrl) {
+      try {
+        const res = await api.get(`/places/${itemId}`);
+        const placeData = res.data.place || res.data;
+        targetUrl = placeData.googleMapsUrl || placeData.mapUrl || placeData.location_url;
+      } catch (error) {
+        console.error("Auto-fetch url failed", error);
       }
+    }
+
+    if (!targetUrl || targetUrl === "") {
+      return Swal.fire({
+        icon: 'error',
+        title: 'ไม่พบพิกัด',
+        text: 'สถานที่นี้ไม่มีข้อมูล Google Maps สำหรับนำทาง',
+        confirmButtonColor: '#FF8E6E',
+      });
+    }
+
+    try {
+      const history = JSON.parse(localStorage.getItem("navigation_history") || "[]");
+      const now = new Date().toLocaleDateString('th-TH');
+      const filteredHistory = history.filter(h => (h.id || h._id) !== itemId);
       
-      setData(parsedData);
-    } else {
-      setData([]);
-    }
-    setLoading(false);
-  };
-
-  // 🌟 ฟังก์ชันจัดการการนำทาง (Logic เหมือนหน้า Place Detail)
-  const handleNavigate = (item) => {
-    const targetUrl = item.googleMapsUrl || item.mapUrl;
-    if (!targetUrl) return Swal.fire("ไม่พบลิงก์", "สถานที่นี้ยังไม่ได้ระบุพิกัด", "error");
-
-    // 1. บันทึกลงประวัติการนำทางในเครื่อง (localStorage)
-    const history = JSON.parse(localStorage.getItem("navigation_history") || "[]");
-    const now = new Date().toLocaleDateString('th-TH'); // บันทึกวันที่รูปแบบ DD/MM/YYYY
-    
-    // กรองอันเก่าออกถ้ามีซ้ำ เพื่อเลื่อนขึ้นมาเป็นอันล่าสุด
-    const filteredHistory = history.filter(h => h.id !== item.id);
-    const newHistory = [{ ...item, date: now }, ...filteredHistory];
-    
-    // เก็บประวัติ (จำกัด 10 รายการล่าสุด)
-    localStorage.setItem("navigation_history", JSON.stringify(newHistory.slice(0, 10)));
-    
-    // 2. ถ้าอยู่หน้าประวัติ ให้รีเฟรชข้อมูลในหน้าด้วย
-    if (!isFavoritePage) {
-        fetchData();
+      const newHistory = [{ ...item, date: now, id: itemId, googleMapsUrl: targetUrl }, ...filteredHistory];
+      localStorage.setItem("navigation_history", JSON.stringify(newHistory.slice(0, 10)));
+      window.dispatchEvent(new Event("authChange"));
+    } catch (e) {
+      console.error("Save history failed", e);
     }
 
-    // 3. ส่งสัญญาณบอก Navbar หรือส่วนอื่นๆ ของแอป
-    window.dispatchEvent(new Event("authChange"));
-
-    // 4. เปิดแผนที่ไปยังหน้าต่างใหม่
     window.open(targetUrl, "_blank", "noopener,noreferrer");
   };
 
-  const handleDelete = (id, name) => {
+  const handleDelete = async (id, name) => {
     const title = isFavoritePage ? 'เลิกกดหัวใจ?' : 'ลบประวัติการเดินทาง?';
     const text = isFavoritePage 
       ? `คุณต้องการนำ "${name}" ออกจากรายการโปรดใช่หรือไม่?` 
       : `รายการนี้จะหายไปจากประวัติของคุณ`;
 
-    Swal.fire({
+    const result = await Swal.fire({
       title: title,
       text: text,
       icon: 'warning',
@@ -104,25 +113,31 @@ const toggleFavorite = async () => {
       cancelButtonText: 'ยกเลิก',
       background: '#FDF8F1',
       customClass: { popup: 'rounded-[30px]' }
-    }).then((result) => {
-      if (result.isConfirmed) {
-        const storageKey = isFavoritePage ? "user_favorites" : "navigation_history";
-        const currentData = JSON.parse(localStorage.getItem(storageKey) || "[]");
-        const newData = currentData.filter(item => item.id !== id);
-        
-        localStorage.setItem(storageKey, JSON.stringify(newData));
-        setData(newData);
-        
-        window.dispatchEvent(new Event("authChange"));
-
-        Swal.fire({
-          icon: 'success',
-          title: 'สำเร็จ',
-          showConfirmButton: false,
-          timer: 800
-        });
-      }
     });
+
+    if (result.isConfirmed) {
+      try {
+        if (isFavoritePage) {
+          await api.post("/favorites/toggle", { placeId: id }); 
+        }
+
+        const newData = data.filter(item => {
+           const targetPlace = item.place || item.Place || item;
+           const itemId = targetPlace.id || targetPlace._id || item.placeId;
+           return itemId !== id;
+        });
+        setData(newData);
+
+        if (!isFavoritePage) {
+          localStorage.setItem("navigation_history", JSON.stringify(newData));
+        }
+
+        window.dispatchEvent(new Event("authChange"));
+        Swal.fire({ icon: 'success', title: 'สำเร็จ', timer: 800, showConfirmButton: false });
+      } catch (err) {
+        Swal.fire("ผิดพลาด", "ไม่สามารถลบข้อมูลได้ในขณะนี้", "error");
+      }
+    }
   };
 
   return (
@@ -176,52 +191,74 @@ const toggleFavorite = async () => {
         ) : data.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             <AnimatePresence mode="popLayout">
-              {data.map((item) => (
-                <motion.div 
-                  layout
-                  key={item.id} 
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.5 }}
-                  className="group relative bg-white rounded-[2.5rem] overflow-hidden border border-white shadow-sm hover:shadow-2xl transition-all duration-500 hover:-translate-y-2"
-                >
-                  <div className="h-56 relative overflow-hidden">
-                    <img src={item.image} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
-                    <div className="absolute top-4 left-4"><CategoryChip category={item.category} /></div>
-                    
-                    {!isFavoritePage && item.date && (
-                      <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-md px-3 py-1 rounded-xl flex items-center gap-2 text-xs font-bold text-[#4A453A]">
-                        <Calendar className="w-3.5 h-3.5 text-[#FF8E6E]" /> {item.date}
-                      </div>
-                    )}
+              {data.map((item) => {
+                // 🌟 ตัวดักจับข้อมูลแบบครอบจักรวาล
+                // รองรับทั้ง item.place (จาก DB) หรือ item ตรงๆ (จาก LocalStorage)
+                const targetPlace = item.place || item.Place || item;
 
-                    <button 
-                      onClick={() => handleDelete(item.id, item.name)} 
-                      className="absolute top-4 right-4 w-10 h-10 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center text-gray-400 hover:text-red-500 shadow-lg transition-all active:scale-90"
-                    >
-                      {isFavoritePage ? <Heart className="w-5 h-5 fill-red-500 text-red-500" /> : <Trash2 className="w-5 h-5" />}
-                    </button>
-                  </div>
+                const itemId = targetPlace.id || targetPlace._id || item.placeId;
+                const itemName = targetPlace.name || 'ไม่มีชื่อสถานที่';
+                const itemCategory = targetPlace.category;
+                const itemDesc = targetPlace.description || 'ไม่มีรายละเอียด';
+                
+                // 🌟 ดึงรูปภาพให้ถูกต้อง รองรับทั้ง array (images) และ string (image)
+                let rawImage = null;
+                if (targetPlace.images && targetPlace.images.length > 0) {
+                    rawImage = targetPlace.images[0];
+                } else if (targetPlace.image) {
+                    rawImage = targetPlace.image;
+                }
 
-                  <div className="p-8">
-                    <h3 className="text-2xl font-black text-[#4A453A] mb-3 group-hover:text-[#FF8E6E] transition-colors">{item.name}</h3>
-                    <p className="text-[#7E7869] text-sm leading-relaxed mb-8 line-clamp-2">{item.description}</p>
-                    <div className="flex items-center justify-between">
-                      <button onClick={() => navigate(`/place/${item.id}`)} className="text-[#FF8E6E] font-black text-sm flex items-center gap-2 group/btn">
-                        รายละเอียด <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-2 transition-transform" />
-                      </button>
+                const imageUrl = rawImage 
+                  ? (rawImage.startsWith('http') ? rawImage : `${IMAGE_BASE_URL}${rawImage}`)
+                  : "https://placehold.co/600x400/EFE9D9/4A453A?text=No+Image";
+
+                return (
+                  <motion.div 
+                    layout
+                    key={itemId} 
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.5 }}
+                    className="group relative bg-white rounded-[2.5rem] overflow-hidden border border-white shadow-sm hover:shadow-2xl transition-all duration-500 hover:-translate-y-2"
+                  >
+                    <div className="h-56 relative overflow-hidden">
+                      <img src={imageUrl} alt={itemName} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                      <div className="absolute top-4 left-4"><CategoryChip category={itemCategory} /></div>
                       
-                      {/* 🌟 ปุ่มนำทางที่เพิ่ม handleNavigate เข้าไป */}
+                      {!isFavoritePage && item.date && (
+                        <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-md px-3 py-1 rounded-xl flex items-center gap-2 text-xs font-bold text-[#4A453A]">
+                          <Calendar className="w-3.5 h-3.5 text-[#FF8E6E]" /> {item.date}
+                        </div>
+                      )}
+
                       <button 
-                        onClick={() => handleNavigate(item)}
-                        className="flex items-center gap-2 px-5 py-2.5 bg-[#4A453A] text-white rounded-xl text-xs font-bold hover:bg-[#FF8E6E] transition-colors shadow-lg active:scale-95"
+                        onClick={() => handleDelete(itemId, itemName)} 
+                        className="absolute top-4 right-4 w-10 h-10 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center text-gray-400 hover:text-red-500 shadow-lg transition-all active:scale-90"
                       >
-                        <Navigation className="w-3.5 h-3.5" /> นำทาง
+                        {isFavoritePage ? <Heart className="w-5 h-5 fill-red-500 text-red-500" /> : <Trash2 className="w-5 h-5" />}
                       </button>
                     </div>
-                  </div>
-                </motion.div>
-              ))}
+
+                    <div className="p-8">
+                      <h3 className="text-2xl font-black text-[#4A453A] mb-3 group-hover:text-[#FF8E6E] transition-colors line-clamp-1">{itemName}</h3>
+                      <p className="text-[#7E7869] text-sm leading-relaxed mb-8 line-clamp-2">{itemDesc}</p>
+                      <div className="flex items-center justify-between">
+                        <button onClick={() => navigate(`/place/${itemId}`)} className="text-[#FF8E6E] font-black text-sm flex items-center gap-2 group/btn">
+                          รายละเอียด <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-2 transition-transform" />
+                        </button>
+                        
+                        <button 
+                          onClick={() => handleNavigate(item)}
+                          className="flex items-center gap-2 px-5 py-2.5 bg-[#4A453A] text-white rounded-xl text-xs font-bold hover:bg-[#FF8E6E] transition-colors shadow-lg active:scale-95"
+                        >
+                          <Navigation className="w-3.5 h-3.5" /> นำทาง
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )
+              })}
             </AnimatePresence>
           </div>
         ) : (

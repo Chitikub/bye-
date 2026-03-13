@@ -5,7 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 import heroBg from "@/assets/hero-bg.png";
 import MoodSelector from "@/components/MoodSelector";
 import PlaceCard from "@/components/PlaceCard";
-import api, { IMAGE_BASE_URL } from "@/api/axios"; // 🌟 นำเข้า IMAGE_BASE_URL
+import api, { IMAGE_BASE_URL } from "../api/axios";
 
 export default function Index() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -17,20 +17,25 @@ export default function Index() {
   useEffect(() => {
     const fetchPlaces = async () => {
       try {
-        // ใช้ api instance ที่เราตั้งค่าไว้
         const response = await api.get("/places"); 
         
         const data = Array.isArray(response.data) 
           ? response.data 
           : (response.data.places || []);
         
-        // 🌟 ปรับแต่ง URL รูปภาพก่อนนำไปใช้งาน
+        // 🌟 ฟังก์ชันเช็คภาพแบบครอบคลุม ป้องกันบั๊ก "undefined" หรือ "null"
+        const getValidImageUrl = (img) => {
+          if (!img || img === "undefined" || img === "null" || img.trim() === "") {
+            return "https://placehold.co/600x400/EFE9D9/4A453A?text=No+Image";
+          }
+          if (img.startsWith('http')) return img;
+          return img.startsWith('/') ? `${IMAGE_BASE_URL}${img}` : `${IMAGE_BASE_URL}/${img}`;
+        };
+
+        // 🌟 นำฟังก์ชันมาใช้ตอน Format ข้อมูล
         const formattedData = data.map(place => ({
           ...place,
-          // ถ้า image ไม่ได้ขึ้นต้นด้วย http ให้เอา IMAGE_BASE_URL ไปต่อข้างหน้า
-          image: place.image?.startsWith('http') 
-            ? place.image 
-            : `${IMAGE_BASE_URL}${place.image}`
+          image: getValidImageUrl(place.image)
         }));
 
         setPlaces(formattedData);
