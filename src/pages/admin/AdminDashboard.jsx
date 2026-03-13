@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from "react";
 import { Users, MapPin, MessageSquare, Bell } from "lucide-react";
-import axios from "axios";
+import api from "@/api/axios";
 import { Link } from "react-router-dom";
 
 export default function AdminDashboard({ setTab }) {
@@ -30,35 +30,29 @@ export default function AdminDashboard({ setTab }) {
     fetchDashboardStats(token);
   }, []);
 
-  const fetchDashboardStats = async (token) => {
-    if (!token) {
-      console.error("No token found in cookies");
-      setLoading(false);
-      return;
-    }
-
+  const fetchDashboardStats = async () => {
     try {
-      const baseUrl = "https://moodlocationfinder-backend.onrender.com/api/v1";
-      const config = { 
-        headers: { 
-          Authorization: `Bearer ${token}` 
-        } 
-      };
+      setLoading(true);
       
-      const [resUsers, resPlaces] = await Promise.all([
-        axios.get(`${baseUrl}/admin/users`, config),
-        axios.get(`${baseUrl}/places`, config)
+      const results = await Promise.allSettled([
+        api.get('/admin/users'),
+        api.get('/places'),
+        api.get('/messages/users')
       ]);
 
+      const [resUsers, resPlaces, resMessages] = results;
+
       setStats({
-        users: resUsers.data.count || resUsers.data.length || 0,
-        places: resPlaces.data.count || resPlaces.data.length || 0,
-        contacts: 0 
+        // 🌟 แก้ไขชื่อตัวแปรจาก placesRes เป็น resPlaces ให้ตรงกัน
+        users: resUsers.status === 'fulfilled' ? (resUsers.value.data.users?.length || resUsers.value.data.length || 0) : 0,
+        places: resPlaces.status === 'fulfilled' ? (resPlaces.value.data.places?.length || resPlaces.value.data.length || 0) : 0,
+        contacts: resMessages.status === 'fulfilled' ? (resMessages.value.data.length || 0) : 0
       });
-    } catch (error) { 
-      console.error("Error fetching stats:", error); 
-    } finally { 
-      setLoading(false); 
+
+    } catch (error) {
+      console.error("Error fetching stats:", error);
+    } finally {
+      setLoading(false);
     }
   };
 

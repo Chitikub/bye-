@@ -7,7 +7,7 @@ import Swal from "sweetalert2";
 import Cookies from 'js-cookie';
 
 export default function PlaceDetail() {
-  const { id } = useParams(); 
+  const { id } = useParams(); // id ของสถานที่จาก URL
   const navigate = useNavigate();
   const [place, setPlace] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -18,9 +18,7 @@ export default function PlaceDetail() {
   const [comment, setComment] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const getToken = () => {
-    return Cookies.get('token');
-  };
+  const getToken = () => Cookies.get('token');
 
   const fetchData = async () => {
     try {
@@ -34,12 +32,12 @@ export default function PlaceDetail() {
       const reviewRes = await api.get(`/reviews/place/${id}`);
       setReviews(reviewRes.data.reviews || []);
 
-      // 3. ตรวจสอบสถานะ Favorite
+      // 3. ตรวจสอบสถานะ Favorite จาก API
       try {
         const favRes = await api.get(`/favorites/check/${id}`);
         setIsFavorite(favRes.data.isFavorite);
       } catch (err) {
-        // แผนสำรองเช็คจาก localStorage
+        // แผนสำรองเช็คจาก localStorage หาก API ยังไม่พร้อม
         const localFavs = JSON.parse(localStorage.getItem("user_favorites") || "[]");
         setIsFavorite(localFavs.some(fav => String(fav.id) === String(id)));
       }
@@ -89,12 +87,23 @@ export default function PlaceDetail() {
   };
 
   const toggleFavorite = async () => {
+    const token = getToken();
+    if (!token) return Swal.fire("กรุณาเข้าสู่ระบบ", "คุณต้อง Login ก่อนเพื่อบันทึกรายการโปรด", "warning");
+
     try {
       await api.post("/favorites/toggle", { placeId: id });
       setIsFavorite(!isFavorite);
+      
+      Swal.fire({
+        icon: 'success',
+        title: !isFavorite ? 'บันทึกรายการโปรดแล้ว' : 'นำออกจากรายการโปรดแล้ว',
+        timer: 1000,
+        showConfirmButton: false
+      });
+      
       window.dispatchEvent(new Event("authChange"));
     } catch (err) {
-      Swal.fire("กรุณาเข้าสู่ระบบ", "เพื่อบันทึกสถานที่โปรด", "warning");
+      Swal.fire("ผิดพลาด", "ไม่สามารถจัดการรายการโปรดได้", "error");
     }
   };
 
@@ -105,16 +114,21 @@ export default function PlaceDetail() {
     try {
       const history = JSON.parse(localStorage.getItem("navigation_history") || "[]");
       const placeId = place._id || place.id;
+      
+      // 🌟 ดึงรูปภาพแรกจาก Array เพื่อบันทึกลงประวัติ
+      const firstImage = (place.images && place.images.length > 0) ? place.images[0] : place.image;
+
       const newHistoryItem = {
         id: placeId,
         name: place.name,
-        image: place.image,
+        image: firstImage, // บันทึกรูปภาพแรก
         category: place.category,
         googleMapsUrl: targetUrl,
         date: new Date().toLocaleDateString('th-TH'),
       };
+
       const filteredHistory = history.filter(item => String(item.id) !== String(placeId));
-      localStorage.setItem("navigation_history", JSON.stringify([newHistoryItem, ...filteredHistory]));
+      localStorage.setItem("navigation_history", JSON.stringify([newHistoryItem, ...filteredHistory].slice(0, 20)));
       window.dispatchEvent(new Event("authChange"));
     } catch (err) {
       console.error("Save History Error:", err);
@@ -134,14 +148,28 @@ export default function PlaceDetail() {
     <div className="min-h-screen flex flex-col items-center justify-center bg-[#FDF8F1] font-['Prompt'] text-center px-6">
       <AlertCircle size={64} className="text-gray-300 mb-4" />
       <h2 className="text-2xl font-black text-[#4A453A]">ไม่พบข้อมูลสถานที่</h2>
-      <button onClick={() => navigate('/')} className="mt-6 bg-[#4A453A] text-white px-8 py-3 rounded-2xl font-bold">กลับหน้าแรก</button>
+      <button onClick={() => navigate('/')} className="mt-6 bg-[#4A453A] text-white px-8 py-3 rounded-2xl font-bold hover:bg-[#FF8E6E] transition-all">กลับหน้าแรก</button>
     </div>
   );
 
-  // 🌟 จัดการ URL ของรูปภาพ
-  const displayImage = place.image?.startsWith('http') 
-    ? place.image 
-    : `${IMAGE_BASE_URL}${place.image}`;
+  // 🌟 ฟังก์ชันจัดการ URL รูปภาพให้รองรับ Array (images)
+  const getValidImageUrl = (placeData) => {
+    // เช็คว่ามี array images และมีข้อมูลข้างในหรือไม่
+    let imgPath = null;
+    if (placeData?.images && placeData.images.length > 0) {
+        imgPath = placeData.images[0]; // ดึงรูปแรก
+    } else if (placeData?.image) {
+        imgPath = placeData.image; // ดึงรูปจากฟิลด์ image เดิม
+    }
+
+    if (!imgPath || imgPath === "undefined" || imgPath === "null" || imgPath.trim() === "") {
+      return "https://placehold.co/800x600/EFE9D9/4A453A?text=No+Image";
+    }
+    if (imgPath.startsWith('http')) return imgPath;
+    return imgPath.startsWith('/') ? `${IMAGE_BASE_URL}${imgPath}` : `${IMAGE_BASE_URL}/${imgPath}`;
+  };
+
+  const displayImage = getValidImageUrl(place);
 
   const mood = ((score) => {
     if (score >= 21) return { label: "มีความสุข", color: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-100" };

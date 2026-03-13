@@ -13,9 +13,10 @@ import {
   Star,
   MessageSquare,
   Sparkles,
-  AlertCircle
+  AlertCircle,
+  UploadCloud
 } from "lucide-react";
-import api, { IMAGE_BASE_URL } from "@/api/axios"; // 🌟 ใช้ api instance และ IMAGE_BASE_URL
+import api, { IMAGE_BASE_URL } from "@/api/axios"; 
 import Swal from "sweetalert2";
 import { motion, AnimatePresence } from "framer-motion";
 import CategoryChip from "../../components/Category";
@@ -31,13 +32,16 @@ export default function AdminPlaces() {
   const [selectedPlaceReviews, setSelectedPlaceReviews] = useState([]);
   const [currentPlaceName, setCurrentPlaceName] = useState("");
 
-  const [formData, setFormData] = useState({
+  // 🌟 เพิ่ม State สำหรับจัดการไฟล์รูปภาพ
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState("");
+
+  // เปลี่ยนชื่อจาก formData เป็น placeForm เพื่อไม่ให้ซ้ำกับ FormData ของระบบ
+  const [placeForm, setPlaceForm] = useState({
     name: "",
-    image: "",
     description: "",
     category: "",
     googleMapsUrl: "",
-    rating: 0,
     workshop: "",
   });
 
@@ -51,12 +55,11 @@ export default function AdminPlaces() {
     { name: "ร้านอาหาร", icon: "🍽️", baseScore: 21 },
   ];
 
-  // ฟังก์ชันคำนวณคะแนนแบบ Real-time
   const calculateLiveScore = () => {
-    const cat = categories.find((c) => c.name === formData.category);
+    const cat = categories.find((c) => c.name === placeForm.category);
     let base = cat ? cat.baseScore : 0;
     let bonus = 0;
-    if (formData.workshop?.trim() !== "" || formData.description?.toLowerCase().includes("workshop")) {
+    if (placeForm.workshop?.trim() !== "" || placeForm.description?.toLowerCase().includes("workshop")) {
       bonus = 2;
     }
     return { base, bonus, total: base + bonus };
@@ -64,7 +67,6 @@ export default function AdminPlaces() {
 
   const currentScores = calculateLiveScore();
 
-  // 🌟 ดึงข้อมูลจากฐานข้อมูลจริง
   const fetchPlaces = async () => {
     setLoading(true);
     try {
@@ -76,7 +78,6 @@ export default function AdminPlaces() {
         return;
       }
 
-      // ดึง Rating จริงจาก Table Reviews มาเฉลี่ย
       const placesWithRatings = await Promise.all(
         data.map(async (place) => {
           const placeId = place.id || place._id;
@@ -105,22 +106,47 @@ export default function AdminPlaces() {
     fetchPlaces();
   }, []);
 
-  const handleSubmit = async (e) => {
+  // 🌟 ฟังก์ชันจัดการเมื่อผู้ใช้อัปโหลดรูป
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setImageFile(file);
+      // สร้าง URL จำลองเพื่อให้เห็นภาพพรีวิวทันที
+      setImagePreview(URL.createObjectURL(file)); 
+    }
+  };
+
+ const handleSubmit = async (e) => {
     e.preventDefault();
     const targetId = editingPlace?.id || editingPlace?._id;
-    const finalData = { ...formData, rating: currentScores.total };
+    
+    // 🌟 ใช้ FormData เพื่อแพ็คไฟล์ภาพ
+    const uploadData = new FormData();
+    uploadData.append("name", placeForm.name);
+    uploadData.append("description", placeForm.description);
+    uploadData.append("category", placeForm.category);
+    uploadData.append("googleMapsUrl", placeForm.googleMapsUrl);
+    uploadData.append("rating", currentScores.total);
+    uploadData.append("workshop", placeForm.workshop || "");
+    
+    // แนบไฟล์ใหม่ (ถ้ามีคนกดเลือกไฟล์)
+    if (imageFile) {
+      uploadData.append("image", imageFile); 
+    }
 
     try {
+      // 🚀 ลบ config headers ออก ปล่อยให้ Axios แนบรหัส Boundary ให้อัตโนมัติ
       if (editingPlace && targetId) {
-        await api.put(`/admin/places/${targetId}`, finalData);
+        await api.put(`/admin/places/${targetId}`, uploadData);
         Swal.fire({ title: "แก้ไขสำเร็จ!", icon: "success", timer: 1500, showConfirmButton: false });
       } else {
-        await api.post("/admin/places", finalData);
+        await api.post("/admin/places", uploadData);
         Swal.fire({ title: "เพิ่มสถานที่สำเร็จ!", icon: "success", timer: 1500, showConfirmButton: false });
       }
       setIsModalOpen(false);
       fetchPlaces();
     } catch (error) {
+      console.error("Submit Error:", error);
       Swal.fire("ผิดพลาด", error.response?.data?.message || "ไม่สามารถบันทึกได้", "error");
     }
   };
@@ -160,28 +186,30 @@ export default function AdminPlaces() {
 
   const handleEditClick = (place) => {
     setEditingPlace(place);
-    setFormData({
+    setPlaceForm({
       name: place.name || "",
-      image: place.image || "",
       description: place.description || "",
       category: place.category || "",
       googleMapsUrl: place.googleMapsUrl || "",
-      rating: place.rating || 0,
       workshop: place.workshop || "",
     });
+    setImageFile(null); // ล้างไฟล์ที่อาจจะค้างอยู่
+    setImagePreview(getImageUrl(place.image)); // ดึงรูปเก่ามาแสดงพรีวิว
     setIsModalOpen(true);
   };
 
   const handleAddClick = () => {
     setEditingPlace(null);
-    setFormData({ name: "", image: "", description: "", category: "", googleMapsUrl: "", rating: 0, workshop: "" });
+    setPlaceForm({ name: "", description: "", category: "", googleMapsUrl: "", workshop: "" });
+    setImageFile(null);
+    setImagePreview(""); // ล้างรูปพรีวิว
     setIsModalOpen(true);
   };
 
-  // 🌟 ฟังก์ชันจัดการ URL รูปภาพ
   const getImageUrl = (path) => {
-    if (!path) return "/logo.jpg";
-    return path.startsWith("http") ? path : `${IMAGE_BASE_URL}${path}`;
+    if (!path || path === "undefined" || path === "null") return "https://placehold.co/600x400/EFE9D9/4A453A?text=No+Image";
+    if (path.startsWith("http")) return path;
+    return path.startsWith("/") ? `${IMAGE_BASE_URL}${path}` : `${IMAGE_BASE_URL}/${path}`;
   };
 
   const filteredPlaces = places.filter((place) =>
@@ -200,7 +228,7 @@ export default function AdminPlaces() {
             <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
             <input type="text" placeholder="ค้นหาชื่อพิกัด..." className="w-full pl-14 pr-6 py-4 rounded-[1.5rem] bg-white shadow-sm outline-none" onChange={(e) => setSearchTerm(e.target.value)} />
           </div>
-          <button onClick={handleAddClick} className="bg-[#FF8E6E] text-white p-4 rounded-2xl shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center gap-2 font-bold">
+          <button onClick={handleAddClick} className="bg-[#FF8E6E] text-white p-4 rounded-2xl shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center gap-2 font-bold whitespace-nowrap">
             <Plus size={24} /> เพิ่มสถานที่
           </button>
         </div>
@@ -278,7 +306,7 @@ export default function AdminPlaces() {
                            {currentScores.bonus > 0 && <span className="text-xs text-green-500">(+2 Bonus)</span>}
                         </div>
                     </div>
-                    <button type="button" onClick={() => setIsModalOpen(false)} className="p-2 bg-gray-100 rounded-full"><X size={28} /></button>
+                    <button type="button" onClick={() => setIsModalOpen(false)} className="p-2 bg-gray-100 rounded-full hover:bg-red-100 hover:text-red-500 transition-colors"><X size={28} /></button>
                   </div>
                 </div>
 
@@ -286,11 +314,11 @@ export default function AdminPlaces() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="space-y-2">
                       <label className="font-black text-xl">ชื่อสถานที่</label>
-                      <input required className="w-full p-5 bg-[#FDF8F1] rounded-[1.5rem] outline-none border-2 border-transparent focus:border-[#FF8E6E] font-bold" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
+                      <input required className="w-full p-5 bg-[#FDF8F1] rounded-[1.5rem] outline-none border-2 border-transparent focus:border-[#FF8E6E] font-bold" value={placeForm.name} onChange={(e) => setPlaceForm({ ...placeForm, name: e.target.value })} />
                     </div>
                     <div className="space-y-2">
                       <label className="font-black text-xl">หมวดหมู่</label>
-                      <select required className="w-full p-5 bg-[#FDF8F1] rounded-[1.5rem] outline-none font-bold" value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })}>
+                      <select required className="w-full p-5 bg-[#FDF8F1] rounded-[1.5rem] outline-none font-bold" value={placeForm.category} onChange={(e) => setPlaceForm({ ...placeForm, category: e.target.value })}>
                         <option value="">เลือกหมวดหมู่...</option>
                         {categories.map((cat) => (<option key={cat.name} value={cat.name}>{cat.icon} {cat.name}</option>))}
                       </select>
@@ -300,27 +328,48 @@ export default function AdminPlaces() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="space-y-2">
                       <label className="font-black text-xl flex items-center gap-2"><AlignLeft size={20} /> รายละเอียด</label>
-                      <textarea rows="4" required className="w-full p-6 bg-[#FDF8F1] rounded-[2rem] outline-none font-medium" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
+                      <textarea rows="4" required className="w-full p-6 bg-[#FDF8F1] rounded-[2rem] outline-none font-medium" value={placeForm.description} onChange={(e) => setPlaceForm({ ...placeForm, description: e.target.value })} />
                     </div>
                     <div className="space-y-2">
                       <label className="font-black text-xl flex items-center gap-2 text-[#FF8E6E]"><Sparkles size={20} /> ข้อมูล Workshop (ถ้ามี)</label>
-                      <textarea rows="4" placeholder="บอกรายละเอียด Workshop ที่นี่... (+2 คะแนน)" className="w-full p-6 bg-orange-50/50 rounded-[2rem] outline-none border-2 border-dashed border-orange-200" value={formData.workshop} onChange={(e) => setFormData({ ...formData, workshop: e.target.value })} />
+                      <textarea rows="4" placeholder="บอกรายละเอียด Workshop ที่นี่... (+2 คะแนน)" className="w-full p-6 bg-orange-50/50 rounded-[2rem] outline-none border-2 border-dashed border-orange-200" value={placeForm.workshop} onChange={(e) => setPlaceForm({ ...placeForm, workshop: e.target.value })} />
                     </div>
                   </div>
 
+                  {/* 🌟 ปรับปรุงส่วนอัปโหลดรูปภาพ */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-end">
-                    <div className="md:col-span-2 space-y-2">
-                      <label className="font-black text-xl flex items-center gap-2"><ImageIcon size={20} /> ลิงก์รูปภาพ (Path หรือ URL)</label>
-                      <input required className="w-full p-5 bg-[#FDF8F1] rounded-[1.5rem] outline-none" value={formData.image} onChange={(e) => setFormData({ ...formData, image: e.target.value })} />
+                    <div className="md:col-span-2 space-y-2 relative">
+                      <label className="font-black text-xl flex items-center gap-2"><ImageIcon size={20} /> รูปภาพสถานที่</label>
+                      
+                      {/* ซ่อน input file ของจริงไว้ แล้วใช้ UI ครอบแทน */}
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        id="imageUpload"
+                        className="hidden" 
+                        onChange={handleImageChange} 
+                      />
+                      <label 
+                        htmlFor="imageUpload" 
+                        className="flex items-center justify-center gap-3 w-full p-5 bg-[#FDF8F1] rounded-[1.5rem] outline-none border-2 border-dashed border-[#FF8E6E] text-[#FF8E6E] font-bold cursor-pointer hover:bg-[#FF8E6E]/10 transition-colors"
+                      >
+                        <UploadCloud size={24} /> 
+                        {imageFile ? imageFile.name : "คลิกเพื่อเลือกรูปภาพจากเครื่อง"}
+                      </label>
                     </div>
-                    <div className="h-[90px] w-full bg-[#FDF8F1] rounded-[1.5rem] overflow-hidden border-2 border-white flex items-center justify-center shadow-inner">
-                      <img src={getImageUrl(formData.image)} alt="Preview" className="w-full h-full object-cover" onError={(e) => e.target.src = 'https://via.placeholder.com/150?text=Invalid'} />
+
+                    <div className="h-[90px] w-full bg-[#FDF8F1] rounded-[1.5rem] overflow-hidden border-2 border-white flex items-center justify-center shadow-inner relative group">
+                      {imagePreview ? (
+                        <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-gray-400 text-sm font-bold">ไม่มีรูปภาพ</span>
+                      )}
                     </div>
                   </div>
 
                   <div className="space-y-2">
                     <label className="font-black text-xl flex items-center gap-2"><ExternalLink size={20} /> ลิงก์แผนที่ (Google Maps)</label>
-                    <input required className="w-full p-5 bg-[#FDF8F1] rounded-[1.5rem] outline-none border-2 border-transparent focus:border-[#FF8E6E] font-bold" value={formData.googleMapsUrl} onChange={(e) => setFormData({ ...formData, googleMapsUrl: e.target.value })} />
+                    <input required className="w-full p-5 bg-[#FDF8F1] rounded-[1.5rem] outline-none border-2 border-transparent focus:border-[#FF8E6E] font-bold" value={placeForm.googleMapsUrl} onChange={(e) => setPlaceForm({ ...placeForm, googleMapsUrl: e.target.value })} />
                   </div>
                 </div>
 

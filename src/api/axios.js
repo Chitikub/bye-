@@ -1,47 +1,43 @@
 import axios from 'axios';
 import Cookies from 'js-cookie';
+
 export const IMAGE_BASE_URL = "https://moodlocationfinder-backend.onrender.com";
 
-const api = axios.create({
+// 🌟 ฟังก์ชันจัดการ Base URL แบบปลอดภัยที่สุด
+const getBaseURL = () => {
+  const envUrl = import.meta.env.VITE_API_BASE_URL;
   
-  // ใช้ URL จาก env หรือใส่ตรงๆ ตามที่คุณระบุในไฟล์อื่น
-  baseURL: import.meta.env.VITE_API_BASE_URL || "https://moodlocationfinder-backend.onrender.com/api/v1",
+  // ตรวจสอบ: ถ้า envUrl ไม่มีค่า หรือเป็นคำว่า "undefined" (string)
+  // ให้ใช้ URL ตรงๆ ของ Render ไปเลย
+  let base = (envUrl && envUrl !== "undefined") 
+    ? envUrl 
+    : "https://moodlocationfinder-backend.onrender.com";
 
+  // ลบ / ที่อาจติดมาท้าย URL ออกก่อน
+  base = base.replace(/\/$/, "");
+
+  // ถ้าใน base มี /api/v1 อยู่แล้ว ให้ใช้ค่านั้นเลย ถ้าไม่มีค่อยเติม
+  return base.includes("/api/v1") ? base : `${base}/api/v1`;
+};
+
+const api = axios.create({
+  baseURL: getBaseURL(),
   withCredentials: true, 
   headers: {
     'Content-Type': 'application/json'
   }
 });
 
-// ✨ เพิ่ม Interceptor เพื่อส่ง Token ไปกับทุก Request
+// ✨ Interceptor สำหรับแนบ Token
 api.interceptors.request.use(
   (config) => {
-    // ดึง token จาก cookie ชื่อ 'token'
     const token = Cookies.get('token');
-    
     if (token) {
-      // แนบไปใน Header ตามที่ Backend ต้องการ (Bearer Token)
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
-// ✨ เพิ่ม Interceptor เพื่อจัดการกรณี Token หมดอายุ (401)
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response && error.response.status === 401) {
-      // ถ้า Token หมดอายุ ให้ลบ Cookie และเด้งไปหน้า Login
-      Cookies.remove('token');
-      localStorage.removeItem('user');
-      // window.location.href = '/login'; 
-    }
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
 export default api;
