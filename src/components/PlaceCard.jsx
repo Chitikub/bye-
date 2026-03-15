@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { Star, Tag, Sparkles } from "lucide-react";
 // 🌟 1. ต้อง Import ตัวแปร URL ของ Backend เข้ามาด้วย
-import { IMAGE_BASE_URL } from "@/api/axios"; 
+import { IMAGE_BASE_URL } from "@/api/axios";
 
 export default function PlaceCard({ place }) {
   const placeId = place.id || place._id;
@@ -9,22 +9,20 @@ export default function PlaceCard({ place }) {
 
   // 🌟 2. ปรับฟังก์ชันดึงรูปภาพให้เอา URL Backend ไปแปะหน้าชื่อไฟล์
   const getImageUrl = () => {
-    let imgPath = null;
-    if (place?.images && place.images.length > 0) {
-        imgPath = place.images[0];
-    } else if (place?.image) {
-        imgPath = place.image;
+    const rawPath = place.images?.[0] || place.image;
+
+    if (!rawPath || rawPath.includes('undefined')) {
+        return "https://placehold.co/600x400?text=No+Image";
     }
 
-    if (!imgPath || imgPath === "undefined" || imgPath === "null" || imgPath.trim() === "") {
-      return noImageURL;
-    }
-    
-    if (imgPath.startsWith('http')) return imgPath;
-    return imgPath.startsWith('/') ? `${IMAGE_BASE_URL}${imgPath}` : `${IMAGE_BASE_URL}/${imgPath}`;
-  };
+    // ถ้ารูปเป็น http อยู่แล้ว (เช่นรูปจากเน็ต) ให้ใช้เลย
+    if (rawPath.startsWith('http')) return rawPath;
 
-  const displayImage = getImageUrl();
+    // ถ้าเป็น Path จากเครื่อง (/uploads/...) ให้ต่อด้วย URL ของ Render
+    return `${IMAGE_BASE_URL}${rawPath.startsWith('/') ? '' : '/'}${rawPath}`;
+};
+
+const displayImage = getImageUrl();
 
   const rating = place.averageRating || place.rating || "0.0";
   const hasWorkshop = place.workshop && place.workshop.trim() !== "";
