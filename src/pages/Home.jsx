@@ -1,10 +1,9 @@
 'use client';
-import { Search } from "lucide-react";
+import { Search, ArrowLeft } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import heroBg from "@/assets/hero-bg.png";
 import MoodSelector from "@/components/MoodSelector";
-import PlaceCard from "@/components/PlaceCard";
 import api, { IMAGE_BASE_URL } from "../api/axios";
 
 export default function Index() {
@@ -12,7 +11,39 @@ export default function Index() {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [places, setPlaces] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // 🌟 เพิ่ม State สำหรับเก็บอารมณ์ที่ถูกเลือก เพื่อนำไปแสดงหมวดย่อย
+  const [activeMood, setActiveMood] = useState(null); 
   const navigate = useNavigate();
+
+  // 1. Data Strategy: Mapping อารมณ์กับหมวดหมู่สถานที่ย่อย
+  const moodCategories = {
+    happy: [
+      { id: 'amusement', label: '🎢 สวนสนุก', query: 'สวนสนุก' },
+      { id: 'event', label: '🎪 สถานที่จัดงาน / อีเวนต์', query: 'Event Space' },
+      { id: 'attraction', label: '📸 ที่เที่ยวถ่ายรูป', query: 'สถานที่ท่องเที่ยว' }
+    ],
+    sad: [
+      { id: 'park', label: '🌳 สวนสาธารณะ', query: 'สวนสาธารณะ' },
+      { id: 'bookstore', label: '📚 ร้านหนังสือ', query: 'ร้านหนังสือ' },
+      { id: 'gallery', label: '🎨 หอศิลป์ / Art Gallery', query: 'Art Gallery' }
+    ],
+    bored: [
+      { id: 'museum', label: '🏛️ พิพิธภัณฑ์', query: 'พิพิธภัณฑ์' },
+      { id: 'mall', label: '🛍️ ห้างสรรพสินค้า', query: 'ห้างสรรพสินค้า' },
+      { id: 'boardgame', label: '🎲 บอร์ดเกมคาเฟ่', query: 'Board Game Cafe' }
+    ],
+    stressed: [
+      { id: 'spa', label: '💆‍♀️ สปา นวดผ่อนคลาย', query: 'สปา' },
+      { id: 'cafe', label: '☕ คาเฟ่สงบๆ', query: 'Quiet Cafe' },
+      { id: 'botanical', label: '🌺 สวนพฤกษศาสตร์', query: 'Botanical Garden' }
+    ],
+    angry: [
+      { id: 'gym', label: '🏋️‍♂️ ยิมออกกำลังกาย', query: 'ยิมออกกำลังกาย' },
+      { id: 'boxing', label: '🥊 ค่ายมวย', query: 'Boxing Gym' },
+      { id: 'stadium', label: '🏟️ สนามกีฬา', query: 'สนามกีฬา' }
+    ]
+  };
 
   useEffect(() => {
     const fetchPlaces = async () => {
@@ -23,7 +54,6 @@ export default function Index() {
           ? response.data 
           : (response.data.places || []);
         
-        // 🌟 ฟังก์ชันเช็คภาพแบบครอบคลุม
         const getValidImageUrl = (img) => {
           if (!img || img === "undefined" || img === "null" || img.trim() === "") {
             return "https://placehold.co/600x400/EFE9D9/4A453A?text=No+Image";
@@ -48,31 +78,25 @@ export default function Index() {
     fetchPlaces();
   }, []);
 
+  // 🌟 Step 1: เมื่อผู้ใช้กดเลือกอารมณ์ ให้เปิดแสดงหมวดย่อย
   const handleMoodSelect = (emotionId) => {
-  // 1. Data Strategy: Mapping อารมณ์กับ Keywords [ตามแผนงานข้อ 1]
-  const queryMap = {
-    happy: "สวนสนุก+amusement+park+event+space",
-    sad: "สวนสาธารณะ+park+art+gallery+bookstore",
-    bored: "พิพิธภัณฑ์+museum+mall+board+game+cafe",
-    stressed: "สปา+spa+quiet+cafe+botanical+garden",
-    angry: "ยิม+gym+stadium+boxing+gym"
+    navigate(`/filter?mood=${emotionId}`);
   };
 
-  const searchQuery = queryMap[emotionId] || "place+near+me";
+  // 🌟 Step 2: เมื่อผู้ใช้กดเลือกหมวดย่อย ถึงจะเปิด Google Maps
+  const handleCategorySelect = (categoryQuery) => {
+    // แนบคำว่า "ใกล้ฉัน" ต่อท้ายคีย์เวิร์ด
+    const searchKeyword = `${categoryQuery} ใกล้ฉัน`;
+    
+    // สร้าง URL มาตรฐานของ Google Maps
+    const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(searchKeyword)}`;
+    
+    window.open(googleMapsUrl, '_blank'); 
+  };
 
-  // 2. Intent Construction: สร้าง Deep Link สำหรับ Google Maps [ตามแผนงานข้อ 2 Step 3]
-  // ใช้โครงสร้าง search query เพื่อให้ Google Maps หาตำแหน่งปัจจุบันของผู้ใช้เอง
-  const googleMapsUrl = `https://www.google.com/maps/search/${searchQuery}`;
-
-  // 3. Dynamic Display: เปิดแอปหรือเบราว์เซอร์ [ตามแผนงานข้อ 2 Step 4]
-  window.open(googleMapsUrl, '_blank'); 
-};
-
-  // 🌟 ฟังก์ชันจัดการการค้นหาเมื่อกด Enter หรือกดปุ่มแว่นขยาย
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      // ส่งคำค้นหาไปที่หน้า Filter พร้อมกับ parameter ?q=
       navigate(`/filter?q=${encodeURIComponent(searchQuery.trim())}`);
     }
   };
@@ -107,7 +131,6 @@ export default function Index() {
           </p>
 
           <div className="mx-auto mt-8 sm:mt-12 max-w-xl animate-in fade-in slide-in-from-bottom-10 duration-1000 delay-700">
-            {/* 🌟 เปลี่ยน div ตรงนี้ให้เป็น form เพื่อให้ดักจับการกด Enter ได้ */}
             <form onSubmit={handleSearchSubmit} className="relative group px-2">
               <div className="absolute -inset-1 bg-gradient-to-r from-[#FF8E6E] to-[#FFA07A] rounded-full blur opacity-15 group-focus-within:opacity-100 transition duration-1000"></div>
               <div className="relative flex items-center bg-white/95 backdrop-blur-xl rounded-full shadow-xl overflow-hidden border border-white/50">
@@ -128,36 +151,46 @@ export default function Index() {
       </section>
 
       {/* --- CONTENT SECTION --- */}
-      <main className="container mx-auto px-5 -mt-10 sm:-mt-20 relative z-40 space-y-20 sm:space-y-32 pb-20">
-        <section className="bg-white/90 backdrop-blur-2xl rounded-[2.5rem] sm:rounded-[3rem] p-8 sm:p-16 shadow-[0_32px_64px_-16px_rgba(74,69,58,0.1)] text-center border border-white transform transition-all duration-500 mx-auto max-w-4xl">
-          <h2 className="text-2xl sm:text-4xl font-black mb-4 tracking-tight text-[#4A4A4A]">วันนี้รู้สึกยังไง? 🤔</h2>
-          <p className="text-sm sm:text-lg font-medium mb-8 text-[#8E8E8E] leading-relaxed">คลิกเลือกอารมณ์ของคุณเพื่อเริ่มการเดินทาง</p>
-          <div className="mt-4">
-            <MoodSelector onSelectMood={handleMoodSelect} />
-          </div>
-        </section>
-
-        {/* ส่วนสถานที่ยอดนิยม */}
-        <section>
-          <div className="flex flex-col sm:flex-row justify-between items-center sm:items-end mb-8 sm:mb-12 text-center sm:text-left">
-            <div className="mb-4 sm:mb-0">
-              <h2 className="text-2xl sm:text-4xl font-black mb-1 sm:mb-2 text-[#4A4A4A]">สถานที่ยอดนิยม 🔥</h2>
-              <p className="text-[#7E7869] text-sm sm:text-lg font-medium">คัดสรรมาแล้วจากอารมณ์ของเพื่อนๆ</p>
-            </div>
-            <Link to="/all-places" className="text-[#FF8E6E] font-bold text-sm hover:underline flex items-center gap-1">ดูทั้งหมด →</Link>
-          </div>
+      <main className="container mx-auto px-5 -mt-10 sm:-mt-20 relative z-40 pb-20">
+        <section className="bg-white/90 backdrop-blur-2xl rounded-[2.5rem] sm:rounded-[3rem] p-8 sm:p-16 shadow-[0_32px_64px_-16px_rgba(74,69,58,0.1)] text-center border border-white transform transition-all duration-500 mx-auto max-w-4xl min-h-[400px]">
           
-          <div className="grid gap-6 sm:gap-10 grid-cols-1 xs:grid-cols-2 lg:grid-cols-4">
-            {loading ? (
-              <div className="col-span-full text-center py-20 animate-pulse font-bold text-gray-400">กำลังโหลด...</div>
-            ) : places.length > 0 ? (
-              places.slice(0, 4).map(place => (
-                <PlaceCard key={place._id || place.id} place={place} />
-              ))
-            ) : (
-              <div className="col-span-full text-center py-20">ไม่พบข้อมูล</div>
-            )}
-          </div>
+          {/* ซ่อน/แสดง เนื้อหาตาม State ว่ามีการกดเลือกอารมณ์หรือยัง */}
+          {!activeMood ? (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <h2 className="text-2xl sm:text-4xl font-black mb-4 tracking-tight text-[#4A4A4A]">วันนี้รู้สึกยังไง? 🤔</h2>
+              <p className="text-sm sm:text-lg font-medium mb-8 text-[#8E8E8E] leading-relaxed">คลิกเลือกอารมณ์ของคุณเพื่อเริ่มการเดินทาง</p>
+              <div className="mt-4">
+                <MoodSelector onSelectMood={handleMoodSelect} />
+              </div>
+            </div>
+          ) : (
+            <div className="animate-in fade-in slide-in-from-right-8 duration-500">
+              <h2 className="text-2xl sm:text-4xl font-black mb-4 tracking-tight text-[#4A4A4A]">สถานที่แบบไหนดี? 🎯</h2>
+              <p className="text-sm sm:text-lg font-medium mb-10 text-[#8E8E8E] leading-relaxed">เลือกประเภทสถานที่ที่คุณต้องการไปตอนนี้</p>
+              
+              <div className="flex flex-wrap justify-center gap-4 sm:gap-6 mb-12">
+                {moodCategories[activeMood].map((cat) => (
+                  <button
+                    key={cat.id}
+                    onClick={() => handleCategorySelect(cat.query)}
+                    className="group relative px-6 py-4 sm:px-8 sm:py-5 bg-[#FDF8F1] border-2 border-transparent hover:border-[#FF8E6E] rounded-3xl transition-all duration-300 shadow-sm hover:shadow-xl hover:-translate-y-1 active:scale-95"
+                  >
+                    <span className="relative z-10 font-bold text-[#4A453A] group-hover:text-[#FF8E6E] text-base sm:text-lg transition-colors">
+                      {cat.label}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              <button 
+                onClick={() => setActiveMood(null)}
+                className="inline-flex items-center gap-2 text-[#7E7869] hover:text-[#FF8E6E] font-bold transition-colors border-b-2 border-transparent hover:border-[#FF8E6E] pb-1"
+              >
+                <ArrowLeft size={18} /> ย้อนกลับไปเลือกอารมณ์
+              </button>
+            </div>
+          )}
+
         </section>
       </main>
     </div>

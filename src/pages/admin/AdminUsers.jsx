@@ -1,8 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useOutletContext } from "react-router-dom";
-import { Trash2, Search, Ban, CheckCircle, Users } from "lucide-react";
-// 🌟 นำเข้า api ตัวกลางของเรา
+import { Trash2, Search, Ban, CheckCircle, Users, Mail } from "lucide-react"; // เพิ่ม Mail icon
 import api from "@/api/axios"; 
 import Swal from "sweetalert2";
 
@@ -14,11 +13,9 @@ export default function AdminUsers() {
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
 
-  // 🌟 ดึงข้อมูลสมาชิกทั้งหมด
   const fetchAllUsers = async () => {
     try {
       setLoading(true);
-      // ใช้ api.get ได้เลยครับ ระบบจะจัดการเรื่อง Token และ Base URL ให้เอง
       const res = await api.get("/admin/users");
       const data = res.data.users || res.data;
       setUsers(Array.isArray(data) ? data : []);
@@ -33,7 +30,6 @@ export default function AdminUsers() {
     fetchAllUsers();
   }, []);
 
-  // 🌟 ฟังก์ชัน ระงับ/ปลดระงับ การใช้งาน
   const handleToggleBan = async (user) => {
     const userId = user.id || user._id;
     const isBanned = user.status === "banned" || user.isBanned === true;
@@ -53,15 +49,8 @@ export default function AdminUsers() {
     if (result.isConfirmed) {
       try {
         const endpoint = isBanned ? "unban" : "ban";
-        // ยิงไปที่ /admin/users/:id/ban หรือ unban ตามรายการ API ของคุณ
         await api.put(`/admin/users/${userId}/${endpoint}`);
-
-        Swal.fire({
-          title: "สำเร็จ!",
-          icon: "success",
-          timer: 1000,
-          showConfirmButton: false,
-        });
+        Swal.fire({ title: "สำเร็จ!", icon: "success", timer: 1000, showConfirmButton: false });
         fetchAllUsers();
       } catch (e) {
         Swal.fire("ผิดพลาด", e.response?.data?.message || "ทำรายการไม่สำเร็จ", "error");
@@ -69,13 +58,9 @@ export default function AdminUsers() {
     }
   };
 
-  // 🌟 ฟังก์ชันลบสมาชิกถาวร
   const handleDeleteUser = async (user) => {
     const userId = user.id || user._id;
-
-    if (user.role === "admin") {
-      return Swal.fire("คำเตือน", "ไม่สามารถลบผู้ดูแลระบบได้", "warning");
-    }
+    if (user.role === "admin") return Swal.fire("คำเตือน", "ไม่สามารถลบผู้ดูแลระบบได้", "warning");
 
     const { value: confirmText } = await Swal.fire({
       title: "ลบสมาชิกถาวร?",
@@ -89,25 +74,13 @@ export default function AdminUsers() {
       cancelButtonText: "ยกเลิก",
       background: "#FDF8F1",
       customClass: { popup: "rounded-[2rem]" },
-      inputValidator: (value) => {
-        if (value !== "DELETE") return "กรุณาพิมพ์คำว่า DELETE ให้ถูกต้อง";
-      },
+      inputValidator: (value) => { if (value !== "DELETE") return "กรุณาพิมพ์คำว่า DELETE ให้ถูกต้อง"; },
     });
 
     if (confirmText === "DELETE") {
       try {
-        // แนบ data: { confirmText: "DELETE" } ตามที่ Backend ต้องการ
-        await api.delete(`/admin/users/${userId}`, {
-          data: { confirmText: "DELETE" }
-        });
-
-        Swal.fire({
-          title: "สำเร็จ!",
-          text: "ลบสมาชิกออกจากระบบเรียบร้อยแล้ว",
-          icon: "success",
-          timer: 1500,
-          showConfirmButton: false,
-        });
+        await api.delete(`/admin/users/${userId}`, { data: { confirmText: "DELETE" } });
+        Swal.fire({ title: "สำเร็จ!", text: "ลบสมาชิกออกจากระบบเรียบร้อยแล้ว", icon: "success", timer: 1500, showConfirmButton: false });
         fetchAllUsers();
       } catch (e) {
         Swal.fire("ผิดพลาด", e.response?.data?.message || "ไม่สามารถลบข้อมูลได้", "error");
@@ -122,32 +95,34 @@ export default function AdminUsers() {
   );
 
   return (
-    <div className="p-6 md:p-10 animate-fade-in font-['Kanit'] bg-[#FDF8F1] min-h-screen">
-      {/* ส่วนหัว และ Input ค้นหา (คงเดิมตามดีไซน์สวยๆ ของคุณ) */}
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10">
+    <div className="p-4 sm:p-6 md:p-10 animate-fade-in font-['Kanit'] bg-[#FDF8F1] min-h-screen">
+      {/* Header Section */}
+      <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-8 md:mb-10">
         <div>
-          <h1 className="text-4xl font-black text-[#4A453A] leading-tight">
+          <h1 className="text-3xl md:text-4xl font-black text-[#4A453A] leading-tight">
             จัดการ <span className="text-[#FF8E6E]">สมาชิก</span>
           </h1>
-          <p className="text-base text-[#7E7869] font-medium">ควบคุมสิทธิ์และสถานะการเข้าใช้งานของผู้ใช้</p>
+          <p className="text-sm md:text-base text-[#7E7869] font-medium opacity-80">ควบคุมสิทธิ์และสถานะการเข้าใช้งานของผู้ใช้ในระบบ</p>
         </div>
-        <div className="relative w-full md:w-[320px]">
+        <div className="relative w-full lg:w-[360px]">
           <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
           <input
             type="text"
-            placeholder="ค้นหาสมาชิก..."
-            className="w-full pl-12 pr-6 py-3 rounded-2xl bg-white border-none shadow-sm focus:shadow-md outline-none transition-all text-sm font-bold"
+            placeholder="ค้นหาชื่อ หรือ อีเมล..."
+            className="w-full pl-12 pr-6 py-4 rounded-2xl bg-white border-none shadow-sm focus:shadow-md outline-none transition-all text-sm font-bold placeholder:font-medium"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
       </header>
 
-      {/* ตารางแสดงรายชื่อ (คงเดิมตามดีไซน์ของคุณ) */}
-      <div className="bg-white rounded-[2.5rem] shadow-xl shadow-[#4A453A]/5 overflow-hidden border border-white">
-        <div className="overflow-x-auto">
+      {/* Main Content */}
+      <div className="bg-white rounded-[2rem] md:rounded-[2.5rem] shadow-xl shadow-[#4A453A]/5 overflow-hidden border border-white">
+        
+        {/* Desktop Table View (ซ่อนในมือถือ) */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse">
-            <thead className="bg-[#4A453A] text-white">
+            <thead className="bg-[#4A453A] text-white font-['Kanit']">
               <tr>
                 <th className="p-6 font-bold text-sm uppercase tracking-widest rounded-tl-[2.5rem]">ข้อมูลสมาชิก</th>
                 <th className="p-6 font-bold text-sm uppercase tracking-widest">อีเมล</th>
@@ -157,21 +132,15 @@ export default function AdminUsers() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading ? (
-                <tr>
-                  <td colSpan="4" className="p-20 text-center text-[#7E7869] animate-pulse font-bold text-lg italic opacity-50">กำลังโหลดข้อมูล...</td>
-                </tr>
+                <tr><td colSpan="4" className="p-20 text-center text-[#7E7869] animate-pulse font-bold">กำลังโหลดข้อมูล...</td></tr>
               ) : filteredUsers.length > 0 ? (
                 filteredUsers.map((u, index) => {
                   const isBanned = u.status === "banned" || u.isBanned === true;
                   return (
-                    <tr key={u.id || u._id || index} className={`transition-all ${isBanned ? "bg-red-50/40" : "hover:bg-gray-50/50"}`}>
+                    <tr key={u.id || u._id || index} className={`transition-all ${isBanned ? "bg-red-50/30" : "hover:bg-gray-50/50"}`}>
                       <td className="p-6">
                         <div className="flex items-center gap-4">
-                          <img
-                            src={u.profileImage || `https://ui-avatars.com/api/?name=${u.firstName}&background=FF7F67&color=fff`}
-                            className="w-12 h-12 rounded-xl object-cover shadow-sm border-2 border-white"
-                            alt="avatar"
-                          />
+                          <img src={u.profileImage || `https://ui-avatars.com/api/?name=${u.firstName}&background=FF7F67&color=fff`} className="w-12 h-12 rounded-xl object-cover shadow-sm border-2 border-white" alt="avatar" />
                           <div className="flex flex-col">
                             <span className="font-black text-[#4A453A] text-lg leading-tight">{u.firstName} {u.lastName}</span>
                             {isBanned && <span className="text-[10px] text-red-500 font-black uppercase tracking-widest mt-0.5 flex items-center gap-1"><Ban size={10} /> ถูกระงับ</span>}
@@ -198,11 +167,52 @@ export default function AdminUsers() {
                   );
                 })
               ) : (
-                <tr><td colSpan="4" className="p-20 text-center text-gray-400 font-bold text-base italic">ไม่พบข้อมูลสมาชิก</td></tr>
+                <tr><td colSpan="4" className="p-20 text-center text-gray-400 font-bold italic">ไม่พบข้อมูลสมาชิก</td></tr>
               )}
             </tbody>
           </table>
         </div>
+
+        {/* Mobile Card View (แสดงเฉพาะในมือถือ) */}
+        <div className="md:hidden divide-y divide-gray-100">
+          {loading ? (
+            <div className="p-10 text-center text-[#7E7869] animate-pulse font-bold">กำลังโหลด...</div>
+          ) : filteredUsers.length > 0 ? (
+            filteredUsers.map((u, index) => {
+              const isBanned = u.status === "banned" || u.isBanned === true;
+              return (
+                <div key={u.id || u._id || index} className={`p-5 ${isBanned ? "bg-red-50/40" : ""}`}>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <img src={u.profileImage || `https://ui-avatars.com/api/?name=${u.firstName}&background=FF7F67&color=fff`} className="w-12 h-12 rounded-xl border-2 border-white shadow-sm" alt="avatar" />
+                      <div>
+                        <p className="font-black text-[#4A453A]">{u.firstName} {u.lastName}</p>
+                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg ${isBanned ? "bg-red-100 text-red-600" : "bg-green-100 text-green-600"}`}>
+                          {isBanned ? "BANNED" : "ACTIVE"}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                       <button onClick={() => handleToggleBan(u)} className={`p-2.5 rounded-lg transition-all ${isBanned ? "bg-green-500 text-white" : "bg-red-50 text-red-500"}`}>
+                         {isBanned ? <CheckCircle size={16} /> : <Ban size={16} />}
+                       </button>
+                       <button onClick={() => handleDeleteUser(u)} className="p-2.5 bg-gray-50 text-gray-400 rounded-lg">
+                         <Trash2 size={16} />
+                       </button>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-[#7E7869] font-medium bg-gray-50 p-2 rounded-xl">
+                    <Mail size={14} />
+                    <span className="truncate">{u.email}</span>
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div className="p-10 text-center text-gray-400 font-bold">ไม่พบข้อมูลสมาชิก</div>
+          )}
+        </div>
+
       </div>
     </div>
   );

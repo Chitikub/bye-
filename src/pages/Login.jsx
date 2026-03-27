@@ -3,7 +3,8 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Eye, EyeOff, ArrowLeft, User, Mail, Lock, UserCircle } from "lucide-react";
 import Swal from 'sweetalert2';
-import axios from "axios";
+import api from "@/api/axios"; 
+import Cookies from 'js-cookie';
 
 export default function AuthPage() {
   const navigate = useNavigate();
@@ -53,19 +54,25 @@ export default function AuthPage() {
     setSubmitting(true);
 
     try {
-      const baseUrl = "https://moodlocationfinder-backend.onrender.com/api/v1";
       const endpoint = isLogin ? '/auth/login' : '/auth/register';
-      
       const payload = isLogin 
         ? { email: form.email, password: form.password } 
         : form;
 
-      const response = await axios.post(`${baseUrl}${endpoint}`, payload);
+      const response = await api.post(endpoint, payload);
 
       if (response.data) {
-        // ✨ จุดที่แก้ไข: เก็บ Token ลงใน localStorage ตามที่ axios.js ของคุณเรียกใช้
-        if (response.data.token) {
-          localStorage.setItem('token', response.data.token);
+        const token = response.data.token; // รับ Token จาก Backend
+        
+        if (token) {
+          // 1. บันทึกลง localStorage
+          localStorage.setItem('token', token);
+          
+          // 2. บันทึกลง Cookie (เก็บไว้ 7 วัน)
+          Cookies.set('token', token, { expires: 7 }); 
+          
+          // 3. ฝัง Token ลงใน Axios ทันที
+          api.defaults.headers.common['Authorization'] = `Bearer ${token}`; 
         }
         
         // เก็บข้อมูล User ลง localStorage
@@ -99,7 +106,7 @@ export default function AuthPage() {
       Swal.fire({
         icon: 'error',
         title: isLogin ? 'เข้าสู่ระบบไม่สำเร็จ' : 'สมัครสมาชิกไม่สำเร็จ',
-        text: error.response?.data?.message || 'ข้อมูลไม่ถูกต้องหรือเซิร์ฟเวอร์ขัดข้อง',
+        text: error.response?.data?.message || 'อีเมลหรือรหัสผ่านไม่ถูกต้อง',
         customClass: { popup: 'rounded-[30px]' }
       });
     } finally {

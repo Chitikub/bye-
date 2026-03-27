@@ -1,0 +1,214 @@
+'use client';
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { 
+  ArrowLeft, Star, MapPin, Clock, Phone, 
+  Navigation, Loader2, Image as ImageIcon, Heart 
+} from "lucide-react";
+import api from "@/api/axios";
+import Swal from "sweetalert2";
+
+export default function GooglePlaceDetail() {
+  const { placeId } = useParams();
+  const navigate = useNavigate();
+  const [place, setPlace] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [isFavorite, setIsFavorite] = useState(false); 
+
+  // 🌟 ดึง API KEY จาก .env ของคุณ
+  const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+
+  useEffect(() => {
+    const fetchDetails = async () => {
+      try {
+        setLoading(true);
+        // 1. ดึงรายละเอียดร้านจาก Google ผ่าน Backend
+        const res = await api.get(`/maps/details/${placeId}`);
+        setPlace(res.data);
+
+        // 2. เช็คสถานะหัวใจ (เฉพาะตอน Login แล้ว)
+        const token = localStorage.getItem("token");
+        if (token) {
+          try {
+            const favRes = await api.get(`/favorites/check/${placeId}`);
+            setIsFavorite(favRes.data.isFavorite);
+          } catch (e) { console.log("Check favorite status failed"); }
+        }
+      } catch (error) {
+        console.error("Error fetching details", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    if (placeId) fetchDetails();
+  }, [placeId]);
+
+  // 💖 ฟังก์ชัน: บันทึก/ยกเลิก รายการโปรด
+  const handleToggleFavorite = async () => {
+    try {
+      // ส่ง name และ image ไปด้วยเพื่อให้หน้า List แสดงผลได้ทันทีโดยไม่ต้องยิง Google API
+      const res = await api.post("/favorites/toggle", { 
+        placeId: placeId,
+        name: place.name,
+        image: place.photos?.[0]?.photo_reference || "" 
+      });
+      
+      setIsFavorite(res.data.isFavorite);
+      
+      Swal.fire({
+        icon: 'success',
+        title: res.data.isFavorite ? 'บันทึกรายการโปรดแล้ว' : 'นำออกจากรายการโปรดแล้ว',
+        timer: 1000,
+        showConfirmButton: false,
+        customClass: { popup: 'rounded-[30px]' }
+      });
+    } catch (error) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'กรุณาเข้าสู่ระบบ',
+        text: 'คุณต้องเข้าสู่ระบบก่อนจึงจะสามารถบันทึกรายการโปรดได้',
+        confirmButtonColor: '#FF8E6E'
+      });
+    }
+  };
+
+  // 🚀 ฟังก์ชัน: นำทาง และ บันทึกประวัติ
+  const handleNavigation = async () => {
+    try {
+      // บันทึกลงฐานข้อมูลหลังบ้านก่อนเปิดแมพ
+      await api.post("/history", { 
+        placeId: placeId,
+        name: place.name,
+        image: place.photos?.[0]?.photo_reference || ""
+      });
+    } catch (error) {
+      console.error("Save history to backend failed");
+    }
+    // เปิด Google Maps
+    window.open(place.url, '_blank');
+  };
+
+  if (loading) return (
+    <div className="min-h-screen bg-[#FDF8F1] flex flex-col items-center justify-center">
+      <Loader2 className="w-16 h-16 text-[#FF8E6E] animate-spin mb-4" />
+      <h2 className="text-2xl font-black text-[#4A453A]">กำลังโหลดข้อมูลร้าน...</h2>
+    </div>
+  );
+
+  if (!place) return <div className="text-center py-20 font-bold">ไม่พบข้อมูลสถานที่นี้</div>;
+
+  return (
+    <div className="min-h-screen bg-[#FDF8F1] font-['Prompt'] pt-24 pb-20">
+      <main className="container mx-auto px-4 max-w-4xl">
+        
+        {/* Header: ปุ่มย้อนกลับ และ ปุ่มหัวใจ */}
+        <div className="flex justify-between items-center mb-6 px-2">
+          <button onClick={() => navigate(-1)} className="group flex items-center gap-2 text-[#7E7869] hover:text-[#FF8E6E] font-bold transition-all">
+            <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" /> ย้อนกลับ
+          </button>
+          
+          <button 
+            onClick={handleToggleFavorite}
+            className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-90 ${isFavorite ? 'bg-red-500 text-white' : 'bg-white text-gray-400'}`}
+          >
+            <Heart className={`w-6 h-6 ${isFavorite ? 'fill-current' : ''}`} />
+          </button>
+        </div>
+
+        {/* --- Card รายละเอียดหลัก --- */}
+        <div className="bg-white rounded-[3rem] shadow-xl overflow-hidden border border-[#EFE9D9]">
+          {place.photos && place.photos.length > 0 ? (
+            <div className="h-[300px] md:h-[450px] overflow-hidden relative">
+              <img 
+                src={`https://maps.googleapis.com/maps/api/place/photo?maxwidth=1000&photo_reference=${place.photos[0].photo_reference}&key=${API_KEY}`} 
+                className="w-full h-full object-cover" 
+                alt={place.name}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+            </div>
+          ) : (
+            <div className="h-60 bg-gray-100 flex items-center justify-center text-gray-400">
+                <ImageIcon size={48} className="opacity-20" />
+            </div>
+          )}
+
+          <div className="p-8 md:p-12">
+            <h1 className="text-3xl md:text-5xl font-black text-[#2D2A26] mb-4">{place.name}</h1>
+            
+            <div className="flex flex-wrap items-center gap-4 mb-8">
+              <div className="flex items-center gap-1.5 bg-orange-50 text-[#FF8E6E] px-4 py-2 rounded-xl font-black text-xl">
+                <Star className="fill-[#FF8E6E]" size={22} /> {place.rating || 'N/A'}
+              </div>
+              <span className="text-[#AFA99B] font-medium text-lg">จาก {place.user_ratings_total || 0} รีวิวบน Google Maps</span>
+            </div>
+
+            <div className="space-y-6 mb-10 border-t border-gray-50 pt-8">
+              <div className="flex items-start gap-4 text-[#7E7869] font-medium text-lg">
+                <MapPin className="shrink-0 text-[#FF8E6E] mt-1" size={24} /> 
+                <span>{place.formatted_address}</span>
+              </div>
+              
+              {place.formatted_phone_number && (
+                <div className="flex items-center gap-4 text-[#7E7869] font-medium text-lg">
+                  <Phone className="shrink-0 text-[#FF8E6E]" size={24} /> 
+                  <span>{place.formatted_phone_number}</span>
+                </div>
+              )}
+              
+              {place.opening_hours && (
+                <div className="flex items-center gap-4 text-[#7E7869] font-medium text-lg">
+                  <Clock className="shrink-0 text-[#FF8E6E]" size={24} />
+                  {place.opening_hours.open_now ? 
+                    <span className="text-green-500 font-bold">● เปิดอยู่ตอนนี้</span> : 
+                    <span className="text-red-500 font-bold">● ปิดแล้ว</span>
+                  }
+                </div>
+              )}
+            </div>
+
+            <button 
+              onClick={handleNavigation}
+              className="w-full py-5 bg-[#4A453A] text-white rounded-[1.5rem] font-black text-xl flex items-center justify-center gap-3 hover:bg-[#FF8E6E] transition-all shadow-lg active:scale-95"
+            >
+              <Navigation size={24} /> เริ่มการนำทางไปที่นี่
+            </button>
+          </div>
+        </div>
+
+        {/* --- ส่วนรีวิว --- */}
+        {place.reviews && place.reviews.length > 0 ? (
+          <div className="mt-16 px-2">
+            <h2 className="text-3xl font-black text-[#4A453A] mb-10">รีวิว</h2>
+            <div className="grid gap-8">
+              {place.reviews.map((review, idx) => (
+                <div key={idx} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-[#EFE9D9]">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-4">
+                      <img 
+                        src={review.profile_photo_url || `https://ui-avatars.com/api/?name=${review.author_name}&background=FF8E6E&color=fff`} 
+                        alt="profile" 
+                        className="w-14 h-14 rounded-full border-2 border-orange-50 shadow-sm" 
+                      />
+                      <div>
+                        <p className="font-bold text-[#2D2A26] text-lg leading-tight">{review.author_name}</p>
+                        <p className="text-sm text-gray-400 mt-1">{review.relative_time_description}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 bg-orange-50 px-3 py-1 rounded-lg text-[#FF8E6E] font-black">
+                      <Star size={16} className="fill-[#FF8E6E]" /> {review.rating}
+                    </div>
+                  </div>
+                  <p className="text-[#7E7869] font-medium leading-relaxed italic text-lg">"{review.text}"</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="mt-16 text-center py-10 bg-white/50 rounded-[2rem] border border-dashed border-gray-200">
+             <p className="text-gray-400 font-bold">ยังไม่มีข้อมูลรีวิวสำหรับสถานที่นี้</p>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}

@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { User, Mail, Camera, Save, Lock, Eye, EyeOff, ShieldCheck, BadgeCheck } from "lucide-react";
-import axios from "axios";
+import api from "@/api/axios";
 import Swal from "sweetalert2";
 
 export default function AdminProfile() {
@@ -28,44 +28,51 @@ export default function AdminProfile() {
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onloadend = () => setUser({ ...user, profileImage: reader.result });
+    reader.onloadend = () => {
+      setUser({ ...user, profileImage: reader.result, imageFile: file }); 
+    };
     reader.readAsDataURL(file);
   };
 
-  const handleUpdateProfile = () => {
-    localStorage.setItem("user", JSON.stringify(user));
-    window.dispatchEvent(new Event("authChange"));
-    Swal.fire({ 
-        icon: 'success', 
-        title: 'บันทึกสำเร็จ!', 
-        text: 'ข้อมูลโปรไฟล์ผู้ดูแลระบบถูกอัปเดตแล้ว',
-        timer: 1500, 
-        showConfirmButton: false, 
-        customClass: { popup: 'rounded-[2rem]' } 
-    });
-  };
-
-  const handleUpdatePassword = async (e) => {
-    e.preventDefault();
-    if (passwords.newPassword !== passwords.confirmPassword) {
-      return Swal.fire({ icon: 'error', title: 'รหัสผ่านไม่ตรงกัน', text: 'กรุณาตรวจสอบการยืนยันรหัสผ่านใหม่', confirmButtonColor: '#FF7F67' });
-    }
-
+  const handleUpdateProfile = async () => {
     try {
-      const token = localStorage.getItem("token");
-      const baseUrl = "https://moodlocationfinder-backend.onrender.com/api/v1";
-      await axios.put(`${baseUrl}/users/change-password`, {
-        currentPassword: passwords.oldPassword,
-        newPassword: passwords.newPassword
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
+      const formData = new FormData();
+      formData.append("firstName", user.firstName);
+      formData.append("lastName", user.lastName);
+      if (user.gender) formData.append("gender", user.gender);
+      
+      // ถ้ามีการเลือกรูปใหม่ ให้แนบไฟล์ไปพร้อมกับ FormData
+      if (user.imageFile) {
+        formData.append("profileImage", user.imageFile);
+      }
+
+      // ยิง API ไปอัปเดตข้อมูลที่ Backend
+      const res = await api.put("/users/profile", formData, {
+        headers: { "Content-Type": "multipart/form-data" }
       });
 
-      Swal.fire({ icon: 'success', title: 'เปลี่ยนรหัสผ่านสำเร็จ!', showConfirmButton: false, timer: 1500 });
-      setPasswords({ oldPassword: "", newPassword: "", confirmPassword: "" });
-      setIsPasswordMode(false);
+      // นำข้อมูลใหม่ที่ได้จาก Backend (ซึ่งมี URL ของ Supabase ที่ถูกต้อง) มาบันทึก
+      const updatedUser = res.data.user || res.data;
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+      setUser(updatedUser);
+      
+      window.dispatchEvent(new Event("authChange"));
+      
+      Swal.fire({ 
+          icon: 'success', 
+          title: 'บันทึกสำเร็จ!', 
+          text: 'ข้อมูลโปรไฟล์ผู้ดูแลระบบถูกอัปเดตแล้ว',
+          timer: 1500, 
+          showConfirmButton: false, 
+          customClass: { popup: 'rounded-[2rem]' } 
+      });
     } catch (err) {
-      Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: err.response?.data?.message || 'ข้อมูลไม่ถูกต้อง' });
+      console.error("Update Admin Profile Error:", err);
+      Swal.fire({ 
+          icon: 'error', 
+          title: 'เกิดข้อผิดพลาด', 
+          text: err.response?.data?.message || 'ไม่สามารถอัปเดตข้อมูลได้'
+      });
     }
   };
 

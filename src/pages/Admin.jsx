@@ -2,7 +2,6 @@
 import { useState, useEffect } from "react";
 import AdminSidebar from "../components/AdminSidebar"; // ตรวจสอบ Path ให้ถูกต้อง
 import AdminDashboard from "./admin/AdminDashboard";
-import AdminPlaces from "./admin/AdminPlaces";
 import AdminUsers from "./admin/AdminUsers";
 import AdminMessages from "./admin/AdminMessages";
 import { io } from "socket.io-client";
@@ -39,7 +38,6 @@ export default function Admin() {
       {/* --- ส่วน Content: จะเปลี่ยนไปตาม Tab ที่เลือก --- */}
       <main className="flex-1 overflow-y-auto">
         {tab === "dashboard" && <AdminDashboard setTab={setTab} />}
-        {tab === "places" && <AdminPlaces />}
         {tab === "users" && <AdminUsers />}
         {tab === "messages" && <AdminMessages setContactsCount={setContactsCount} />}
       </main>

@@ -6,17 +6,15 @@ import Register from "../pages/Register";
 import Home from "../pages/Home";
 import GuidePage from "../pages/Guide";
 import ContactPage from "../pages/Contact";
-import Favorites from "../pages/favorites";
+import FavoritesPage from "../pages/favorites";
 import Profile from "../pages/profile";
-import History from "../pages/history";
-import PlaceDetail from "../pages/PlaceDetail";
+import HistoryPage from "../pages/history";
 import AdminDashboard from "../pages/admin/AdminDashboard";
-import AdminPlaces from "../pages/admin/AdminPlaces";
 import AdminUsers from "../pages/admin/AdminUsers";
 import AdminMessages from "../pages/admin/AdminMessages";
 import AdminProfile from "../pages/admin/AdminProfile";
-import AdminPlaceDetail from "../pages/admin/AdminPlaceDetail";
 import FilterPage from "../pages/FilterPage";
+import GooglePlaceDetail from "../pages/GooglePlaceDetail";
 
 // 🌟 ฟังก์ชันดึง Token ที่ครอบคลุมทั้ง Cookie และ LocalStorage
 const getToken = () => {
@@ -70,11 +68,11 @@ const router = createBrowserRouter([
             { index: true, element: <ProtectedUserRoute><Home /></ProtectedUserRoute> },
             { path: "guide", element: <ProtectedUserRoute><GuidePage /></ProtectedUserRoute> },
             { path: "contact", element: <ProtectedUserRoute><ContactPage /></ProtectedUserRoute> },
-            { path: "favorites", element: <ProtectedUserRoute><Favorites /></ProtectedUserRoute> },
-            { path: "history", element: <ProtectedUserRoute><History /></ProtectedUserRoute> },
-            { path: "place/:id", element: <ProtectedUserRoute><PlaceDetail /></ProtectedUserRoute> },
+            { path: "favorites", element: <ProtectedUserRoute><FavoritesPage /></ProtectedUserRoute> },
+            { path: "history", element: <ProtectedUserRoute><HistoryPage /></ProtectedUserRoute> },
             { path: "filter", element: <ProtectedUserRoute><FilterPage /></ProtectedUserRoute> },
-            
+            { path: "g-place/:placeId", element: <ProtectedUserRoute><GooglePlaceDetail /></ProtectedUserRoute> },
+
             // หน้าที่เข้าได้ทั้งคู่
             { path: "profile", element: <Profile /> }, 
 
@@ -88,10 +86,6 @@ const router = createBrowserRouter([
                 element: <ProtectedAdminRoute><AdminDashboard /></ProtectedAdminRoute> 
             },
             { 
-                path: "admin/places", 
-                element: <ProtectedAdminRoute><AdminPlaces /></ProtectedAdminRoute> 
-            },
-            { 
                 path: "admin/users", 
                 element: <ProtectedAdminRoute><AdminUsers /></ProtectedAdminRoute> 
             },
@@ -102,10 +96,6 @@ const router = createBrowserRouter([
             { 
                 path: "admin/profile", 
                 element: <ProtectedAdminRoute><AdminProfile /></ProtectedAdminRoute> 
-            },
-            { 
-                path: "admin/place/:id", 
-                element: <ProtectedAdminRoute><AdminPlaceDetail /></ProtectedAdminRoute> 
             }
         ]
     },
