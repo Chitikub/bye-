@@ -23,7 +23,7 @@ export default function Index() {
           ? response.data 
           : (response.data.places || []);
         
-        // 🌟 ฟังก์ชันเช็คภาพแบบครอบคลุม ป้องกันบั๊ก "undefined" หรือ "null"
+        // 🌟 ฟังก์ชันเช็คภาพแบบครอบคลุม
         const getValidImageUrl = (img) => {
           if (!img || img === "undefined" || img === "null" || img.trim() === "") {
             return "https://placehold.co/600x400/EFE9D9/4A453A?text=No+Image";
@@ -32,7 +32,6 @@ export default function Index() {
           return img.startsWith('/') ? `${IMAGE_BASE_URL}${img}` : `${IMAGE_BASE_URL}/${img}`;
         };
 
-        // 🌟 นำฟังก์ชันมาใช้ตอน Format ข้อมูล
         const formattedData = data.map(place => ({
           ...place,
           image: getValidImageUrl(place.image)
@@ -49,8 +48,33 @@ export default function Index() {
     fetchPlaces();
   }, []);
 
-  const handleMoodSelect = (moodLabel) => {
-    navigate(`/filter?mood=${moodLabel}`);
+  const handleMoodSelect = (emotionId) => {
+  // 1. Data Strategy: Mapping อารมณ์กับ Keywords [ตามแผนงานข้อ 1]
+  const queryMap = {
+    happy: "สวนสนุก+amusement+park+event+space",
+    sad: "สวนสาธารณะ+park+art+gallery+bookstore",
+    bored: "พิพิธภัณฑ์+museum+mall+board+game+cafe",
+    stressed: "สปา+spa+quiet+cafe+botanical+garden",
+    angry: "ยิม+gym+stadium+boxing+gym"
+  };
+
+  const searchQuery = queryMap[emotionId] || "place+near+me";
+
+  // 2. Intent Construction: สร้าง Deep Link สำหรับ Google Maps [ตามแผนงานข้อ 2 Step 3]
+  // ใช้โครงสร้าง search query เพื่อให้ Google Maps หาตำแหน่งปัจจุบันของผู้ใช้เอง
+  const googleMapsUrl = `https://www.google.com/maps/search/${searchQuery}`;
+
+  // 3. Dynamic Display: เปิดแอปหรือเบราว์เซอร์ [ตามแผนงานข้อ 2 Step 4]
+  window.open(googleMapsUrl, '_blank'); 
+};
+
+  // 🌟 ฟังก์ชันจัดการการค้นหาเมื่อกด Enter หรือกดปุ่มแว่นขยาย
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      // ส่งคำค้นหาไปที่หน้า Filter พร้อมกับ parameter ?q=
+      navigate(`/filter?q=${encodeURIComponent(searchQuery.trim())}`);
+    }
   };
 
   useEffect(() => {
@@ -81,14 +105,24 @@ export default function Index() {
           <p className="mx-auto mt-4 sm:mt-8 max-w-2xl animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-500 text-base sm:text-xl text-[#7E7869] font-medium px-4">
             เลือกความรู้สึกของคุณตอนนี้ แล้วเราจะพาส่งไปยังสถานที่ที่ตอบโจทย์ที่สุด
           </p>
+
           <div className="mx-auto mt-8 sm:mt-12 max-w-xl animate-in fade-in slide-in-from-bottom-10 duration-1000 delay-700">
-            <div className="relative group px-2">
+            {/* 🌟 เปลี่ยน div ตรงนี้ให้เป็น form เพื่อให้ดักจับการกด Enter ได้ */}
+            <form onSubmit={handleSearchSubmit} className="relative group px-2">
               <div className="absolute -inset-1 bg-gradient-to-r from-[#FF8E6E] to-[#FFA07A] rounded-full blur opacity-15 group-focus-within:opacity-100 transition duration-1000"></div>
               <div className="relative flex items-center bg-white/95 backdrop-blur-xl rounded-full shadow-xl overflow-hidden border border-white/50">
-                <Search className="ml-5 h-5 w-5 text-gray-400 group-focus-within:text-[#FF8E6E] transition-colors" />
-                <input type="text" placeholder="วันนี้รู้สึกยังไง..." className="w-full py-4 sm:py-6 px-4 text-sm sm:text-lg font-bold outline-none bg-transparent placeholder:text-gray-400" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                <button type="submit" className="ml-5 flex items-center outline-none">
+                   <Search className="h-5 w-5 text-gray-400 group-focus-within:text-[#FF8E6E] hover:scale-110 transition-all cursor-pointer" />
+                </button>
+                <input 
+                  type="text" 
+                  placeholder="วันนี้รู้สึกยังไง (เช่น อยากพักผ่อน, เครียด)..." 
+                  className="w-full py-4 sm:py-6 px-4 text-sm sm:text-lg font-bold outline-none bg-transparent placeholder:text-gray-400" 
+                  value={searchQuery} 
+                  onChange={(e) => setSearchQuery(e.target.value)} 
+                />
               </div>
-            </div>
+            </form>
           </div>
         </div>
       </section>

@@ -21,20 +21,25 @@ export default function FilterPage() {
   const categories = ["ทั้งหมด", "คาเฟ่", "วัด", "สวนสาธารณะ", "บาร์", "สวนสนุก", "ห้องสมุด", "ตลาด", "ที่พัก"];
 
   useEffect(() => {
-    const fetchPlaces = async () => {
-      try {
-        const response = await api.get("/places");
-        // ดึงจาก response.data.places ตามโครงสร้าง JSON ที่คุณส่งมา
-        const data = response.data.places || [];
-        setPlaces(data);
-      } catch (error) {
-        console.error("Fetch Error:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchPlaces();
-  }, []);
+  let result = [...places];
+  
+  // ปรับการกรองตาม Mapping ที่วางแผนไว้
+  const moodToCategoryMap = {
+    "มีความสุข": ["สวนสนุก", "Amusement Park"],
+    "เศร้า": ["สวนสาธารณะ", "ห้องสมุด", "Art Gallery"],
+    "เบื่อ": ["พิพิธภัณฑ์", "ตลาด", "Board Game"],
+    "เครียด": ["ที่พัก", "Quiet Cafe", "สปา"],
+    "โกรธ": ["สนามกีฬา", "Gym"]
+  };
+
+  if (selectedMood && moodToCategoryMap[selectedMood]) {
+    result = result.filter(place => 
+      moodToCategoryMap[selectedMood].includes(place.category)
+    );
+  }
+  
+  setFilteredPlaces(result);
+}, [selectedMood, places]);
 
   // 🌟 Logic การกรองแบบใหม่ (ใช้ข้อมูลจากฟิลด์ category และ moods ใน JSON)
   useEffect(() => {
@@ -67,6 +72,10 @@ export default function FilterPage() {
     setSearchParams(params);
     setIsMoodModalOpen(false);
   };
+
+  const q = searchParams.get('q');
+
+
 
   return (
     <div className="min-h-screen bg-[#FDF8F1] font-['Prompt'] text-[#4A453A] pt-24 pb-32">
