@@ -123,7 +123,7 @@ export default function Header() {
         {/* Desktop Menu */}
         <div style={menuCenter} className="menu-center">
           <Link to="/guide" className={`nav-item ${isActive("/guide") ? "active-nav" : ""}`}>คู่มือ</Link>
-          <Link to="/contact" className={`nav-item ${isActive("/contact") ? "active-nav" : ""}`}>ติดต่อเรา</Link>
+          <Link to="/contact" className={`nav-item ${isActive("/contact") ? "active-nav" : ""}`}>ศูนย์ช่วยเหลือผู้ใช้</Link>
         </div>
 
         <div style={userSection}>
@@ -174,6 +174,7 @@ export default function Header() {
                     <Link to="/profile" className="drop-item" onClick={() => setIsProfileOpen(false)}>โปรไฟล์ของฉัน</Link>
                     <Link to="/favorites" className="drop-item" onClick={() => setIsProfileOpen(false)}>รายการโปรด</Link>
                     <Link to="/history" className="drop-item" onClick={() => setIsProfileOpen(false)}>ประวัติการนำทาง</Link>
+                     <Link to="/planner" className="drop-item" onClick={() => setIsProfileOpen(false)}>วางแผนการเดินทาง</Link>
                   </div>
                 )}
               </div>
@@ -192,7 +193,7 @@ export default function Header() {
                  {isProfileOpen && (
                    <div style={dropdownStyle}>
                       <Link to="/guide" className="drop-item" onClick={() => setIsProfileOpen(false)}>คู่มือการใช้งาน</Link>
-                      <Link to="/contact" className="drop-item" onClick={() => setIsProfileOpen(false)}>ติดต่อเรา</Link>
+                      <Link to="/contact" className="drop-item" onClick={() => setIsProfileOpen(false)}>ศูนย์ช่วยเหลือผู้ใช้</Link>
                    </div>
                  )}
               </div>

@@ -1,9 +1,9 @@
 'use client';
 import { useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, MapPin, Compass, Star, Navigation, Loader2 } from "lucide-react";
+import { ArrowLeft, MapPin, Compass, Star, Navigation, Loader2, Car } from "lucide-react";
 import { motion } from "framer-motion";
-import api from "@/api/axios"; // เรียกใช้ axios สำหรับยิง API
+import api from "@/api/axios"; 
 import Swal from "sweetalert2";
 
 export default function FilterPage() {
@@ -11,7 +11,6 @@ export default function FilterPage() {
   const navigate = useNavigate();
   const selectedMood = searchParams.get("mood");
 
-  // 🌟 States สำหรับจัดการหน้าจอผลลัพธ์ API
   const [isSearching, setIsSearching] = useState(false);
   const [apiResults, setApiResults] = useState(null);
   const [selectedCategoryName, setSelectedCategoryName] = useState("");
@@ -47,12 +46,10 @@ export default function FilterPage() {
   const displayCategories = moodCategories[selectedMood] || moodCategories.happy;
   const currentMoodLabel = moodLabels[selectedMood] || "กำลังค้นหาพิกัด";
 
-  // 🌟 ฟังก์ชัน: ค้นหาสถานที่เมื่อกดการ์ด
   const handleCardClick = (categoryQuery, categoryLabel) => {
     setSelectedCategoryName(categoryLabel);
     setIsSearching(true);
 
-    // 1. ขอพิกัด GPS ปัจจุบันของผู้ใช้
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         async (position) => {
@@ -61,8 +58,8 @@ export default function FilterPage() {
           fetchPlacesFromAPI(categoryQuery, lat, lng);
         },
         (error) => {
-          console.warn("ไม่สามารถดึง GPS ได้ จะค้นหาแบบไม่ระบุพิกัดแทน", error);
-          fetchPlacesFromAPI(categoryQuery, null, null); // ค้นหาแบบกว้างๆ แทน
+          console.warn("ไม่สามารถดึง GPS ได้", error);
+          fetchPlacesFromAPI(categoryQuery, null, null); 
         }
       );
     } else {
@@ -70,32 +67,55 @@ export default function FilterPage() {
     }
   };
 
-  // 🌟 ฟังก์ชัน: ยิง API ไปที่ Backend ที่เราสร้างไว้
   const fetchPlacesFromAPI = async (keyword, lat, lng) => {
     try {
-      // เรียก API ของเราเอง (ที่ไปต่อกับ Google Maps อีกที)
+      // 1. ดึงสถานที่จาก Google Places API (ผ่าน Backend)
       const res = await api.get("/maps/search", {
         params: { keyword: keyword, lat: lat, lng: lng }
       });
       
-      // เก็บข้อมูลสถานที่ที่ได้ลง State เพื่อนำไปแสดงผล
-      setApiResults(res.data);
+      let placesData = res.data;
+
+      // 🌟 2. ดึงระยะทางขับรถจริงจาก Google Distance Matrix API (ถ้ามีพิกัดปัจจุบัน)
+      if (lat && lng && Array.isArray(placesData) && placesData.length > 0) {
+        
+        // วนลูปยิง API หาระยะทางทีละสถานที่ (อาจจะใช้เวลาโหลดนิดหน่อย แต่ได้ข้อมูลเป๊ะ)
+        const placesWithRealDistance = await Promise.all(
+          placesData.map(async (place) => {
+            const placeLat = place.geometry?.location?.lat;
+            const placeLng = place.geometry?.location?.lng;
+            
+            if (!placeLat || !placeLng) return { ...place, distanceValue: 99999999 };
+
+            try {
+              const distRes = await api.get('/maps/distance', {
+                params: { originLat: lat, originLng: lng, destLat: placeLat, destLng: placeLng }
+              });
+              
+              return { 
+                ...place, 
+                distanceText: distRes.data.distanceText, // เช่น "5.2 กม."
+                durationText: distRes.data.durationText, // เช่น "15 นาที"
+                distanceValue: distRes.data.distanceValue // เก็บเลขระยะทางจริงๆ ไว้ใช้เรียงลำดับ
+              };
+            } catch (e) {
+              return { ...place, distanceValue: 99999999 }; // ถ้าหาไม่ได้ ให้ปัดไปไกลสุด
+            }
+          })
+        );
+
+        // จัดเรียงจากใกล้ไปไกล โดยยึดตามระยะทางขับรถจริง
+        placesWithRealDistance.sort((a, b) => a.distanceValue - b.distanceValue);
+        placesData = placesWithRealDistance;
+      }
+
+      setApiResults(placesData);
     } catch (err) {
       console.error(err);
       Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: 'ไม่สามารถดึงข้อมูลสถานที่ได้ในขณะนี้' });
       setApiResults([]);
     } finally {
       setIsSearching(false);
-    }
-  };
-
-  // 🌟 เปิด Google Maps นำทาง
-  const openInGoogleMaps = (placeId, name) => {
-    // ถ้ามี Place ID ให้เปิดเจาะจงสถานที่เลย
-    if (placeId) {
-      window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name)}&query_place_id=${placeId}`, '_blank');
-    } else {
-      window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name)}`, '_blank');
     }
   };
 
@@ -108,7 +128,9 @@ export default function FilterPage() {
           <div className="flex flex-col items-center justify-center py-32 animate-in fade-in duration-500">
             <Loader2 className="w-16 h-16 text-[#FF8E6E] animate-spin mb-6" />
             <h2 className="text-3xl font-black text-[#4A453A] mb-2">กำลังค้นหาพิกัด...</h2>
-            <p className="text-[#7E7869] font-medium text-lg">กำลังรวบรวมข้อมูล {selectedCategoryName} ที่อยู่ใกล้คุณที่สุด</p>
+            <p className="text-[#7E7869] font-medium text-lg text-center">
+              กำลังรวบรวมข้อมูล {selectedCategoryName} ที่ใกล้คุณที่สุด <br/> 
+            </p>
           </div>
         )}
 
@@ -127,7 +149,7 @@ export default function FilterPage() {
               </div>
             </div>
 
-            {/* วนลูปแสดงการ์ดสถานที่จาก Google Maps */}
+            {/* วนลูปแสดงการ์ดสถานที่ */}
             <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
               {apiResults.map((place, index) => (
                 <motion.div key={place.place_id || index} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1 }} className="bg-white rounded-[2rem] p-6 shadow-sm hover:shadow-xl transition-all border border-[#EFE9D9] flex flex-col">
@@ -136,20 +158,28 @@ export default function FilterPage() {
                     <h3 className="text-xl font-black text-[#2D2A26] mb-2 line-clamp-2">{place.name}</h3>
                     <p className="text-[#AFA99B] text-sm mb-4 line-clamp-2">📍 {place.vicinity || place.formatted_address}</p>
                     
-                    <div className="flex items-center gap-2 mb-6">
+                    <div className="flex items-center flex-wrap gap-2 mb-6">
                       <div className="flex items-center gap-1 bg-orange-50 px-3 py-1.5 rounded-xl text-[#FF8E6E] font-black text-sm">
                         <Star size={14} className="fill-[#FF8E6E]" /> {place.rating || "ไม่มีคะแนน"}
                       </div>
                       <span className="text-xs text-gray-400 font-medium">({place.user_ratings_total || 0} รีวิว)</span>
+                      
+                      {/* 🌟 แสดงระยะทางและเวลาขับรถจริง */}
+                      {place.distanceText && place.durationText && (
+                        <div className="ml-auto flex items-center gap-1.5 bg-green-50 text-green-600 px-3 py-1.5 rounded-xl font-bold text-sm">
+                          <Car size={16} /> {place.distanceText} 
+                          <span className="font-medium text-xs opacity-80">({place.durationText})</span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
                   <button 
-  onClick={() => navigate(`/g-place/${place.place_id}`)}
-  className="w-full py-3.5 bg-[#4A453A] text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-[#FF8E6E] transition-colors shadow-md active:scale-95 mt-auto"
->
-  <Star size={18} /> ดูรูปภาพและรีวิว
-</button>
+                    onClick={() => navigate(`/g-place/${place.place_id}`)}
+                    className="w-full py-3.5 bg-[#4A453A] text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-[#FF8E6E] transition-colors shadow-md active:scale-95 mt-auto"
+                  >
+                    <Star size={18} /> ดูรูปภาพและรีวิว
+                  </button>
                 </motion.div>
               ))}
 
@@ -162,7 +192,7 @@ export default function FilterPage() {
           </div>
         )}
 
-        {/* --- โหมดที่ 3: หน้าจอเลือกหมวดหมู่ (ดั้งเดิม) --- */}
+        {/* --- โหมดที่ 3: หน้าจอเลือกหมวดหมู่ --- */}
         {!isSearching && apiResults === null && (
           <div className="animate-in fade-in duration-700">
             <div className="text-center mb-16">

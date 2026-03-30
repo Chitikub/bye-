@@ -3,181 +3,260 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { 
   UserPlus, 
-  Settings2, 
-  SmilePlus, 
-  MapPinCheckInside, 
+  Search, 
+  MapPin, 
+  Heart, 
   ArrowLeft,
   ArrowRight,
-  Sparkles
+  Sparkles,
+  Map,
+  Compass
 } from "lucide-react";
 
 export default function GuidePage() {
   const navigate = useNavigate();
 
-  const containerVars = {
+  // Animation Variants
+  const fadeUp = {
+    hidden: { opacity: 0, y: 30 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } }
+  };
+
+  const staggerContainer = {
     hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { 
-        staggerChildren: 0.1, // ปรับให้ไวขึ้นเล็กน้อยบนมือถือ
-        delayChildren: 0.2 
-      }
-    }
+    visible: { opacity: 1, transition: { staggerChildren: 0.2 } }
   };
-
-  const itemVars = {
-    hidden: { y: 20, opacity: 0 },
-    visible: { 
-      y: 0, 
-      opacity: 1, 
-      transition: { duration: 0.5, ease: "easeOut" } 
-    }
-  };
-
-  const steps = [
-    {
-      title: "เข้าร่วมกับเรา",
-      description: "เข้าสู่ระบบหรือสมัครสมาชิกเพื่อ บันทึกสถานที่โปรด และจดจำอารมณ์ในแต่ละวัน",
-      icon: <UserPlus className="w-7 h-7" />,
-      gradient: "from-[#4D6EF3] to-[#6A85F7]",
-      shadow: "shadow-[#4D6EF3]/30"
-    },
-    {
-      title: "ตั้งค่าโปรไฟล์",
-      description: "อัปโหลดรูปและระบุตัวตนของคุณ เพื่อให้ระบบ AI แนะนำพิกัดได้ตรงใจที่สุด",
-      icon: <Settings2 className="w-7 h-7" />,
-      gradient: "from-[#D82B8E] to-[#F45C9C]",
-      shadow: "shadow-[#D82B8E]/30"
-    },
-    {
-      title: "เลือกอารมณ์",
-      description: "บอกความรู้สึกตอนนี้ผ่าน Mood Chips หรือพิมพ์ระบายในช่องค้นหา",
-      icon: <SmilePlus className="w-7 h-7" />,
-      gradient: "from-[#F45C9C] to-[#D82B8E]",
-      shadow: "shadow-[#D82B8E]/30"
-    },
-    {
-      title: "รับพิกัดพักใจ",
-      description: "เลือกสถานที่ที่แนะนำ แล้วออกเดินทางได้ทันที พร้อมระบบนำทางที่แม่นยำ",
-      icon: <MapPinCheckInside className="w-7 h-7" />,
-      gradient: "from-[#00A78E] to-[#008C72]",
-      shadow: "shadow-[#00A78E]/30"
-    }
-  ];
 
   return (
-    <div className="min-h-screen bg-[#FDF8F1] text-[#1E1B4B] font-['Prompt',sans-serif] selection:bg-indigo-100 overflow-x-hidden">
+    <div className="min-h-screen bg-[#FDF8F1] text-[#4A453A] font-['Prompt',sans-serif] selection:bg-orange-100 overflow-x-hidden">
       
-      {/* Background Blur Blobs */}
-      <div className="fixed inset-0 z-0 pointer-events-none">
-        <div className="absolute top-[-5%] left-[-10%] w-[50%] h-[40%] bg-indigo-200/20 rounded-full blur-[100px]" />
-        <div className="absolute bottom-[-5%] right-[-10%] w-[50%] h-[40%] bg-pink-200/20 rounded-full blur-[100px]" />
+      {/* Background Decor */}
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-[-10%] right-[-5%] w-[40vw] h-[40vw] bg-orange-200/30 rounded-full blur-[100px]" />
+        <div className="absolute bottom-[-10%] left-[-5%] w-[40vw] h-[40vw] bg-yellow-200/30 rounded-full blur-[100px]" />
       </div>
 
-      {/* Header / Nav */}
-      <nav className="container mx-auto px-6 h-20 sm:h-32 flex items-center relative z-50">
-        <motion.button 
-          initial={{ opacity: 0, x: -10 }}
-          animate={{ opacity: 1, x: 0 }}
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-white/60 backdrop-blur-md border border-white/50 text-[#4A453A] hover:text-[#FF8E6E] hover:bg-white transition-all font-bold shadow-sm active:scale-95"
-        >
-          <ArrowLeft className="w-5 h-5" /> 
-          <span className="hidden sm:inline">ย้อนกลับ</span>
-        </motion.button>
+      {/* Navigation */}
+      <nav className="fixed top-0 w-full z-50 bg-[#FDF8F1]/80 backdrop-blur-md border-b border-[#EFE9D9]/50">
+        <div className="container mx-auto px-6 h-20 flex items-center">
+          <button 
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-2 text-[#7E7869] hover:text-[#FF8E6E] font-bold transition-colors group"
+          >
+            <div className="w-10 h-10 rounded-full bg-white border border-[#EFE9D9] shadow-sm flex items-center justify-center group-hover:border-[#FF8E6E]">
+              <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+            </div>
+            <span className="hidden sm:inline">ย้อนกลับ</span>
+          </button>
+        </div>
       </nav>
 
-      <main className="container mx-auto px-6 pt-4 pb-20 relative z-10">
+      <main className="container mx-auto px-4 sm:px-6 pt-32 pb-24 relative z-10">
         
-        {/* Hero Section */}
-        <section className="max-w-4xl mx-auto text-center mb-16 sm:mb-24">
-          <motion.h1 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-3xl sm:text-5xl md:text-7xl font-black mb-6 sm:mb-8 leading-tight tracking-tight text-[#4A4A4A]"
-          >
-            เปลี่ยนความรู้สึก ให้เป็น <br className="hidden sm:block" />
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#FF8E6E] via-purple-500 to-pink-500">
-              พิกัดที่ใช่สำหรับคุณ
-            </span>
-          </motion.h1>
-          <motion.p 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3 }}
-            className="text-base sm:text-lg md:text-xl text-slate-500 max-w-2xl mx-auto font-medium leading-relaxed px-4"
-          >
-            ค้นพบการเดินทางในรูปแบบใหม่ที่ใช้ "หัวใจ" นำทาง <br className="hidden md:block" />
-            ผ่าน 4 ขั้นตอนง่ายๆ ที่คุณทำได้ด้วยตัวเอง
-          </motion.p>
+        {/* --- Hero Section --- */}
+        <section className="max-w-4xl mx-auto text-center mb-24">
+          <motion.div initial="hidden" animate="visible" variants={staggerContainer} className="space-y-6">
+            <motion.div variants={fadeUp} className="inline-flex items-center gap-2 px-4 py-2 bg-orange-50 text-[#FF8E6E] rounded-full font-bold text-sm mb-4">
+              <Sparkles size={16} /> คู่มือการใช้งาน
+            </motion.div>
+            <motion.h1 variants={fadeUp} className="text-4xl sm:text-5xl md:text-7xl font-black leading-tight tracking-tight text-[#2D2A26]">
+              ให้ความรู้สึก <br className="hidden sm:block" />
+              <span className="text-[#FF8E6E]">นำทางคุณไปเจอที่ที่ใช่</span>
+            </motion.h1>
+            <motion.p variants={fadeUp} className="text-lg sm:text-xl text-[#7E7869] font-medium leading-relaxed max-w-2xl mx-auto px-4">
+              VibeMap (MoodLocation Finder) คือแพลตฟอร์มที่จะช่วยหาสถานที่ที่เหมาะกับอารมณ์ของคุณในแต่ละวัน เพียง 4 ขั้นตอนง่ายๆ
+            </motion.p>
+          </motion.div>
         </section>
 
-        {/* Steps Grid */}
-        <motion.div 
-          variants={containerVars}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-100px" }}
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 mb-20 sm:mb-24"
+        {/* --- Step 1: Login & Setup --- */}
+        <motion.section 
+          initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={fadeUp}
+          className="max-w-6xl mx-auto mb-32"
         >
-          {steps.map((step, index) => (
-            <motion.div 
-              key={index}
-              variants={itemVars}
-              whileHover={{ y: -8 }}
-              className="group relative bg-white rounded-[2rem] sm:rounded-[2.5rem] p-6 sm:p-8 shadow-[0_15px_40px_rgba(0,0,0,0.03)] border border-white flex flex-col items-start transition-all overflow-hidden"
-            >
-              {/* Step Number Indicator */}
-              <div className="absolute top-6 right-8 text-5xl sm:text-6xl font-black text-[#F1F3F9] transition-colors group-hover:text-indigo-50/50">
-                {String(index + 1).padStart(2, '0')}
+          <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-20">
+            <div className="flex-1 space-y-6 order-2 lg:order-1">
+              <div className="w-16 h-16 bg-[#4A453A] text-white rounded-2xl flex items-center justify-center shadow-lg shadow-[#4A453A]/20">
+                <UserPlus size={32} />
               </div>
-
-              {/* Icon Container */}
-              <div className={`relative z-10 w-16 h-16 sm:w-20 sm:h-20 rounded-[1.5rem] sm:rounded-[1.8rem] bg-gradient-to-br ${step.gradient} ${step.shadow} flex items-center justify-center text-white mb-8 group-hover:rotate-6 transition-transform shadow-lg`}>
-                {step.icon}
-              </div>
-
-              {/* Content Text */}
-              <div className="relative z-10">
-                <h3 className="text-xl sm:text-2xl font-black mb-3 sm:mb-4 text-[#4A453A]">{step.title}</h3>
-                <p className="text-slate-500 text-sm leading-relaxed font-medium">
-                  {step.description}
-                </p>
-              </div>
-            </motion.div>
-          ))}
-        </motion.div>
-
-        {/* Final CTA Section */}
-        <motion.div 
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ delay: 0.4 }}
-          className="relative max-w-3xl mx-auto"
-        >
-          <div className="absolute inset-0 bg-orange-400 blur-[60px] opacity-10" />
-          
-          <div className="relative bg-gradient-to-r from-[#FF8E6E] to-[#FFA07A] text-white rounded-[2rem] sm:rounded-[3rem] p-8 sm:p-12 text-center shadow-xl overflow-hidden">
-            {/* Sparkles Decoration */}
-            <div className="absolute -top-4 -right-4 p-4 opacity-20 hidden sm:block">
-              <Sparkles className="w-24 h-24 text-white" />
+              <h2 className="text-3xl sm:text-4xl font-black text-[#2D2A26]">1. เริ่มต้นด้วยการเข้าสู่ระบบ</h2>
+              <p className="text-[#7E7869] text-lg font-medium leading-relaxed">
+  เพื่อประสบการณ์ที่ดีที่สุด แนะนำให้คุณ{' '}
+  <button 
+    onClick={() => navigate('/login')} 
+    className="text-[#FF8E6E] font-bold hover:underline transition-all cursor-pointer"
+  >
+    เข้าสู่ระบบ
+  </button>{' '}
+  หรือสมัครสมาชิกก่อนใช้งาน เพื่อให้ระบบสามารถจดจำประวัติการเดินทาง และให้คุณสามารถกด "ถูกใจ" สถานที่ที่ชอบเก็บไว้ดูทีหลังได้
+</p>
+              <ul className="space-y-3 mt-6 text-[#7E7869] font-medium">
+                <li className="flex items-center gap-3"><div className="w-2 h-2 rounded-full bg-[#FF8E6E]" /> ข้อมูลของคุณจะถูกเก็บเป็นความลับ</li>
+                <li className="flex items-center gap-3"><div className="w-2 h-2 rounded-full bg-[#FF8E6E]" /> บันทึกประวัติการค้นหาสถานที่</li>
+                <li className="flex items-center gap-3"><div className="w-2 h-2 rounded-full bg-[#FF8E6E]" /> จัดการรายการโปรดส่วนตัวได้ไม่จำกัด</li>
+              </ul>
             </div>
             
-            <h2 className="text-2xl sm:text-4xl font-black text-white mb-6 sm:mb-10 relative z-10 leading-tight">
-              พร้อมที่จะตามหา <br />
-              <span className="text-[#4A453A]">พื้นที่พักพิงใจ</span> ของคุณหรือยัง?
+            {/* Mockup UI */}
+            <div className="flex-1 w-full max-w-md order-1 lg:order-2 relative">
+              <div className="absolute inset-0 bg-gradient-to-tr from-[#FF8E6E]/20 to-transparent rounded-[3rem] transform rotate-3" />
+              <div className="bg-white p-8 rounded-[3rem] shadow-xl border border-[#EFE9D9] relative z-10">
+                <div className="text-center mb-8">
+                  <div className="w-20 h-20 bg-gray-100 rounded-full mx-auto mb-4 border-4 border-white shadow-sm" />
+                  <div className="h-6 w-32 bg-gray-200 rounded-full mx-auto mb-2" />
+                  <div className="h-4 w-48 bg-gray-100 rounded-full mx-auto" />
+                </div>
+                <div className="space-y-4">
+                  <div className="h-12 bg-gray-50 rounded-xl w-full border border-gray-100" />
+                  <div className="h-12 bg-gray-50 rounded-xl w-full border border-gray-100" />
+                  <div className="h-14 bg-[#4A453A] rounded-xl w-full mt-6 opacity-90" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.section>
+
+        {/* --- Step 2: Describe Mood --- */}
+        <motion.section 
+          initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={fadeUp}
+          className="max-w-6xl mx-auto mb-32"
+        >
+          <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-20">
+            {/* Mockup UI */}
+            <div className="flex-1 w-full max-w-md relative">
+              <div className="absolute inset-0 bg-gradient-to-tl from-purple-200/40 to-transparent rounded-[3rem] transform -rotate-3" />
+              <div className="bg-white p-8 rounded-[3rem] shadow-xl border border-[#EFE9D9] relative z-10 flex flex-col gap-6">
+                <div className="h-16 bg-gray-50 rounded-2xl w-full flex items-center px-6 gap-4 border border-gray-100">
+                  <Search className="text-[#FF8E6E]" />
+                  <div className="h-4 w-40 bg-gray-200 rounded-full" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="h-24 bg-orange-50 rounded-2xl border-2 border-[#FF8E6E]/30 flex items-center justify-center text-4xl">😄</div>
+                  <div className="h-24 bg-gray-50 rounded-2xl flex items-center justify-center text-4xl opacity-50">😢</div>
+                  <div className="h-24 bg-gray-50 rounded-2xl flex items-center justify-center text-4xl opacity-50">😡</div>
+                  <div className="h-24 bg-gray-50 rounded-2xl flex items-center justify-center text-4xl opacity-50">🥱</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex-1 space-y-6">
+              <div className="w-16 h-16 bg-[#FF8E6E] text-white rounded-2xl flex items-center justify-center shadow-lg shadow-[#FF8E6E]/30">
+                <Search size={32} />
+              </div>
+              <h2 className="text-3xl sm:text-4xl font-black text-[#2D2A26]">2. บอกความรู้สึกของคุณ</h2>
+              <p className="text-[#7E7869] text-lg font-medium leading-relaxed">
+                ในหน้าแรก (Home) คุณสามารถหาสถานที่ได้ 2 วิธี:
+                <br/><br/>
+                <strong>วิธีที่ 1: พิมพ์ระบายในช่องค้นหา</strong> เช่น "อกหัก", "เหนื่อยจัง", "อยากพักผ่อน" ระบบ AI อัจฉริยะของเราจะวิเคราะห์ความรู้สึกและหาสถานที่บำบัดใจให้คุณทันที
+                <br/><br/>
+                <strong>วิธีที่ 2: กดเลือกจากไอคอนอารมณ์</strong> หากไม่รู้จะพิมพ์อะไร ก็กดเลือกอิโมจิที่ตรงกับความรู้สึกของคุณมากที่สุดได้เลย
+              </p>
+            </div>
+          </div>
+        </motion.section>
+
+        {/* --- Step 3: Explore Places --- */}
+        <motion.section 
+          initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={fadeUp}
+          className="max-w-6xl mx-auto mb-32"
+        >
+          <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-20">
+            <div className="flex-1 space-y-6 order-2 lg:order-1">
+              <div className="w-16 h-16 bg-blue-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/30">
+                <MapPin size={32} />
+              </div>
+              <h2 className="text-3xl sm:text-4xl font-black text-[#2D2A26]">3. เลือกสถานที่และตรวจสอบระยะทาง</h2>
+              <p className="text-[#7E7869] text-lg font-medium leading-relaxed">
+                ระบบจะดึงสถานที่จาก <strong className="text-blue-500">Google Maps</strong> ที่สอดคล้องกับอารมณ์ของคุณ โดยจะ <strong className="text-[#FF8E6E]">คำนวณระยะทางขับรถจริง และเวลาเดินทาง (นาที)</strong> ให้คุณเสร็จสรรพ พร้อมเรียงลำดับจากสถานที่ที่ใกล้ที่สุดขึ้นมาก่อน
+              </p>
+              <div className="bg-orange-50 border border-orange-100 rounded-2xl p-6 mt-6">
+                <p className="text-[#FF8E6E] font-bold flex items-start gap-3">
+                  <Compass className="shrink-0 mt-1" />
+                  อย่าลืมกด "อนุญาต (Allow)" ให้เบราว์เซอร์เข้าถึงตำแหน่ง (GPS) ของคุณ เพื่อให้ระบบคำนวณระยะทางได้อย่างแม่นยำนะครับ
+                </p>
+              </div>
+            </div>
+
+            {/* Mockup UI */}
+            <div className="flex-1 w-full max-w-md order-1 lg:order-2 relative">
+              <div className="absolute inset-0 bg-gradient-to-tr from-blue-200/40 to-transparent rounded-[3rem] transform rotate-3" />
+              <div className="bg-white p-6 rounded-[3rem] shadow-xl border border-[#EFE9D9] relative z-10 space-y-4">
+                <div className="h-32 bg-gray-100 rounded-2xl relative overflow-hidden">
+                  <div className="absolute top-2 right-2 w-8 h-8 bg-white/80 rounded-full flex items-center justify-center"><Heart size={16} className="text-gray-400" /></div>
+                </div>
+                <div className="h-6 w-3/4 bg-gray-200 rounded-full" />
+                <div className="flex justify-between items-center">
+                  <div className="h-4 w-1/3 bg-gray-100 rounded-full" />
+                  <div className="h-8 w-24 bg-green-50 rounded-xl" />
+                </div>
+                <div className="h-12 bg-[#4A453A] rounded-xl w-full mt-4" />
+              </div>
+            </div>
+          </div>
+        </motion.section>
+
+        {/* --- Step 4: Plan & Navigate --- */}
+        <motion.section 
+          initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={fadeUp}
+          className="max-w-6xl mx-auto mb-24"
+        >
+          <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-20">
+            {/* Mockup UI */}
+            <div className="flex-1 w-full max-w-md relative">
+              <div className="absolute inset-0 bg-gradient-to-tl from-green-200/40 to-transparent rounded-[3rem] transform -rotate-3" />
+              <div className="bg-white p-8 rounded-[3rem] shadow-xl border border-[#EFE9D9] relative z-10 flex flex-col gap-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 bg-green-100 rounded-full shrink-0 flex items-center justify-center"><MapPin size={20} className="text-green-600" /></div>
+                  <div className="flex-1 h-16 bg-gray-50 rounded-2xl border border-gray-100" />
+                </div>
+                <div className="w-1 h-8 bg-gray-200 ml-5" />
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 bg-white border-4 border-[#FF8E6E] rounded-full shrink-0 flex items-center justify-center text-xs font-bold text-[#FF8E6E]">1</div>
+                  <div className="flex-1 h-20 bg-white shadow-sm border border-gray-100 rounded-2xl" />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex-1 space-y-6">
+              <div className="w-16 h-16 bg-[#00A78E] text-white rounded-2xl flex items-center justify-center shadow-lg shadow-[#00A78E]/30">
+                <Map size={32} />
+              </div>
+              <h2 className="text-3xl sm:text-4xl font-black text-[#2D2A26]">4. จัดการรายการโปรด & วางแผนทริป</h2>
+              <p className="text-[#7E7869] text-lg font-medium leading-relaxed">
+                เมื่อเจอร้านที่ใช่ กดไอคอน ❤️ เพื่อเก็บเข้า <strong>"รายการโปรด"</strong> (บันทึกได้สูงสุด 10 แห่ง) 
+                <br/><br/>
+                จากนั้นไปที่เมนู <strong>"วางแผนการเดินทาง"</strong> ระบบจะนำสถานที่โปรดทั้งหมดมาจัดเรียงบน Timeline ตามระยะทางให้คุณเห็นภาพรวมของทริป และกดนำทางผ่าน Google Maps ได้ทันที!
+              </p>
+            </div>
+          </div>
+        </motion.section>
+
+        {/* --- Final CTA --- */}
+        <motion.div 
+          initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeUp}
+          className="relative max-w-4xl mx-auto mt-32"
+        >
+          <div className="absolute inset-0 bg-orange-400 blur-[80px] opacity-10" />
+          <div className="relative bg-gradient-to-r from-[#FF8E6E] to-[#FFA07A] rounded-[3rem] p-10 sm:p-16 text-center shadow-2xl overflow-hidden border border-white/20">
+            <div className="absolute top-0 right-0 p-8 opacity-20 hidden sm:block">
+              <Sparkles className="w-32 h-32 text-white" />
+            </div>
+            
+            <h2 className="text-3xl sm:text-5xl font-black text-white mb-6 relative z-10 leading-tight">
+              พร้อมจะออกไปหา <br className="hidden sm:block" />
+              <span className="text-[#4A453A]">พื้นที่พักใจ</span> หรือยัง?
             </h2>
             
             <button 
               onClick={() => navigate('/')}
-              className="group relative inline-flex items-center gap-3 bg-white text-[#4A453A] px-8 sm:px-12 py-4 sm:py-5 rounded-2xl text-base sm:text-lg font-black shadow-lg hover:bg-white/90 transition-all active:scale-95 z-10"
+              className="mt-8 group relative inline-flex items-center gap-3 bg-white text-[#4A453A] px-10 py-5 rounded-2xl text-lg font-black shadow-xl hover:bg-[#4A453A] hover:text-white transition-all active:scale-95 z-10"
             >
-              เริ่มต้นใช้งาน
+              กลับไปหน้าแรกเพื่อเริ่มต้นค้นหา
               <ArrowRight className="w-5 h-5 group-hover:translate-x-2 transition-transform" />
             </button>
           </div>
         </motion.div>
+
       </main>
     </div>
   );

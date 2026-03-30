@@ -27,13 +27,16 @@ export default function FavoritesPage() {
     try {
       setLoading(true);
       const res = await api.get("/favorites");
-      // ตรวจสอบโครงสร้างข้อมูลที่ส่งมาจาก Backend (ปกติจะเป็น res.data.favorites)
       const data = res.data.favorites || res.data || [];
-      setFavorites(Array.isArray(data) ? data : []);
+      
+      // จำกัดให้เก็บแค่ 10 รายการล่าสุด
+      const limitedData = Array.isArray(data) ? data.slice(0, 10) : [];
+      setFavorites(limitedData);
+      
     } catch (err) {
       console.error("Fetch Favorites Error:", err);
       if (err.response?.status === 401) {
-        navigate('/login'); // ถ้า Token หมดอายุให้ไปหน้า Login
+        navigate('/login'); 
       }
     } finally {
       setLoading(false);
@@ -82,7 +85,17 @@ export default function FavoritesPage() {
             <h1 className="text-4xl md:text-6xl font-black text-[#4A453A]">
               รายการ<span className="text-[#FF8E6E]">โปรด</span>
             </h1>
-            <p className="text-[#7E7869] font-medium text-lg">สถานที่ที่คุณประทับใจทั้งหมด {favorites.length} แห่ง</p>
+            
+            {/* 🌟 เพิ่มส่วนแสดงจำนวนที่บันทึก X / 10 ตรงนี้ */}
+            <div className="flex items-center flex-wrap gap-3">
+              <p className="text-[#7E7869] font-medium text-lg">สถานที่ที่คุณประทับใจล่าสุด</p>
+              {!loading && (
+                <span className="bg-orange-50 border border-orange-100 text-[#FF8E6E] px-3 py-1.5 rounded-xl font-black text-sm flex items-center gap-1.5 shadow-sm">
+                  <Heart size={14} className="fill-[#FF8E6E]" /> {favorites.length} / 10
+                </span>
+              )}
+            </div>
+
           </div>
         </div>
 
@@ -96,7 +109,6 @@ export default function FavoritesPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             <AnimatePresence mode="popLayout">
               {favorites.map((item) => {
-                // สร้าง URL รูปภาพจาก photo_reference
                 const imageUrl = item.placeImage 
                   ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${item.placeImage}&key=${API_KEY}`
                   : "https://placehold.co/600x400/EFE9D9/4A453A?text=No+Image";

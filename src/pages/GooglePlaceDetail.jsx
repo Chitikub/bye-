@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { 
   ArrowLeft, Star, MapPin, Clock, Phone, 
-  Navigation, Loader2, Image as ImageIcon, Heart 
+  Navigation, Loader2, Image as ImageIcon, Heart, Car 
 } from "lucide-react";
 import api from "@/api/axios";
 import Swal from "sweetalert2";
@@ -14,23 +14,55 @@ export default function GooglePlaceDetail() {
   const [place, setPlace] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false); 
+  
+  // 🌟 State เก็บระยะทางและเวลาเดินทางที่ได้จาก API
+  const [distance, setDistance] = useState(null); 
+  const [duration, setDuration] = useState(null); 
 
-  // 🌟 ดึง API KEY จาก .env ของคุณ
   const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
   useEffect(() => {
     const fetchDetails = async () => {
       try {
         setLoading(true);
-        // 1. ดึงรายละเอียดร้านจาก Google ผ่าน Backend
         const res = await api.get(`/maps/details/${placeId}`);
-        setPlace(res.data);
+        const placeData = res.data;
+        setPlace(placeData);
 
-        // 2. เช็คสถานะหัวใจ (เฉพาะตอน Login แล้ว)
+        // 🌟 ขอพิกัด GPS ผู้ใช้เพื่อยิง API หาระยะทางขับรถจริง
+        if (navigator.geolocation && placeData.geometry?.location) {
+          navigator.geolocation.getCurrentPosition(
+            async (position) => {
+              const userLat = position.coords.latitude;
+              const userLng = position.coords.longitude;
+              const placeLat = placeData.geometry.location.lat;
+              const placeLng = placeData.geometry.location.lng;
+              
+              try {
+                // ยิงไปที่ Backend เพื่อขอ Distance Matrix
+                const distRes = await api.get('/maps/distance', {
+                  params: { originLat: userLat, originLng: userLng, destLat: placeLat, destLng: placeLng }
+                });
+                
+                setDistance(distRes.data.distanceText); // เช่น "5.2 กม."
+                setDuration(distRes.data.durationText); // เช่น "15 นาที"
+              } catch (e) {
+                console.log("ไม่สามารถดึงข้อมูลระยะทางจาก API ได้ (ตรวจสอบว่าทำ Backend หรือยัง)");
+              }
+            },
+            (error) => {
+              console.warn("ไม่สามารถดึง GPS ผู้ใช้ได้", error);
+            }
+          );
+        }
+
+        // เช็คสถานะหัวใจ (ต้องแนบ Token)
         const token = localStorage.getItem("token");
         if (token) {
           try {
-            const favRes = await api.get(`/favorites/check/${placeId}`);
+            const favRes = await api.get(`/favorites/check/${placeId}`, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
             setIsFavorite(favRes.data.isFavorite);
           } catch (e) { console.log("Check favorite status failed"); }
         }
@@ -45,12 +77,23 @@ export default function GooglePlaceDetail() {
 
   // 💖 ฟังก์ชัน: บันทึก/ยกเลิก รายการโปรด
   const handleToggleFavorite = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      return Swal.fire({
+        icon: 'warning',
+        title: 'กรุณาเข้าสู่ระบบ',
+        text: 'คุณต้องเข้าสู่ระบบก่อนจึงจะสามารถบันทึกรายการโปรดได้',
+        confirmButtonColor: '#FF8E6E'
+      });
+    }
+
     try {
-      // ส่ง name และ image ไปด้วยเพื่อให้หน้า List แสดงผลได้ทันทีโดยไม่ต้องยิง Google API
       const res = await api.post("/favorites/toggle", { 
         placeId: placeId,
         name: place.name,
         image: place.photos?.[0]?.photo_reference || "" 
+      }, {
+        headers: { Authorization: `Bearer ${token}` } 
       });
       
       setIsFavorite(res.data.isFavorite);
@@ -64,9 +107,9 @@ export default function GooglePlaceDetail() {
       });
     } catch (error) {
       Swal.fire({
-        icon: 'warning',
-        title: 'กรุณาเข้าสู่ระบบ',
-        text: 'คุณต้องเข้าสู่ระบบก่อนจึงจะสามารถบันทึกรายการโปรดได้',
+        icon: 'error',
+        title: 'เกิดข้อผิดพลาด',
+        text: 'เซสชันอาจหมดอายุ กรุณาเข้าสู่ระบบใหม่',
         confirmButtonColor: '#FF8E6E'
       });
     }
@@ -74,18 +117,24 @@ export default function GooglePlaceDetail() {
 
   // 🚀 ฟังก์ชัน: นำทาง และ บันทึกประวัติ
   const handleNavigation = async () => {
-    try {
-      // บันทึกลงฐานข้อมูลหลังบ้านก่อนเปิดแมพ
-      await api.post("/history", { 
-        placeId: placeId,
-        name: place.name,
-        image: place.photos?.[0]?.photo_reference || ""
-      });
-    } catch (error) {
-      console.error("Save history to backend failed");
+    const token = localStorage.getItem("token");
+    if (token) {
+      try {
+        await api.post("/history", { 
+          placeId: placeId,
+          name: place.name,
+          image: place.photos?.[0]?.photo_reference || ""
+        }, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      } catch (error) {
+        console.error("Save history to backend failed", error);
+      }
     }
-    // เปิด Google Maps
-    window.open(place.url, '_blank');
+    
+    // สร้าง URL เปิด Google Maps โหมดเส้นทาง (Directions) ทันที
+    const navUrl = `https://www.google.com/maps/dir/?api=1&destination=$${encodeURIComponent(place.name)}&destination_place_id=${placeId}`;
+    window.open(navUrl, '_blank');
   };
 
   if (loading) return (
@@ -139,7 +188,15 @@ export default function GooglePlaceDetail() {
               <div className="flex items-center gap-1.5 bg-orange-50 text-[#FF8E6E] px-4 py-2 rounded-xl font-black text-xl">
                 <Star className="fill-[#FF8E6E]" size={22} /> {place.rating || 'N/A'}
               </div>
-              <span className="text-[#AFA99B] font-medium text-lg">จาก {place.user_ratings_total || 0} รีวิวบน Google Maps</span>
+              <span className="text-[#AFA99B] font-medium text-lg">จาก {place.user_ratings_total || 0} รีวิว</span>
+              
+              {/* 🌟 แสดงระยะทางและเวลาขับรถตรงนี้ */}
+              {distance && duration && (
+                <div className="flex items-center gap-2 bg-green-50 text-green-600 px-4 py-2 rounded-xl font-black text-lg ml-auto md:ml-0">
+                  <Car size={20} /> ห่างจากคุณ {distance} 
+                  <span className="text-sm font-medium ml-1">({duration})</span>
+                </div>
+              )}
             </div>
 
             <div className="space-y-6 mb-10 border-t border-gray-50 pt-8">

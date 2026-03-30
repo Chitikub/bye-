@@ -15,6 +15,8 @@ import AdminMessages from "../pages/admin/AdminMessages";
 import AdminProfile from "../pages/admin/AdminProfile";
 import FilterPage from "../pages/FilterPage";
 import GooglePlaceDetail from "../pages/GooglePlaceDetail";
+import TripPlanner from "../pages/TripPlanner";
+import VerifyEmail from "../pages/VerifyEmail";
 
 // 🌟 ฟังก์ชันดึง Token ที่ครอบคลุมทั้ง Cookie และ LocalStorage
 const getToken = () => {
@@ -72,6 +74,8 @@ const router = createBrowserRouter([
             { path: "history", element: <ProtectedUserRoute><HistoryPage /></ProtectedUserRoute> },
             { path: "filter", element: <ProtectedUserRoute><FilterPage /></ProtectedUserRoute> },
             { path: "g-place/:placeId", element: <ProtectedUserRoute><GooglePlaceDetail /></ProtectedUserRoute> },
+            { path: "planner", element: <ProtectedUserRoute><TripPlanner /></ProtectedUserRoute> },
+            
 
             // หน้าที่เข้าได้ทั้งคู่
             { path: "profile", element: <Profile /> }, 
@@ -79,6 +83,7 @@ const router = createBrowserRouter([
             // หน้า Auth: Login แล้วห้ามเข้าหน้าพวกนี้ซ้ำ
             { path: "login", element: <AuthRoute><Login /></AuthRoute> },
             { path: "register", element: <AuthRoute><Register /></AuthRoute> },
+            { path: "verify-email", element: <AuthRoute><VerifyEmail /> </AuthRoute> },
             
             // หน้าระบบ Admin: User ทั่วไปห้ามเข้า
             { 
