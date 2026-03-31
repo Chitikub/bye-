@@ -18,7 +18,7 @@ export default function AuthPage() {
     lastName: "", 
     email: "", 
     password: "", 
-    confirmPassword: "", 
+    confirmPassword: "", // 🌟 เพิ่มฟิลด์ยืนยันรหัสผ่าน
     gender: "" 
   });
   const [errors, setErrors] = useState({});
@@ -45,24 +45,13 @@ export default function AuthPage() {
 
   const validate = () => {
     const e = {};
-    
-    // 🌟 ดึงค่าอีเมลมาเช็ค
-    const emailValue = form.email.trim().toLowerCase();
-
     if (!isLogin) {
       if (!form.firstName.trim()) e.firstName = "กรุณากรอกชื่อ";
       if (!form.lastName.trim()) e.lastName = "กรุณากรอกนามสกุล";
       if (!form.gender) e.gender = "กรุณาเลือกเพศ";
-      if (form.password !== form.confirmPassword) e.confirmPassword = "รหัสผ่านไม่ตรงกัน"; 
+      if (form.password !== form.confirmPassword) e.confirmPassword = "รหัสผ่านไม่ตรงกัน"; // 🌟 เช็ครหัสผ่านตรงกันไหม
     }
-
-    // 🌟 เช็คการกรอกอีเมล (Gmail หรือ Hotmail เท่านั้น)
-    if (!emailValue) {
-      e.email = "กรุณากรอกอีเมล";
-    } else if (!emailValue.endsWith('@gmail.com') && !emailValue.endsWith('@hotmail.com')) {
-      e.email = "กรุณาใช้ @gmail.com หรือ @hotmail.com เท่านั้น";
-    }
-
+    if (!form.email.trim()) e.email = "กรุณากรอกอีเมล";
     if (!form.password) e.password = "กรุณากรอกรหัสผ่าน";
     if (form.password.length < 6) e.password = "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร";
     
@@ -84,6 +73,7 @@ export default function AuthPage() {
       const response = await api.post(endpoint, payload);
 
       if (response.data) {
+        // 🌟 กรณีสมัครสมาชิกสำเร็จ (แต่ยังไม่ได้ Verify Email)
         if (!isLogin) {
           await Swal.fire({
             icon: 'info',
@@ -96,9 +86,11 @@ export default function AuthPage() {
           return;
         }
 
+        // 🌟 กรณี Login (เช็คว่า Verify หรือยังผ่าน Token/User Data)
         const token = response.data.token;
         const userData = response.data.user || response.data;
 
+        // บันทึกข้อมูล
         localStorage.setItem('token', token);
         Cookies.set('token', token, { expires: 7 }); 
         api.defaults.headers.common['Authorization'] = `Bearer ${token}`; 
@@ -121,6 +113,7 @@ export default function AuthPage() {
       console.error("Auth Error:", error.response?.data);
       const msg = error.response?.data?.message || "";
       
+      // 🌟 กรณีอีเมลยังไม่ได้ Verify (Backend ต้องส่ง message นี้มา)
       if (msg.includes("verify") || msg.includes("ยัน")) {
         Swal.fire({
           icon: 'warning',
@@ -183,22 +176,7 @@ export default function AuthPage() {
 
             <div className="space-y-1.5">
               <label className="text-sm font-bold text-[#475569] ml-1">อีเมล</label>
-              <div className={inputWrapperClass("email")}>
-                <Mail className="w-4 h-4 text-gray-400" />
-                <input 
-                  type="email" 
-                  placeholder="your@gmail.com" 
-                  className="bg-transparent outline-none w-full text-[#4A453A]" 
-                  value={form.email} 
-                  onChange={(e) => {
-                    setForm({...form, email: e.target.value});
-                    // ลบ error ทันทีเวลาพิมพ์แก้
-                    if (errors.email) setErrors({...errors, email: null});
-                  }} 
-                />
-              </div>
-              {/* 🌟 แสดงข้อความแจ้งเตือนถ้าอีเมลผิด */}
-              {errors.email && <p className="text-xs text-red-500 ml-1 font-medium">{errors.email}</p>}
+              <div className={inputWrapperClass("email")}><Mail className="w-4 h-4 text-gray-400" /><input type="email" placeholder="your@email.com" className="bg-transparent outline-none w-full text-[#4A453A]" value={form.email} onChange={(e) => setForm({...form, email: e.target.value})} /></div>
             </div>
 
             <div className="space-y-1.5">
@@ -208,9 +186,9 @@ export default function AuthPage() {
                 <input type={showPassword ? "text" : "password"} placeholder="รหัสผ่านของคุณ" className="bg-transparent outline-none w-full text-[#4A453A]" value={form.password} onChange={(e) => setForm({...form, password: e.target.value})} />
                 <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-gray-400">{showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
               </div>
-              {errors.password && <p className="text-xs text-red-500 ml-1 font-medium">{errors.password}</p>}
             </div>
 
+            {/* 🌟 ฟิลด์ยืนยันรหัสผ่าน (แสดงเฉพาะหน้าสมัคร) */}
             {!isLogin && (
               <div className="space-y-1.5 animate-in fade-in duration-500">
                 <label className="text-sm font-bold text-[#475569] ml-1">ยืนยันรหัสผ่านอีกครั้ง</label>
@@ -219,7 +197,7 @@ export default function AuthPage() {
                   <input type={showConfirmPassword ? "text" : "password"} placeholder="ยืนยันรหัสผ่าน" className="bg-transparent outline-none w-full text-[#4A453A]" value={form.confirmPassword} onChange={(e) => setForm({...form, confirmPassword: e.target.value})} />
                   <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="text-gray-400">{showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
                 </div>
-                {errors.confirmPassword && <p className="text-xs text-red-500 ml-1 font-medium">{errors.confirmPassword}</p>}
+                {errors.confirmPassword && <p className="text-xs text-red-500 ml-1">{errors.confirmPassword}</p>}
               </div>
             )}
 
