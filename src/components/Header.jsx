@@ -29,25 +29,38 @@ export default function Header() {
   const verifyTokenWithBackend = async () => {
     const token = localStorage.getItem("token");
     if (!token) {
-      handleForceLogout(); // ถ้าไม่มี Token ให้เคลียร์ทุกอย่าง
+      handleForceLogout();
       return;
     }
 
     try {
-      // 🌟 ยิง API ไปเช็คโปรไฟล์ (เปลี่ยน endpoint ให้ตรงกับ Backend ของคุณ)
-      // สมมติว่า Backend มีเส้น GET /auth/me หรือ /users/profile ไว้ให้เช็ค
       const response = await api.get('/auth/me'); 
-      
-      // ถ้าผ่าน แสดงว่า Token ยังใช้ได้และ User มีตัวตน
-      // อัปเดตข้อมูลเผื่อมีการเปลี่ยนแปลง
       const userData = response.data.user || response.data;
       localStorage.setItem("user", JSON.stringify(userData));
       setUser(userData);
 
     } catch (error) {
       console.warn("Token หมดอายุ หรือไม่พบ User ในฐานข้อมูล:", error);
-      // 🌟 ถ้า API เออเร่อ (401 Unauthorized หรือ 404 Not Found) ให้บังคับเตะออก
-      handleForceLogout();
+      
+      // 🚨 เพิ่มแจ้งเตือนตรงนี้เมื่อ Token พัง / หมดอายุ / โดนเข้าซ้อน!
+      if (error.response && error.response.status === 401) {
+        Swal.fire({
+          icon: "warning",
+          title: "เซสชันหมดอายุ หรือ เข้าสู่ระบบซ้อน!",
+          text: "ระบบพบว่ามีการเข้าสู่ระบบจากอุปกรณ์อื่น หรือเซสชันของคุณหมดอายุ กรุณาเข้าสู่ระบบใหม่อีกครั้งเพื่อความปลอดภัย",
+          confirmButtonColor: "#FF8E6E",
+          confirmButtonText: "ตกลง",
+          allowOutsideClick: false,
+          customClass: { popup: "rounded-[2rem]" },
+        }).then(() => {
+          handleForceLogout(); // เคลียร์ข้อมูลทิ้ง
+          window.dispatchEvent(new Event("authChange"));
+          navigate("/login"); // เด้งไปหน้า Login
+        });
+      } else {
+        // ถ้าเป็น Error อื่นๆ ก็เตะออกแบบเงียบๆ ไปก่อน
+        handleForceLogout();
+      }
     }
   };
 
