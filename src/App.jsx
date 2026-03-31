@@ -6,7 +6,7 @@ import Routers from "./Routers/Router";
 
 function App() {
   useEffect(() => {
-    // 1. เช็คว่าผู้ใช้ล็อกอินอยู่หรือไม่ (มี Token และข้อมูล User)
+    // 1. เช็คว่ามีข้อมูลล็อกอินในเครื่องนี้หรือไม่
     const token = localStorage.getItem("token");
     const userStr = localStorage.getItem("user");
 
@@ -14,35 +14,34 @@ function App() {
       const user = JSON.parse(userStr);
       
       // 2. เชื่อมต่อ Socket ไปยัง Backend
-      // (อย่าลืมตั้งค่า VITE_API_URL ในไฟล์ .env ของหน้าบ้านด้วยนะครับ เช่น http://localhost:5000)
       const socketUrl = import.meta.env.VITE_API_URL || "http://localhost:5000";
       const socket = io(socketUrl);
 
-      // 3. ส่ง User ID ไปบอก Backend ว่า "เครื่องนี้กำลังล็อกอินบัญชีนี้นะ"
+      // 3. ส่ง User ID ไปลงทะเบียนกับ Backend ว่าเครื่องนี้ใช้งานอยู่
       const userId = user.id || user._id;
       socket.emit("register_user", userId);
 
-      // 4. 🚨 รอรับคำสั่ง "force_logout" จาก Backend เพื่อเตะออก
+      // 4. 🚨 รอรับคำสั่งเตะออก (สำหรับเครื่องที่โดนแย่งล็อกอิน)
       socket.on("force_logout", async (data) => {
-        // โชว์แจ้งเตือนสวยๆ ให้ผู้ใช้รู้ตัว
+        // เปลี่ยนเป็น Warning เพราะเครื่องนี้โดนเตะ
         await Swal.fire({
           icon: "warning",
           title: "ถูกออกจากระบบ!",
-          text: data?.message || "บัญชีนี้ถูกเข้าสู่ระบบจากอุปกรณ์อื่น",
+          text: data?.message || "บัญชีนี้ถูกเข้าสู่ระบบจากอุปกรณ์อื่น คุณจึงถูกออกจากระบบ",
           confirmButtonColor: "#FF7F67",
-          allowOutsideClick: false, // บังคับให้ต้องกดปุ่ม OK เท่านั้น
+          allowOutsideClick: false, // บังคับให้ต้องกด OK
         });
 
-        // ลบข้อมูลการเข้าสู่ระบบทิ้งให้หมด
+        // ลบข้อมูลการเข้าสู่ระบบของ "เครื่องเก่าที่โดนเตะ"
         localStorage.removeItem("token");
         localStorage.removeItem("user");
         Cookies.remove("token");
 
-        // เด้งไปหน้าเข้าสู่ระบบ
+        // เด้งกลับไปหน้าเข้าสู่ระบบ
         window.location.href = "/login";
       });
 
-      // คลีนอัพ Socket เวลาผู้ใช้ปิดหน้าเว็บ
+      // คลีนอัพ Socket เวลาปิดหน้าเว็บ
       return () => {
         socket.disconnect();
       };
