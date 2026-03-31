@@ -13,7 +13,8 @@ function App() {
       const user = JSON.parse(userStr);
       
       // 🌟 เช็คว่า URL ถูกไหม (ต้องตรงกับ Port ที่ Backend รันอยู่ เช่น 5000 หรือ 8000)
-      const socketUrl = import.meta.env.VITE_API_URL || "http://localhost:5000";
+      const envUrl = import.meta.env.VITE_API_BASE_URL;
+const socketUrl = (envUrl && envUrl !== "undefined") ? envUrl : "https://moodlocationfinder-backend.onrender.com";
       console.log("🔗 กำลังเชื่อมต่อ Socket ไปที่:", socketUrl);
       
       const socket = io(socketUrl);
@@ -32,13 +33,15 @@ function App() {
 
       // 🚨 รอรับคำสั่งเตะออก
       socket.on("force_logout", async (data) => {
-        console.log("🔥 ได้รับคำสั่ง force_logout จาก Backend!"); // ถ้าอันนี้ไม่ขึ้นแปลว่า Backend ไม่ได้ส่งมา
+        console.log("🔥 ได้รับคำสั่ง force_logout จาก Backend!"); 
         
+        // 🌟 ปรับข้อความ Alert ตรงนี้
         await Swal.fire({
           icon: "warning",
-          title: "ถูกออกจากระบบ!",
-          text: data?.message || "บัญชีนี้ถูกเข้าสู่ระบบจากอุปกรณ์อื่น คุณจึงถูกออกจากระบบ",
+          title: "มีการเข้าสู่ระบบซ้อน!",
+          text: data?.message || "มีคนเข้าสู่ระบบบัญชีของคุณจากอุปกรณ์อื่น คุณจึงถูกออกจากระบบเพื่อความปลอดภัย",
           confirmButtonColor: "#FF7F67",
+          confirmButtonText: "ตกลง",
           allowOutsideClick: false, 
         });
 
