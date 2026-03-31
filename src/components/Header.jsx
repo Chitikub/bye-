@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import Swal from "sweetalert2"; 
 import 'bootstrap-icons/font/bootstrap-icons.css';
+import api from "@/api/axios"; // 🌟 นำเข้า axios ที่คุณตั้งค่าไว้
 
 export default function Header() {
   const navigate = useNavigate();
@@ -18,14 +19,60 @@ export default function Header() {
     softSand: "#EFE9D9",
   };
 
-  const checkUser = () => {
+  // 🌟 ฟังก์ชันอัปเดตสถานะ User จาก LocalStorage (ใช้ชั่วคราวก่อนเช็ค API)
+  const loadUserFromLocal = () => {
     const data = localStorage.getItem("user");
     setUser(data ? JSON.parse(data) : null);
   };
 
+  // 🌟 ฟังก์ชันเช็คว่า Token ยังใช้งานได้จริงไหมกับ Backend
+  const verifyTokenWithBackend = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      handleForceLogout(); // ถ้าไม่มี Token ให้เคลียร์ทุกอย่าง
+      return;
+    }
+
+    try {
+      // 🌟 ยิง API ไปเช็คโปรไฟล์ (เปลี่ยน endpoint ให้ตรงกับ Backend ของคุณ)
+      // สมมติว่า Backend มีเส้น GET /auth/me หรือ /users/profile ไว้ให้เช็ค
+      const response = await api.get('/auth/me'); 
+      
+      // ถ้าผ่าน แสดงว่า Token ยังใช้ได้และ User มีตัวตน
+      // อัปเดตข้อมูลเผื่อมีการเปลี่ยนแปลง
+      const userData = response.data.user || response.data;
+      localStorage.setItem("user", JSON.stringify(userData));
+      setUser(userData);
+
+    } catch (error) {
+      console.warn("Token หมดอายุ หรือไม่พบ User ในฐานข้อมูล:", error);
+      // 🌟 ถ้า API เออเร่อ (401 Unauthorized หรือ 404 Not Found) ให้บังคับเตะออก
+      handleForceLogout();
+    }
+  };
+
+  // 🌟 ฟังก์ชันบังคับออกจากระบบแบบเงียบๆ (ไม่ขึ้น Alert)
+  const handleForceLogout = () => {
+    document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    setUser(null);
+    setIsProfileOpen(false);
+  };
+
   useEffect(() => {
-    checkUser();
-    const handleAuthChange = () => checkUser();
+    // 1. โหลดข้อมูลจาก LocalStorage มาโชว์ก่อนเพื่อความรวดเร็ว
+    loadUserFromLocal();
+    
+    // 2. เช็คกับ Backend เพื่อความชัวร์ (ถ้าพัง มันจะเตะออกและ Navbar จะเปลี่ยนทันที)
+    verifyTokenWithBackend();
+
+    // 🌟 ดักจับ Event ต่างๆ เผื่อมีการ Login/Logout จาก Tab อื่น
+    const handleAuthChange = () => {
+      loadUserFromLocal();
+      verifyTokenWithBackend(); // เช็คอีกรอบเพื่อความชัวร์
+    };
+
     window.addEventListener('storage', handleAuthChange);
     window.addEventListener('authChange', handleAuthChange);
 
@@ -36,13 +83,15 @@ export default function Header() {
     };
 
     document.addEventListener("mousedown", handleClickOutside);
+    
     return () => {
       document.removeEventListener("mousedown", handleClickOutside); 
       window.removeEventListener('storage', handleAuthChange);
       window.removeEventListener('authChange', handleAuthChange);
     }; 
-  }, []);
+  }, [location.pathname]); // 🌟 เพิ่ม dependency เป็น location.pathname เพื่อให้เช็คทุกครั้งที่เปลี่ยนหน้า
 
+  // ฟังก์ชันกดปุ่ม Logout ด้วยตัวเอง (มีแจ้งเตือน)
   const handleLogout = () => {
     Swal.fire({
       title: 'ไปพักผ่อนสักหน่อยไหม?', 
@@ -56,10 +105,7 @@ export default function Header() {
       customClass: { popup: "rounded-[2rem]" },
     }).then((res) => {
       if (res.isConfirmed) {
-        document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-        localStorage.clear();
-        setUser(null);
-        setIsProfileOpen(false);
+        handleForceLogout(); // ใช้ฟังก์ชันที่สร้างไว้
         window.dispatchEvent(new Event("authChange"));
         navigate("/login"); 
       }
@@ -89,7 +135,6 @@ export default function Header() {
         .hamburger-icon { font-size: 1.5rem; color: ${colors.darkPaper}; cursor: pointer; transition: 0.3s; display: flex; align-items: center; -webkit-text-stroke: 1px ${colors.darkPaper}; }
         .hamburger-icon:hover { color: ${colors.coral}; -webkit-text-stroke: 1px ${colors.coral}; }
         
-        /* 🌟 Tooltip ดีไซน์ใหม่ */
         .user-tooltip {
           position: absolute; top: 55px; left: 50%; transform: translateX(-50%); 
           background: ${colors.darkPaper}; color: white; padding: 8px 16px; 
@@ -142,7 +187,6 @@ export default function Header() {
                   <i className={`bi ${isProfileOpen ? 'bi-x-lg' : 'bi-list'}`}></i>
                 </div>
                 
-                {/* 🌟 ส่วนรูปภาพ: คลิกแล้วไปโปรไฟล์ + Hover แสดงชื่อนามสกุล */}
                 <div 
                   style={{ position: 'relative' }}
                   onMouseEnter={() => setIsHoveringAvatar(true)}
