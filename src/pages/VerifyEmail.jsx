@@ -15,31 +15,38 @@ export default function VerifyEmail() {
 
   useEffect(() => {
     const verifyToken = async () => {
+      // 1. เช็คว่ามี Token ใน URL ไหม
       if (!token) {
         setStatus("error");
-        setMessage("ไม่พบรหัสยืนยันตัวตน (Token) กรุณาตรวจสอบลิงก์อีกครั้ง");
+        setMessage("ไม่พบรหัสยืนยันตัวตน (Token) กรุณาตรวจสอบลิงก์ในอีเมลของคุณอีกครั้ง");
         return;
       }
 
       try {
-        // ส่ง Token ไปตรวจสอบที่ Backend
-        // สมมติว่า Endpoint คือ GET /auth/verify-email/:token
+        // 2. ยิง API ไปหา Backend
+        // 💡 ลองเปลี่ยนรูปแบบการยิง API ดูว่า Backend ของคุณรับแบบไหน
+
+        // แบบที่ 1: ส่ง Token ผ่าน URL Params (เช่น /api/v1/auth/verify-email/xxxx)
         const res = await api.get(`/auth/verify-email/${token}`);
 
+        // ⚠️ ถ้า Backend ของคุณรับเป็น Query String ให้เปิดคอมเมนต์บรรทัดล่างแล้วปิดบรรทัดบน
+        // const res = await api.get(`/auth/verify-email?token=${token}`);
+
         setStatus("success");
-        setMessage(res.data.message || "ยืนยันอีเมลสำเร็จแล้ว! คุณสามารถเข้าสู่ระบบได้ทันที");
+        setMessage(res.data.message || "ยืนยันอีเมลสำเร็จแล้ว! บัญชีของคุณพร้อมใช้งาน");
         
-        // แสดง Pop-up สำเร็จ
         Swal.fire({
           icon: 'success',
           title: 'สำเร็จ!',
-          text: 'ยืนยันอีเมลเรียบร้อยแล้ว',
+          text: 'ยืนยันอีเมลเรียบร้อยแล้ว กรุณาเข้าสู่ระบบ',
           confirmButtonColor: '#FF7F67',
           customClass: { popup: 'rounded-[30px]' }
         });
       } catch (error) {
+        console.error("Verify Error:", error);
         setStatus("error");
-        setMessage(error.response?.data?.message || "ลิงก์ยืนยันตัวตนไม่ถูกต้องหรือหมดอายุ");
+        // แสดงข้อความ Error จาก Backend ถ้ามี หรือแสดงข้อความ Default
+        setMessage(error.response?.data?.message || "ลิงก์ยืนยันตัวตนไม่ถูกต้อง หมดอายุ หรือเกิดข้อผิดพลาดจากเซิร์ฟเวอร์");
       }
     };
 
@@ -50,7 +57,7 @@ export default function VerifyEmail() {
     <main className="min-h-screen w-full flex items-center justify-center bg-[#FDF8F1] px-4 font-['Kanit',sans-serif]">
       <div className="max-w-md w-full bg-white rounded-[40px] p-10 shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-white text-center">
         
-        {/* ส่วนแสดงไอคอนตามสถานะ */}
+        {/* ส่วนแสดงไอคอน */}
         <div className="flex justify-center mb-8">
           {status === "loading" && (
             <div className="relative">
@@ -70,7 +77,7 @@ export default function VerifyEmail() {
           )}
         </div>
 
-        {/* ข้อความแจ้งสถานะ */}
+        {/* ข้อความสถานะ */}
         <h1 className={`text-2xl font-black mb-4 ${
           status === "error" ? "text-red-500" : "text-[#4A453A]"
         }`}>
@@ -81,7 +88,7 @@ export default function VerifyEmail() {
           {message}
         </p>
 
-        {/* ปุ่มนำทาง */}
+        {/* ปุ่ม */}
         {status !== "loading" && (
           <button 
             onClick={() => navigate('/login')}
