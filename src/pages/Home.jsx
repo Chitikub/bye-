@@ -315,25 +315,25 @@ export default function Index() {
         <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-transparent z-10" />
         <div className="absolute inset-0 bg-gradient-to-t from-[#FDF8F1] via-[#FDF8F1]/60 to-transparent z-20" />
 
-        <div className="container relative z-30 px-5 text-center mx-auto">
-          {/* ✅ Hero title: มือถือ 2.8rem, tablet ขึ้น 5xl+ */}
+        <div className="container relative z-30 px-4 sm:px-5 text-center mx-auto">
+          {/* ✅ Hero title: ลดขนาดบนมือถือให้พอดี (text-4xl) */}
           <h1
             className="
             animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-300
             font-black leading-tight drop-shadow-sm
-            text-[2.6rem] sm:text-6xl lg:text-8xl
+            text-4xl sm:text-6xl lg:text-8xl
             text-[#4A4A4A]
           "
           >
             ไปไหนดี... <br className="hidden xs:block" />
-            <span className="text-[#FF8E6E] inline-block hover:scale-105 transition-transform cursor-default drop-shadow-md">
+            <span className="text-[#FF8E6E] inline-block hover:scale-105 transition-transform cursor-default drop-shadow-md mt-1 sm:mt-0">
               ให้อารมณ์บอก
             </span>
           </h1>
 
           <p
             className="
-            mx-auto mt-3 sm:mt-8 max-w-lg
+            mx-auto mt-4 sm:mt-8 max-w-lg
             animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-500
             text-sm sm:text-xl text-[#7E7869] font-medium px-2 leading-relaxed
           "
@@ -342,8 +342,8 @@ export default function Index() {
             จะหาสถานที่ที่ช่วยให้รู้สึกดีขึ้น
           </p>
 
-          {/* ✅ Search bar: padding เพิ่ม tap target, font อ่านง่าย */}
-          <div className="mx-auto mt-6 sm:mt-12 max-w-xl animate-in fade-in slide-in-from-bottom-10 duration-1000 delay-700 w-full px-1 sm:px-0">
+          {/* ✅ Search bar: ปรับขอบซ้ายขวาบนมือถือให้สมดุล (px-4) */}
+          <div className="mx-auto mt-6 sm:mt-12 max-w-xl animate-in fade-in slide-in-from-bottom-10 duration-1000 delay-700 w-full px-4 sm:px-0">
             <form onSubmit={handleSearchSubmit} className="relative group">
               <div className="absolute -inset-1 bg-gradient-to-r from-[#FF8E6E] to-[#FFA07A] rounded-full blur opacity-15 group-focus-within:opacity-100 transition duration-1000" />
               <div className="relative flex items-center bg-white/95 backdrop-blur-xl rounded-full shadow-xl overflow-hidden border border-white/50">
@@ -356,11 +356,10 @@ export default function Index() {
                 <input
                   type="text"
                   placeholder="วันนี้รู้สึกยังไง..."
-                  className="w-full py-4 sm:py-5 pl-3 pr-4 text-base sm:text-lg font-bold outline-none bg-transparent placeholder:text-gray-400"
+                  className="w-full py-3.5 sm:py-5 pl-3 pr-4 text-base sm:text-lg font-bold outline-none bg-transparent placeholder:text-gray-400"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
-                {/* ✅ ปุ่ม Submit ชัดเจนบนมือถือ */}
                 {searchQuery && (
                   <button
                     type="submit"
