@@ -1,277 +1,373 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
-import Swal from "sweetalert2"; 
-import 'bootstrap-icons/font/bootstrap-icons.css';
-import api from "@/api/axios"; // 🌟 นำเข้า axios ที่คุณตั้งค่าไว้
+import Swal from "sweetalert2";
+import {
+  Heart,
+  X,
+  LogOut,
+  User,
+  BookOpen,
+  HelpCircle,
+  Clock,
+  Map,
+} from "lucide-react";
+import api from "@/api/axios";
 
 export default function Header() {
   const navigate = useNavigate();
   const location = useLocation();
   const [user, setUser] = useState(null);
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [isHoveringAvatar, setIsHoveringAvatar] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const dropdownRef = useRef(null);
 
-  const colors = {
-    warmCream: "#F9F4E8",
-    coral: "#FF8E6E",
-    darkPaper: "#4A453A",
-    softSand: "#EFE9D9",
-  };
-
-  // 🌟 ฟังก์ชันอัปเดตสถานะ User จาก LocalStorage (ใช้ชั่วคราวก่อนเช็ค API)
   const loadUserFromLocal = () => {
     const data = localStorage.getItem("user");
     setUser(data ? JSON.parse(data) : null);
   };
 
-  // 🌟 ฟังก์ชันเช็คว่า Token ยังใช้งานได้จริงไหมกับ Backend
+  const handleForceLogout = () => {
+    document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    setUser(null);
+    setMenuOpen(false);
+  };
+
   const verifyTokenWithBackend = async () => {
     const token = localStorage.getItem("token");
     if (!token) {
       handleForceLogout();
       return;
     }
-
     try {
-      const response = await api.get('/auth/me'); 
-      const userData = response.data.user || response.data;
+      const res = await api.get("/auth/me");
+      const userData = res.data.user || res.data;
       localStorage.setItem("user", JSON.stringify(userData));
       setUser(userData);
-
-    } catch (error) {
-      console.warn("Token หมดอายุ หรือไม่พบ User ในฐานข้อมูล:", error);
-      
-      // 🚨 เพิ่มแจ้งเตือนตรงนี้เมื่อ Token พัง / หมดอายุ / โดนเข้าซ้อน!
-      if (error.response && error.response.status === 401) {
+    } catch (err) {
+      if (err.response?.status === 401) {
         Swal.fire({
           icon: "warning",
-          title: "เซสชันหมดอายุ หรือ เข้าสู่ระบบซ้อน!",
-          text: "ระบบพบว่ามีการเข้าสู่ระบบจากอุปกรณ์อื่น หรือเซสชันของคุณหมดอายุ กรุณาเข้าสู่ระบบใหม่อีกครั้งเพื่อความปลอดภัย",
+          title: "เซสชันหมดอายุ!",
+          text: "กรุณาเข้าสู่ระบบใหม่",
           confirmButtonColor: "#FF8E6E",
           confirmButtonText: "ตกลง",
           allowOutsideClick: false,
           customClass: { popup: "rounded-[2rem]" },
         }).then(() => {
-          handleForceLogout(); // เคลียร์ข้อมูลทิ้ง
+          handleForceLogout();
           window.dispatchEvent(new Event("authChange"));
-          navigate("/login"); // เด้งไปหน้า Login
+          navigate("/login");
         });
       } else {
-        // ถ้าเป็น Error อื่นๆ ก็เตะออกแบบเงียบๆ ไปก่อน
         handleForceLogout();
       }
     }
   };
 
-  // 🌟 ฟังก์ชันบังคับออกจากระบบแบบเงียบๆ (ไม่ขึ้น Alert)
-  const handleForceLogout = () => {
-    document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    setUser(null);
-    setIsProfileOpen(false);
-  };
-
   useEffect(() => {
-    // 1. โหลดข้อมูลจาก LocalStorage มาโชว์ก่อนเพื่อความรวดเร็ว
     loadUserFromLocal();
-    
-    // 2. เช็คกับ Backend เพื่อความชัวร์ (ถ้าพัง มันจะเตะออกและ Navbar จะเปลี่ยนทันที)
     verifyTokenWithBackend();
-
-    // 🌟 ดักจับ Event ต่างๆ เผื่อมีการ Login/Logout จาก Tab อื่น
     const handleAuthChange = () => {
       loadUserFromLocal();
-      verifyTokenWithBackend(); // เช็คอีกรอบเพื่อความชัวร์
+      verifyTokenWithBackend();
     };
-
-    window.addEventListener('storage', handleAuthChange);
-    window.addEventListener('authChange', handleAuthChange);
-
     const handleClickOutside = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setIsProfileOpen(false);
-      }
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target))
+        setMenuOpen(false);
     };
-
+    window.addEventListener("storage", handleAuthChange);
+    window.addEventListener("authChange", handleAuthChange);
     document.addEventListener("mousedown", handleClickOutside);
-    
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside); 
-      window.removeEventListener('storage', handleAuthChange);
-      window.removeEventListener('authChange', handleAuthChange);
-    }; 
-  }, [location.pathname]); // 🌟 เพิ่ม dependency เป็น location.pathname เพื่อให้เช็คทุกครั้งที่เปลี่ยนหน้า
+      window.removeEventListener("storage", handleAuthChange);
+      window.removeEventListener("authChange", handleAuthChange);
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [location.pathname]);
 
-  // ฟังก์ชันกดปุ่ม Logout ด้วยตัวเอง (มีแจ้งเตือน)
   const handleLogout = () => {
     Swal.fire({
-      title: 'ไปพักผ่อนสักหน่อยไหม?', 
-      text: "ออกจากระบบเพื่อความปลอดภัย", 
-      icon: 'info', 
-      showCancelButton: true, 
-      confirmButtonColor: colors.coral, 
-      confirmButtonText: 'ตกลง',
-      cancelButtonText: 'ยกเลิก',
-      background: colors.warmCream, 
+      title: "ไปพักผ่อนสักหน่อยไหม?",
+      text: "ออกจากระบบเพื่อความปลอดภัย",
+      icon: "info",
+      showCancelButton: true,
+      confirmButtonColor: "#FF8E6E",
+      confirmButtonText: "ตกลง",
+      cancelButtonText: "ยกเลิก",
+      background: "#F9F4E8",
       customClass: { popup: "rounded-[2rem]" },
     }).then((res) => {
       if (res.isConfirmed) {
-        handleForceLogout(); // ใช้ฟังก์ชันที่สร้างไว้
+        handleForceLogout();
         window.dispatchEvent(new Event("authChange"));
-        navigate("/login"); 
+        navigate("/login");
       }
     });
   };
 
   const isActive = (path) => location.pathname === path;
 
+  const avatarUrl =
+    user?.profileImage ||
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.firstName || "U")}&background=FF7F67&color=fff`;
+
+  const userMenuLinks = [
+    { to: "/profile", label: "โปรไฟล์ของฉัน", icon: <User size={15} /> },
+    { to: "/favorites", label: "รายการโปรด", icon: <Heart size={15} /> },
+    { to: "/history", label: "ประวัติการนำทาง", icon: <Clock size={15} /> },
+    { to: "/planner", label: "วางแผนการเดินทาง", icon: <Map size={15} /> },
+    { to: "/guide", label: "คู่มือการใช้งาน", icon: <BookOpen size={15} /> },
+    { to: "/contact", label: "ศูนย์ช่วยเหลือ", icon: <HelpCircle size={15} /> },
+  ];
+
+  const guestMenuLinks = [
+    { to: "/guide", label: "คู่มือการใช้งาน", icon: <BookOpen size={15} /> },
+    { to: "/contact", label: "ศูนย์ช่วยเหลือ", icon: <HelpCircle size={15} /> },
+  ];
+
   return (
-    <header style={headerWrapper}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600&display=swap');
-        * { font-family: 'Prompt', sans-serif; }
-        .nav-item { position: relative; transition: 0.3s; padding: 10px 20px; border-radius: 15px; text-decoration: none; color: #7E7869; font-size: 0.95rem; }
-        .nav-item:hover { background: ${colors.softSand}; color: ${colors.coral} !important; }
-        .active-nav { color: ${colors.coral} !important; font-weight: 600; }
-        .active-nav::after { content: ''; position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); width: 5px; height: 5px; background: ${colors.coral}; border-radius: 50%; }
-        .cta-btn { transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); cursor: pointer; border: none; }
-        .cta-btn:hover { transform: scale(1.05); box-shadow: 0 8px 25px rgba(255, 127, 103, 0.4); }
-        
-        .profile-avatar-container { position: relative; transition: 0.3s; border-radius: 50px; padding: 2px; border: 2px solid transparent; }
-        .profile-avatar-container:hover { border-color: ${colors.coral}; transform: translateY(-2px); }
-        
-        .drop-item { width: 100%; padding: 12px 20px; border: none; background: none; text-align: left; cursor: pointer; font-size: 0.9rem; color: #4A453A; transition: 0.2s; display: block; text-decoration: none; }
-        .drop-item:hover { background-color: ${colors.softSand}; color: ${colors.coral}; }
-        
-        .hamburger-icon { font-size: 1.5rem; color: ${colors.darkPaper}; cursor: pointer; transition: 0.3s; display: flex; align-items: center; -webkit-text-stroke: 1px ${colors.darkPaper}; }
-        .hamburger-icon:hover { color: ${colors.coral}; -webkit-text-stroke: 1px ${colors.coral}; }
-        
-        .user-tooltip {
-          position: absolute; top: 55px; left: 50%; transform: translateX(-50%); 
-          background: ${colors.darkPaper}; color: white; padding: 8px 16px; 
-          border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); 
-          width: max-content; z-index: 1100; animation: fadeIn 0.2s ease-out; pointer-events: none;
-          font-size: 0.85rem; font-weight: 400;
-        }
-        @keyframes fadeIn { from { opacity: 0; transform: translateX(-50%) translateY(-5px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+    <>
+      <header className="fixed top-2 sm:top-3 left-0 right-0 z-50 flex justify-center px-3 sm:px-4 pointer-events-none">
+        <nav
+          className="
+          pointer-events-auto w-full sm:max-w-5xl
+          h-14 sm:h-[70px]
+          flex items-center justify-between
+          bg-[#F9F4E8]/90 backdrop-blur-xl
+          px-4 sm:px-6
+          rounded-full sm:rounded-3xl
+          border border-white/50
+          shadow-[0_4px_20px_rgba(74,69,58,0.08)]
+          overflow-visible
+        "
+        >
+          {/* Logo */}
+          <Link
+            to="/"
+            className="flex items-center flex-shrink-0 relative overflow-visible"
+          >
+            {/* มือถือ: logo ปกติใน flow, desktop: absolute ล้นขึ้น */}
+            <img
+              src="/logo1.png"
+              alt="MoodPlace"
+              className="
+                h-10 sm:h-[110px] w-auto
+                sm:absolute sm:top-1/2 sm:left-0 sm:-translate-y-1/2 sm:z-10
+                drop-shadow-[0_4px_10px_rgba(255,142,110,0.2)]
+                hover:scale-105 transition-transform duration-300
+              "
+            />
+          </Link>
 
-        .mobile-only-item { display: none; }
-
-        @media (max-width: 1024px) {
-          .menu-center { margin-left: 0 !important; justify-content: center !important; }
-        }
-
-        @media (max-width: 768px) {
-          .menu-center { display: none !important; }
-          .mobile-only-item { display: block; }
-          .logo-img { height: 70px !important; }
-          .logout-btn-text { display: none; }
-          .nav-card { padding: 10px 15px !important; }
-          .start-btn { padding: 10px 15px !important; font-size: 0.85rem !important; }
-        }
-      `}</style>
-
-      <nav style={navCard} className="nav-card">
-        <Link to="/" style={logoStyle}>
-          <img src="/logo1.png" alt="MoodPlace Logo" style={logoImageStyle} className="logo-img" />
-        </Link>
-
-        {/* Desktop Menu */}
-        <div style={menuCenter} className="menu-center">
-          <Link to="/guide" className={`nav-item ${isActive("/guide") ? "active-nav" : ""}`}>คู่มือ</Link>
-          <Link to="/contact" className={`nav-item ${isActive("/contact") ? "active-nav" : ""}`}>ศูนย์ช่วยเหลือผู้ใช้</Link>
-        </div>
-
-        <div style={userSection}>
-          {user ? (
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-              <Link 
-                to="/favorites" 
-                style={{ textDecoration: 'none', transition: '0.3s' }} 
+          {/* Desktop center links */}
+          <div className="hidden sm:flex gap-1 flex-1 justify-center ml-8">
+            {[
+              { to: "/guide", label: "คู่มือ" },
+              { to: "/contact", label: "ศูนย์ช่วยเหลือผู้ใช้" },
+            ].map((l) => (
+              <Link
+                key={l.to}
+                to={l.to}
+                className={`relative px-5 py-2.5 rounded-2xl text-[0.9rem] transition-all
+                  hover:bg-[#EFE9D9] hover:text-[#FF8E6E] font-medium
+                  ${isActive(l.to) ? "text-[#FF8E6E] font-semibold" : "text-[#7E7869]"}`}
               >
-                <i className={`bi ${location.pathname === '/favorites' ? 'bi-heart-fill' : 'bi-heart'}`} 
-                   style={{ fontSize: '1.3rem', color: location.pathname === '/favorites' ? colors.coral : colors.darkPaper }}></i>
+                {l.label}
+                {isActive(l.to) && (
+                  <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-[#FF8E6E]" />
+                )}
               </Link>
-              
-              <div ref={dropdownRef} style={{ display: 'flex', alignItems: 'center', gap: '8px', position: "relative" }}>
-                <div className="hamburger-icon" onClick={() => setIsProfileOpen(!isProfileOpen)}>
-                  <i className={`bi ${isProfileOpen ? 'bi-x-lg' : 'bi-list'}`}></i>
-                </div>
-                
-                <div 
-                  style={{ position: 'relative' }}
-                  onMouseEnter={() => setIsHoveringAvatar(true)}
-                  onMouseLeave={() => setIsHoveringAvatar(false)}
+            ))}
+          </div>
+
+          {/* Right section */}
+          <div
+            className="flex items-center gap-2 sm:gap-3 flex-shrink-0"
+            ref={dropdownRef}
+          >
+            {user ? (
+              <>
+                {/* Favorites — desktop only */}
+                <Link
+                  to="/favorites"
+                  className="hidden sm:flex w-9 h-9 items-center justify-center rounded-full hover:bg-[#EFE9D9] transition-colors group"
                 >
-                  <Link to="/profile" className="profile-avatar-container" style={{ display: 'block' }}>
-                    <img
-                      src={user.profileImage || `https://ui-avatars.com/api/?name=${user.firstName}&background=FF7F67&color=fff`}
-                      style={avatarStyle}
-                      alt="Profile"
-                    />
-                  </Link>
-                  
-                  {isHoveringAvatar && (
-                    <div className="user-tooltip">
-                      {user.firstName} {user.lastName || ""}
+                  <Heart
+                    size={20}
+                    className={
+                      isActive("/favorites")
+                        ? "fill-[#FF8E6E] text-[#FF8E6E]"
+                        : "text-[#4A453A] group-hover:text-[#FF8E6E]"
+                    }
+                  />
+                </Link>
+
+                {/* Avatar + hamburger toggle */}
+                <button
+                  onClick={() => setMenuOpen(!menuOpen)}
+                  className="flex items-center gap-2 p-1 rounded-full border-2 border-transparent hover:border-[#FF8E6E] transition-all"
+                >
+                  <img
+                    src={avatarUrl}
+                    alt="avatar"
+                    className="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-cover"
+                  />
+                  {/* hamburger icon มือถือ */}
+                  <span className="sm:hidden text-[#4A453A]">
+                    {menuOpen ? (
+                      <X size={18} />
+                    ) : (
+                      <svg
+                        viewBox="0 0 24 24"
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <line x1="3" y1="6" x2="21" y2="6" />
+                        <line x1="3" y1="12" x2="21" y2="12" />
+                        <line x1="3" y1="18" x2="21" y2="18" />
+                      </svg>
+                    )}
+                  </span>
+                </button>
+
+                {/* Dropdown */}
+                {menuOpen && (
+                  <div
+                    className="
+                    fixed sm:absolute top-[68px] sm:top-[62px] left-1/2 -translate-x-1/2 sm:translate-x-0 sm:left-auto sm:right-0
+                    w-[calc(100vw-32px)] sm:w-56
+                    bg-[#F9F4E8] rounded-2xl
+                    shadow-[0_20px_50px_rgba(0,0,0,0.12)]
+                    border border-[#EFE9D9] overflow-hidden z-50
+                  "
+                  >
+                    {/* user info */}
+                    <div className="px-4 py-3 border-b border-[#EFE9D9] flex items-center gap-3">
+                      <img
+                        src={avatarUrl}
+                        alt="avatar"
+                        className="w-9 h-9 rounded-full object-cover shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <p className="font-bold text-sm text-[#4A453A] truncate">
+                          {user.firstName} {user.lastName || ""}
+                        </p>
+                        <p className="text-xs text-[#AFA99B] truncate">
+                          {user.email}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* links — 2 col grid on mobile for compact look */}
+                    <div className="p-2 grid grid-cols-2 sm:grid-cols-1 gap-1 sm:gap-0">
+                      {userMenuLinks.map((l) => (
+                        <Link
+                          key={l.to}
+                          to={l.to}
+                          onClick={() => setMenuOpen(false)}
+                          className={`flex items-center gap-2 px-3 py-3 rounded-xl text-sm font-medium transition-colors
+                            ${isActive(l.to) ? "bg-orange-50 text-[#FF8E6E]" : "text-[#4A453A] hover:bg-[#EFE9D9] hover:text-[#FF8E6E]"}`}
+                        >
+                          <span
+                            className={
+                              isActive(l.to)
+                                ? "text-[#FF8E6E]"
+                                : "text-[#AFA99B]"
+                            }
+                          >
+                            {l.icon}
+                          </span>
+                          {l.label}
+                        </Link>
+                      ))}
+                    </div>
+
+                    <div className="px-2 pb-2">
+                      <button
+                        onClick={() => {
+                          setMenuOpen(false);
+                          handleLogout();
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-3 rounded-xl text-sm font-medium text-red-400 hover:bg-red-50 transition-colors border-t border-[#EFE9D9] mt-1 pt-3"
+                      >
+                        <LogOut size={15} /> ออกจากระบบ
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Logout button — desktop only */}
+                <button
+                  onClick={handleLogout}
+                  className="hidden sm:flex items-center gap-1.5 text-red-400 hover:text-red-500 text-sm font-medium px-3 py-2 rounded-xl hover:bg-red-50 transition-colors"
+                >
+                  <LogOut size={16} />
+                </button>
+              </>
+            ) : (
+              <>
+                {/* Guest: hamburger on mobile */}
+                <div className="sm:hidden relative" ref={dropdownRef}>
+                  <button
+                    onClick={() => setMenuOpen(!menuOpen)}
+                    className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-[#EFE9D9] transition-colors text-[#4A453A]"
+                  >
+                    {menuOpen ? (
+                      <X size={20} />
+                    ) : (
+                      <svg
+                        viewBox="0 0 24 24"
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <line x1="3" y1="6" x2="21" y2="6" />
+                        <line x1="3" y1="12" x2="21" y2="12" />
+                        <line x1="3" y1="18" x2="21" y2="18" />
+                      </svg>
+                    )}
+                  </button>
+                  {menuOpen && (
+                    <div className="absolute top-12 right-0 w-52 bg-[#F9F4E8] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.12)] border border-[#EFE9D9] overflow-hidden z-50 p-2">
+                      {guestMenuLinks.map((l) => (
+                        <Link
+                          key={l.to}
+                          to={l.to}
+                          onClick={() => setMenuOpen(false)}
+                          className="flex items-center gap-2 px-3 py-3 rounded-xl text-sm font-medium text-[#4A453A] hover:bg-[#EFE9D9] hover:text-[#FF8E6E] transition-colors"
+                        >
+                          <span className="text-[#AFA99B]">{l.icon}</span>
+                          {l.label}
+                        </Link>
+                      ))}
                     </div>
                   )}
                 </div>
 
-                {isProfileOpen && (
-                  <div style={dropdownStyle}>
-                    <div className="mobile-only-item">
-                      <Link to="/guide" className="drop-item" onClick={() => setIsProfileOpen(false)}>คู่มือการใช้งาน</Link>
-                      <Link to="/contact" className="drop-item" onClick={() => setIsProfileOpen(false)}>ติดต่อเรา</Link>
-                      <hr style={{ margin: '5px 10px', opacity: 0.1 }} />
-                    </div>
+                <Link
+                  to="/login"
+                  className="text-[#7E7869] hover:text-[#FF8E6E] text-sm font-medium px-3 py-2 transition-colors"
+                >
+                  เข้าสู่ระบบ
+                </Link>
+                <Link
+                  to="/register"
+                  className="bg-gradient-to-r from-[#FF8E6E] to-[#FFB385] text-white px-4 py-2 rounded-xl text-sm font-semibold shadow-[0_4px_15px_rgba(255,127,103,0.3)] hover:scale-105 transition-all whitespace-nowrap"
+                >
+                  เริ่มใช้งาน
+                </Link>
+              </>
+            )}
+          </div>
+        </nav>
+      </header>
 
-                    <Link to="/profile" className="drop-item" onClick={() => setIsProfileOpen(false)}>โปรไฟล์ของฉัน</Link>
-                    <Link to="/favorites" className="drop-item" onClick={() => setIsProfileOpen(false)}>รายการโปรด</Link>
-                    <Link to="/history" className="drop-item" onClick={() => setIsProfileOpen(false)}>ประวัติการนำทาง</Link>
-                     <Link to="/planner" className="drop-item" onClick={() => setIsProfileOpen(false)}>วางแผนการเดินทาง</Link>
-                  </div>
-                )}
-              </div>
-              
-              <button onClick={handleLogout} className="cta-btn" style={logoutBtnStyle}>
-                <i className="bi bi-arrow-bar-right" style={{ fontSize: '1.2rem' }}></i>
-                <span className="logout-btn-text" style={{ marginLeft: '5px' }}>ออกจากระบบ</span>
-              </button>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
-              <div ref={dropdownRef} className="mobile-only-item" style={{ position: 'relative', marginRight: '5px' }}>
-                 <div className="hamburger-icon" onClick={() => setIsProfileOpen(!isProfileOpen)}>
-                    <i className="bi bi-list"></i>
-                 </div>
-                 {isProfileOpen && (
-                   <div style={dropdownStyle}>
-                      <Link to="/guide" className="drop-item" onClick={() => setIsProfileOpen(false)}>คู่มือการใช้งาน</Link>
-                      <Link to="/contact" className="drop-item" onClick={() => setIsProfileOpen(false)}>ศูนย์ช่วยเหลือผู้ใช้</Link>
-                   </div>
-                 )}
-              </div>
-              <Link to="/login" style={{ textDecoration: "none", color: "#7E7869", fontSize: "0.85rem", padding: '10px 10px', fontWeight: 500 }}>เข้าสู่ระบบ</Link>
-              <Link to="/register" className="cta-btn start-btn" style={signUpBtn}>เริ่มใช้งาน</Link>
-            </div>
-          )}
-        </div>
-      </nav>
-    </header>
+      {/* spacer ดัน content ไม่ให้ถูก navbar บัง */}
+      <div className="h-14 sm:h-20" />
+    </>
   );
 }
-
-// --- Styles ---
-const headerWrapper = { position: "fixed", top: "15px", left: "0", right: "0", display: "flex", justifyContent: "center", padding: "0 10px", zIndex: 1000, pointerEvents: "none" };
-const navCard = { display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", maxWidth: "1200px", backgroundColor: "rgba(249, 244, 232, 0.85)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", padding: "10px 25px", borderRadius: "24px", border: "1px solid rgba(255, 255, 255, 0.5)", boxShadow: "0 15px 35px rgba(74, 69, 58, 0.08)", pointerEvents: "auto", height: "70px", overflow: "visible" };
-const logoStyle = { display: "flex", alignItems: "center", textDecoration: "none", flex: 1, position: 'relative', overflow: 'visible' };
-const logoImageStyle = { height: '110px', width: 'auto', position: 'absolute', top: '50%', transform: 'translateY(-50%)', left: '0', display: 'block', filter: `drop-shadow(0 8px 15px #FF8E6E33)`, transition: '0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)', zIndex: 10 };
-const menuCenter = { display: "flex", gap: "5px", flex: 2, marginLeft: "-200px" };
-const userSection = { display: "flex", alignItems: "center", justifyContent: "flex-end", flex: 1 };
-const signUpBtn = { background: "linear-gradient(135deg, #FF8E6E 0%, #FFB385 100%)", color: "white", padding: "10px 22px", borderRadius: "16px", textDecoration: "none", fontWeight: "600", fontSize: "0.95rem", boxShadow: "0 4px 15px rgba(255, 127, 103, 0.3)", whiteSpace: 'nowrap' };
-const avatarStyle = { width: "40px", height: "40px", borderRadius: "50px", objectFit: "cover", display: 'block' };
-const dropdownStyle = { position: "absolute", top: "55px", right: "0", width: "200px", backgroundColor: "#F9F4E8", borderRadius: "20px", boxShadow: "0 20px 50px rgba(0,0,0,0.12)", overflow: "hidden", border: "1px solid #EFE9D9" };
-const logoutBtnStyle = { color: '#FF6B6B', padding: "8px 12px", borderRadius: "14px", fontSize: "0.85rem", fontWeight: "600", transition: "0.3s", border: 'none', background: 'none', display: 'flex', alignItems: 'center' };
