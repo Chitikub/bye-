@@ -12,9 +12,16 @@ function App() {
     if (token && userStr) {
       const user = JSON.parse(userStr);
       
-      // 🌟 เช็คว่า URL ถูกไหม (ต้องตรงกับ Port ที่ Backend รันอยู่ เช่น 5000 หรือ 8000)
+      // ดึง URL มาจากไฟล์ .env (ซึ่งมักจะมี /api/v1 ติดมาด้วย)
       const envUrl = import.meta.env.VITE_API_BASE_URL;
-const socketUrl = (envUrl && envUrl !== "undefined") ? envUrl : "https://moodlocationfinder-backend.onrender.com";
+      
+      // 🌟 แก้ไขตรงนี้: สร้าง socketUrl โดยการลบคำว่า /api/v1 ออกจากท้าย URL (ถ้ามี)
+      let socketUrl = "https://moodlocationfinder-backend.onrender.com";
+      if (envUrl && envUrl !== "undefined") {
+        // ใช้ Regex ตัด /api/v1 ออกจากท้าย string เพื่อให้เหลือแค่ Base URL
+        socketUrl = envUrl.replace(/\/api\/v1\/?$/, ""); 
+      }
+
       console.log("🔗 กำลังเชื่อมต่อ Socket ไปที่:", socketUrl);
       
       const socket = io(socketUrl);
@@ -31,11 +38,10 @@ const socketUrl = (envUrl && envUrl !== "undefined") ? envUrl : "https://moodloc
         console.error("❌ Socket เชื่อมต่อไม่สำเร็จ:", err.message);
       });
 
-      // 🚨 รอรับคำสั่งเตะออก
+      // 🚨 รอรับคำสั่งเตะออก (ระบบกันล็อกอินซ้อน)
       socket.on("force_logout", async (data) => {
         console.log("🔥 ได้รับคำสั่ง force_logout จาก Backend!"); 
         
-        // 🌟 ปรับข้อความ Alert ตรงนี้
         await Swal.fire({
           icon: "warning",
           title: "มีการเข้าสู่ระบบซ้อน!",
