@@ -84,9 +84,9 @@ export default function Index() {
     window.open(googleMapsUrl, "_blank");
   };
 
-  const handleSearchSubmit = async (e) => {
-    e.preventDefault();
-    if (!searchQuery.trim()) return;
+  // 🌟 1. แยกฟังก์ชัน AI หลักออกมา ให้รับค่า text แทน e.preventDefault()
+  const performAiSearch = async (textToSearch) => {
+    if (!textToSearch.trim()) return;
     if (!checkAuth()) return;
 
     try {
@@ -97,7 +97,7 @@ export default function Index() {
         didOpen: () => Swal.showLoading(),
       });
 
-      const aiRes = await api.post("/ai-search", { message: searchQuery });
+      const aiRes = await api.post("/ai/analyze-emotion", { text: textToSearch });
       const { emotion, reason } = aiRes.data;
 
       let moodKey = "happy";
@@ -150,6 +150,12 @@ export default function Index() {
     }
   };
 
+  // 🌟 2. ตัวนี้ของช่อง Hero ด้านบน แค่โยนคำค้นหาไปให้ performAiSearch ต่อ
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    performAiSearch(searchQuery);
+  };
+
   useEffect(() => {
     const handleMouseMove = (e) => {
       setMousePos({
@@ -163,7 +169,7 @@ export default function Index() {
 
   return (
     <div className="w-full bg-[#FDF8F1] text-[#4A453A] overflow-x-hidden font-['Prompt',sans-serif]">
-      {/* ─── AI Modal ─── */}
+      {/* ─── AI Modal ─── (เหมือนเดิม) */}
       <AnimatePresence>
         {aiModalData && (
           <motion.div
@@ -171,7 +177,6 @@ export default function Index() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-md"
-            /* มือถือ: sheet ขึ้นจากด้านล่าง (items-end), desktop: กลางจอ */
           >
             <motion.div
               initial={{ y: "100%" }}
@@ -186,12 +191,10 @@ export default function Index() {
                 relative shadow-2xl
               "
             >
-              {/* drag handle บนมือถือ */}
               <div className="sm:hidden flex justify-center pt-3 pb-1">
                 <div className="w-10 h-1 rounded-full bg-gray-300" />
               </div>
 
-              {/* close button */}
               <button
                 onClick={() => setAiModalData(null)}
                 className="absolute top-4 right-4 w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 hover:bg-[#FF8E6E] hover:text-white transition-colors z-10"
@@ -199,7 +202,6 @@ export default function Index() {
                 <X size={18} />
               </button>
 
-              {/* header */}
               <div className="bg-[#FDF8F1] px-5 pt-4 pb-5 sm:px-10 sm:pt-8 sm:pb-6 rounded-t-[2rem] sm:rounded-t-[2.5rem] border-b border-[#EFE9D9]">
                 <div className="inline-block px-3 py-1.5 bg-orange-50 text-[#FF8E6E] rounded-full font-bold text-xs mb-3">
                   AI วิเคราะห์เสร็จสิ้น 🤖
@@ -216,7 +218,6 @@ export default function Index() {
                 </p>
               </div>
 
-              {/* body */}
               <div className="px-5 py-5 sm:px-10 sm:py-8">
                 <h3 className="text-lg sm:text-xl font-black text-[#4A453A] mb-4">
                   สถานที่แนะนำสำหรับคุณ 🎯
@@ -235,7 +236,6 @@ export default function Index() {
                           active:scale-[0.98] transition-all cursor-pointer bg-white
                         "
                       >
-                        {/* thumbnail — สี่เหลี่ยมจัตุรัสบนมือถือ ขนาดคงที่ */}
                         <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-100 rounded-xl overflow-hidden shrink-0">
                           {place.photos?.length > 0 ? (
                             <img
@@ -250,7 +250,6 @@ export default function Index() {
                           )}
                         </div>
 
-                        {/* info */}
                         <div className="flex-1 min-w-0">
                           <h4 className="font-bold text-sm sm:text-base text-[#2D2A26] truncate group-hover:text-[#FF8E6E] transition-colors">
                             {place.name}
@@ -267,7 +266,6 @@ export default function Index() {
                           </span>
                         </div>
 
-                        {/* arrow */}
                         <div className="w-9 h-9 rounded-full bg-gray-50 flex items-center justify-center text-[#7E7869] group-hover:bg-[#FF8E6E] group-hover:text-white transition-colors shrink-0">
                           <Navigation size={16} className="translate-x-0.5" />
                         </div>
@@ -289,7 +287,6 @@ export default function Index() {
                   ดูสถานที่บำบัดทั้งหมด
                 </button>
 
-                {/* safe area padding สำหรับมือถือ notch */}
                 <div
                   className="h-safe-bottom sm:hidden"
                   style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
@@ -316,7 +313,6 @@ export default function Index() {
         <div className="absolute inset-0 bg-gradient-to-t from-[#FDF8F1] via-[#FDF8F1]/60 to-transparent z-20" />
 
         <div className="container relative z-30 px-4 sm:px-5 text-center mx-auto">
-          {/* ✅ Hero title: ลดขนาดบนมือถือให้พอดี (text-4xl) */}
           <h1
             className="
             animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-300
@@ -342,7 +338,6 @@ export default function Index() {
             จะหาสถานที่ที่ช่วยให้รู้สึกดีขึ้น
           </p>
 
-          {/* ✅ Search bar: ปรับขอบซ้ายขวาบนมือถือให้สมดุล (px-4) */}
           <div className="mx-auto mt-6 sm:mt-12 max-w-xl animate-in fade-in slide-in-from-bottom-10 duration-1000 delay-700 w-full px-4 sm:px-0">
             <form onSubmit={handleSearchSubmit} className="relative group">
               <div className="absolute -inset-1 bg-gradient-to-r from-[#FF8E6E] to-[#FFA07A] rounded-full blur opacity-15 group-focus-within:opacity-100 transition duration-1000" />
@@ -396,7 +391,11 @@ export default function Index() {
                 แตะเลือกอารมณ์ หรือพิมพ์บอกเราด้านบน
               </p>
               <div className="mt-2">
-                <MoodSelector onSelectMood={handleMoodSelect} />
+                {/* 🌟 3. โยนทั้ง 2 ฟังก์ชันลงไปให้ MoodSelector ใช้ */}
+                <MoodSelector 
+                  onSelectMood={handleMoodSelect} 
+                  onSearchText={performAiSearch}
+                />
               </div>
             </div>
           ) : (
@@ -408,7 +407,6 @@ export default function Index() {
                 เลือกประเภทที่คุณอยากไปตอนนี้
               </p>
 
-              {/* ✅ Category buttons: grid 1 col มือถือ, wrap desktop */}
               <div className="grid grid-cols-1 gap-3 sm:flex sm:flex-wrap sm:justify-center sm:gap-6 mb-8 sm:mb-12">
                 {moodCategories[activeMood].map((cat) => (
                   <button
