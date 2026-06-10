@@ -17,6 +17,8 @@ import FilterPage from "../pages/FilterPage";
 import GooglePlaceDetail from "../pages/GooglePlaceDetail";
 import TripPlanner from "../pages/TripPlanner";
 import VerifyEmail from "../pages/VerifyEmail";
+import ForgotPassword from "../pages/ForgotPassword";
+import ResetPassword from "../pages/ResetPassword";
 
 // 🌟 ฟังก์ชันดึง Token ที่ครอบคลุมทั้ง Cookie และ LocalStorage
 const getToken = () => {
@@ -84,6 +86,8 @@ const router = createBrowserRouter([
             { path: "login", element: <AuthRoute><Login /></AuthRoute> },
             { path: "register", element: <AuthRoute><Register /></AuthRoute> },
             { path: "verify-email", element: <AuthRoute><VerifyEmail /> </AuthRoute> },
+            { path: "forgot-password", element: <AuthRoute><ForgotPassword /></AuthRoute> },
+            { path: "reset-password/:token", element: <AuthRoute><ResetPassword /></AuthRoute> },
             
             // หน้าระบบ Admin: User ทั่วไปห้ามเข้า
             { 

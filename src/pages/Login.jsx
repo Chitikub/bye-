@@ -21,22 +21,31 @@ export default function AuthPage() {
   const isLogin = location.pathname === "/login";
 
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false); // 🌟 state สำหรับตาเปิด/ปิด Confirm Pass
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false); // 🌟 State สำหรับจดจำฉัน
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
     email: "",
     password: "",
-    confirmPassword: "", // 🌟 เพิ่มฟิลด์ยืนยันรหัสผ่าน
+    confirmPassword: "",
     gender: "",
   });
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
 
+  // 🌟 ดึงข้อมูลอีเมลที่เคยจำไว้ตอนเปิดหน้าเว็บ
   useEffect(() => {
     setIsVisible(true);
-  }, [location.pathname]);
+    if (isLogin) {
+      const savedEmail = localStorage.getItem("rememberedEmail");
+      if (savedEmail) {
+        setForm((prev) => ({ ...prev, email: savedEmail }));
+        setRememberMe(true);
+      }
+    }
+  }, [location.pathname, isLogin]);
 
   const handleNavigation = (path) => {
     if (location.pathname === path) return;
@@ -87,7 +96,7 @@ export default function AuthPage() {
       const response = await api.post(endpoint, payload);
 
       if (response.data) {
-        // 🌟 กรณีสมัครสมาชิกสำเร็จ
+        // กรณีสมัครสมาชิกสำเร็จ
         if (!isLogin) {
           await Swal.fire({
             icon: "info",
@@ -100,12 +109,20 @@ export default function AuthPage() {
           return;
         }
 
-        // 🌟 กรณี Login สำเร็จ
+        // กรณี Login สำเร็จ
         const token = response.data.token;
         const userData = response.data.user || response.data;
 
+        // 🌟 ถ้ายกเลิกการจำฉัน ให้ลบอีเมลทิ้ง แต่ถ้าเลือกไว้ให้บันทึกอีเมล
+        if (rememberMe) {
+          localStorage.setItem("rememberedEmail", form.email);
+          Cookies.set("token", token, { expires: 7 }); // จำไว้ 7 วัน
+        } else {
+          localStorage.removeItem("rememberedEmail");
+          Cookies.set("token", token); // ลบเมื่อปิดเบราว์เซอร์
+        }
+
         localStorage.setItem("token", token);
-        Cookies.set("token", token, { expires: 7 });
         api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
         localStorage.setItem("user", JSON.stringify(userData));
 
@@ -126,7 +143,6 @@ export default function AuthPage() {
       console.error("Auth Error:", error.response?.data);
       const message = error.response?.data?.message || "";
 
-      // 🌟 ตรวจสอบว่า Backend แจ้งว่ายังไม่ได้ยืนยันอีเมลหรือไม่
       if (message.includes("verify") || message.includes("ยืนยัน")) {
         Swal.fire({
           icon: "warning",
@@ -213,6 +229,7 @@ export default function AuthPage() {
                     <input
                       type="text"
                       placeholder="ชื่อจริง"
+                      autoComplete="given-name"
                       className="bg-transparent outline-none w-full text-[#4A453A]"
                       value={form.firstName}
                       onChange={(e) =>
@@ -230,6 +247,7 @@ export default function AuthPage() {
                     <input
                       type="text"
                       placeholder="นามสกุล"
+                      autoComplete="family-name"
                       className="bg-transparent outline-none w-full text-[#4A453A]"
                       value={form.lastName}
                       onChange={(e) =>
@@ -250,6 +268,7 @@ export default function AuthPage() {
                 <input
                   type="email"
                   placeholder="your@email.com"
+                  autoComplete="username"
                   className="bg-transparent outline-none w-full text-[#4A453A]"
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
@@ -269,6 +288,7 @@ export default function AuthPage() {
                 <input
                   type={showPassword ? "text" : "password"}
                   placeholder="รหัสผ่านของคุณ"
+                  autoComplete={isLogin ? "current-password" : "new-password"}
                   className="bg-transparent outline-none w-full text-[#4A453A]"
                   value={form.password}
                   onChange={(e) =>
@@ -292,7 +312,36 @@ export default function AuthPage() {
               )}
             </div>
 
-            {/* 🌟 ฟิลด์ยืนยันรหัสผ่าน (เฉพาะ Register) */}
+            {/* 🌟 Checkbox จดจำฉัน และ ลืมรหัสผ่าน (แสดงเฉพาะตอน Login) */}
+            {isLogin && (
+              <div className="flex items-center justify-between mt-2 pt-1 px-1">
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <div className="relative flex items-center justify-center">
+                    <input
+                      type="checkbox"
+                      className="peer appearance-none w-5 h-5 border-2 border-gray-300 rounded-md checked:bg-[#FF7F67] checked:border-[#FF7F67] transition-colors cursor-pointer"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                    />
+                    <svg className="absolute w-3.5 h-3.5 text-white opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <span className="text-sm font-medium text-gray-500 group-hover:text-[#4A453A] transition-colors select-none">
+                    จดจำฉัน
+                  </span>
+                </label>
+
+                <button
+                  type="button"
+                  onClick={() => navigate("/forgot-password")}
+                  className="text-sm font-medium text-gray-500 hover:text-[#FF7F67] transition-colors"
+                >
+                  ลืมรหัสผ่านใช่หรือไม่?
+                </button>
+              </div>
+            )}
+
             {!isLogin && (
               <div className="space-y-1.5 animate-in fade-in duration-500">
                 <label className="text-sm font-bold text-[#475569] ml-1">
@@ -303,6 +352,7 @@ export default function AuthPage() {
                   <input
                     type={showConfirmPassword ? "text" : "password"}
                     placeholder="กรอกรหัสผ่านเดิมอีกครั้ง"
+                    autoComplete="new-password"
                     className="bg-transparent outline-none w-full text-[#4A453A]"
                     value={form.confirmPassword}
                     onChange={(e) =>
