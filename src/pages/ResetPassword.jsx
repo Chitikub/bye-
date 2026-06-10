@@ -1,11 +1,13 @@
 import { useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Lock, Eye, EyeOff, ShieldCheck } from "lucide-react";
 import Swal from "sweetalert2";
 import api from "@/api/axios";
 
 export default function ResetPassword() {
-  const { token } = useParams();
+  // ดึง Token จาก URL รูปแบบ ?token=...
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get("token"); 
   const navigate = useNavigate();
   
   const [form, setForm] = useState({ password: "", confirmPassword: "" });
@@ -24,6 +26,12 @@ export default function ResetPassword() {
     if (form.password.length < 6) {
       return Swal.fire({ 
         icon: "warning", title: "รหัสผ่านสั้นเกินไป", text: "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร", 
+        confirmButtonColor: "#FF7F67", customClass: { popup: "rounded-[30px]" } 
+      });
+    }
+    if (!token) {
+      return Swal.fire({ 
+        icon: "error", title: "ไม่พบ Token", text: "ลิงก์ไม่สมบูรณ์ กรุณากดลิงก์จากอีเมลใหม่อีกครั้ง", 
         confirmButtonColor: "#FF7F67", customClass: { popup: "rounded-[30px]" } 
       });
     }

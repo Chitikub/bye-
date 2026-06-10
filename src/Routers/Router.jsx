@@ -87,7 +87,7 @@ const router = createBrowserRouter([
             { path: "register", element: <AuthRoute><Register /></AuthRoute> },
             { path: "verify-email", element: <AuthRoute><VerifyEmail /> </AuthRoute> },
             { path: "forgot-password", element: <AuthRoute><ForgotPassword /></AuthRoute> },
-            { path: "reset-password/:token", element: <AuthRoute><ResetPassword /></AuthRoute> },
+{ path: "reset-password", element: <ResetPassword /> },
             
             // หน้าระบบ Admin: User ทั่วไปห้ามเข้า
             { 
