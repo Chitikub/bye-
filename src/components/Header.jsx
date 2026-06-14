@@ -108,7 +108,7 @@ export default function Header() {
         @import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600&display=swap');
         * { font-family: 'Prompt', sans-serif; }
         
-        .nav-item { position: relative; transition: 0.3s; padding: 10px 15px; border-radius: 12px; text-decoration: none; color: #7E7869; font-size: 0.95rem; }
+        .nav-item { position: relative; transition: 0.3s; padding: 10px 15px; border-radius: 12px; text-decoration: none; color: #7E7869; font-size: 1.1rem; }
         .nav-item:hover { background: ${colors.softSand}; color: ${colors.coral} !important; }
         .active-nav { color: ${colors.coral} !important; font-weight: 600; }
         
@@ -232,7 +232,7 @@ export default function Header() {
                       </Link>
                       <Link
                         to="/contact"
-                        className="drop-item"
+                        className="drop-item "
                         onClick={() => setIsProfileOpen(false)}
                       >
                         ติดต่อเรา
@@ -315,7 +315,7 @@ export default function Header() {
                     </Link>
                     <Link
                       to="/contact"
-                      className="drop-item"
+                      className="drop-item font-large"
                       onClick={() => setIsProfileOpen(false)}
                     >
                       ศูนย์ช่วยเหลือ
