@@ -1,5 +1,14 @@
 "use client";
-import { Search, ArrowLeft, Star, MapPin, X, Navigation } from "lucide-react";
+import {
+  Search,
+  ArrowLeft,
+  Star,
+  MapPin,
+  X,
+  Navigation,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -7,6 +16,11 @@ import heroBg from "@/assets/hero-bg.png";
 import MoodSelector from "@/components/MoodSelector";
 import api, { IMAGE_BASE_URL } from "../api/axios";
 import Swal from "sweetalert2";
+
+import heroBg1 from "@/assets/hero-bg1.png";
+import heroBg2 from "@/assets/hero-bg2.png";
+import heroBg3 from "@/assets/hero-bg3.png";
+import heroBg4 from "@/assets/hero-bg4.png";
 
 export default function Index() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -97,7 +111,9 @@ export default function Index() {
         didOpen: () => Swal.showLoading(),
       });
 
-      const aiRes = await api.post("/ai/analyze-emotion", { text: textToSearch });
+      const aiRes = await api.post("/ai/analyze-emotion", {
+        text: textToSearch,
+      });
       const { emotion, reason } = aiRes.data;
 
       let moodKey = "happy";
@@ -155,6 +171,25 @@ export default function Index() {
     e.preventDefault();
     performAiSearch(searchQuery);
   };
+
+  const [currentSlide, setCurrentSlide] = useState(0);
+  // ตรงนี้สามารถเปลี่ยน URL หรือ import รูปจริงจากโฟลเดอร์ assets มาใส่แทนได้เลยครับ
+  const slideImages = [heroBg1, heroBg2, heroBg3, heroBg4];
+
+  // เลื่อนภาพอัตโนมัติทุกๆ 5 วินาที
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % slideImages.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [slideImages.length]);
+
+  const nextSlide = () =>
+    setCurrentSlide((prev) => (prev + 1) % slideImages.length);
+  const prevSlide = () =>
+    setCurrentSlide(
+      (prev) => (prev - 1 + slideImages.length) % slideImages.length,
+    );
 
   useEffect(() => {
     const handleMouseMove = (e) => {
@@ -298,7 +333,11 @@ export default function Index() {
       </AnimatePresence>
 
       {/* ─── HERO ─── */}
-      <section className="relative w-full h-[60vh] sm:h-[85vh] min-h-[420px] flex items-center justify-center overflow-hidden bg-[#FDF8F1]">
+      <section
+        className="relative w-full flex items-center justify-center overflow-hidden bg-[#FDF8F1]"
+        style={{ height: "100vh" }}
+      >
+        {/* รูปพื้นหลังเดิม (ขยับตามเมาส์) */}
         <div
           className="absolute inset-0 z-0 scale-110 transition-transform duration-1000 ease-out"
           style={{ transform: `translate(${mousePos.x}px, ${mousePos.y}px)` }}
@@ -312,13 +351,13 @@ export default function Index() {
         <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-transparent z-10" />
         <div className="absolute inset-0 bg-gradient-to-t from-[#FDF8F1] via-[#FDF8F1]/60 to-transparent z-20" />
 
-        <div className="container relative z-30 px-4 sm:px-5 text-center mx-auto">
+        <div className="container relative z-30 px-4 sm:px-5 text-center mx-auto flex flex-col items-center justify-center pt-16">
           <h1
             className="
             animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-300
             font-black leading-tight drop-shadow-sm
-            text-4xl sm:text-6xl lg:text-8xl
-            text-[#4A4A4A]
+            text-4xl sm:text-6xl lg:text-7xl
+            text-[#4A4A4A] mb-8
           "
           >
             ไปไหนดี... <br className="hidden xs:block" />
@@ -327,73 +366,113 @@ export default function Index() {
             </span>
           </h1>
 
-          <p
-            className="
-            mx-auto mt-4 sm:mt-8 max-w-lg
-            animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-500
-            text-sm sm:text-xl text-[#7E7869] font-medium px-2 leading-relaxed
-          "
-          >
-            พิมพ์ความรู้สึกของคุณตอนนี้ แล้ว AI
-            จะหาสถานที่ที่ช่วยให้รู้สึกดีขึ้น
-          </p>
+          {/* 🌟 กล่องสไลด์ภาพที่แปะทับลงไป (ปรับขนาดให้เล็กลงแล้ว) */}
+          <div className="relative w-full max-w-4xl h-[200px] sm:h-[500px] rounded-[1.5rem] sm:rounded-[2rem] overflow-hidden shadow-2xl border-4 border-white/40 backdrop-blur-sm animate-in fade-in slide-in-from-bottom-10 duration-1000 delay-500">
+            <AnimatePresence mode="wait">
+              <motion.img
+                key={currentSlide}
+                src={slideImages[currentSlide]}
+                initial={{ opacity: 0, scale: 1.05 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.8, ease: "easeInOut" }}
+                className="absolute inset-0 w-full h-full object-cover"
+                alt="Recommended Place"
+              />
+            </AnimatePresence>
 
-          <div className="mx-auto mt-6 sm:mt-12 max-w-xl animate-in fade-in slide-in-from-bottom-10 duration-1000 delay-700 w-full px-4 sm:px-0">
-            <form onSubmit={handleSearchSubmit} className="relative group">
-              <div className="absolute -inset-1 bg-gradient-to-r from-[#FF8E6E] to-[#FFA07A] rounded-full blur opacity-15 group-focus-within:opacity-100 transition duration-1000" />
-              <div className="relative flex items-center bg-white/95 backdrop-blur-xl rounded-full shadow-xl overflow-hidden border border-white/50">
+            {/* จุด Indicator ด้านล่าง */}
+            <div className="absolute bottom-3 sm:bottom-4 w-full flex justify-center gap-2 z-30">
+              {slideImages.map((_, idx) => (
                 <button
-                  type="submit"
-                  className="ml-4 flex items-center outline-none"
-                >
-                  <Search className="h-5 w-5 text-gray-400 group-focus-within:text-[#FF8E6E] transition-all" />
-                </button>
-                <input
-                  type="text"
-                  placeholder="วันนี้รู้สึกยังไง..."
-                  className="w-full py-3.5 sm:py-5 pl-3 pr-4 text-base sm:text-lg font-bold outline-none bg-transparent placeholder:text-gray-400"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  key={idx}
+                  onClick={() => setCurrentSlide(idx)}
+                  className={`block w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full transition-all shadow-md ${
+                    currentSlide === idx
+                      ? "bg-white scale-125 w-5 sm:w-6"
+                      : "bg-white/50 hover:bg-white/80"
+                  }`}
                 />
-                {searchQuery && (
-                  <button
-                    type="submit"
-                    className="mr-2 px-4 py-2 bg-[#FF8E6E] text-white text-sm font-bold rounded-full shrink-0 active:scale-95 transition-transform"
-                  >
-                    ค้นหา
-                  </button>
-                )}
-              </div>
-            </form>
+              ))}
+            </div>
+
+            {/* Gradient กันข้อความ/จุดกลืนกับรูป */}
+            <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/50 to-transparent pointer-events-none" />
           </div>
         </div>
       </section>
 
       {/* ─── CONTENT SECTION ─── */}
-      <main className="container mx-auto px-4 sm:px-5 -mt-10 sm:-mt-20 relative z-40 pb-24">
+      <main className="container mx-auto px-4 sm:px-5 mt-12 sm:mt-20 relative z-40 pb-24">
         <section
           className="
-          bg-white/90 backdrop-blur-2xl
-          rounded-3xl sm:rounded-[3rem]
-          p-5 sm:p-16
-          shadow-[0_32px_64px_-16px_rgba(74,69,58,0.1)]
-          text-center border border-white
-          mx-auto max-w-4xl
-          min-h-0 sm:min-h-[400px]
-        "
+            bg-white/90 backdrop-blur-2xl
+            p-5 sm:p-16
+            shadow-[0_32px_64px_-16px_rgba(74,69,58,0.1)]
+            text-center border border-white
+            rounded-[2.5rem] sm:rounded-[5rem]  
+            w-full
+            min-h-0 sm:min-h-[400px]
+          "
         >
           {!activeMood ? (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <h2 className="text-2xl sm:text-4xl font-black mb-2 sm:mb-4 tracking-tight text-[#4A4A4A]">
+              {/* 1. หัวข้อหลัก */}
+              <h2 className="text-2xl sm:text-4xl font-black mb-2 sm:mb-4 tracking-tight text-[#4A4A4A] ">
                 วันนี้รู้สึกยังไง? 🤔
               </h2>
-              <p className="text-sm sm:text-lg font-medium mb-5 sm:mb-8 text-[#8E8E8E] leading-relaxed">
+
+              {/* 2. ข้อความอธิบายช่องแชท */}
+              <p
+                className="
+                  mx-auto mt-4 sm:mt-8 max-w-lg
+                  animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-500
+                  text-sm sm:text-xl text-[#7E7869] font-medium px-2 leading-relaxed
+                "
+              ></p>
+
+              {/* 3. กล่องช่องแชท (ค้นหา) */}
+              <div className="mx-auto mt-6 sm:mt-12 max-w-xl animate-in fade-in slide-in-from-bottom-10 duration-1000 delay-700 w-full px-4 sm:px-0">
+                <form onSubmit={handleSearchSubmit} className="relative group">
+                  <div className="absolute -inset-1 bg-gradient-to-r from-[#FF8E6E] to-[#FFA07A] rounded-full blur opacity-15 group-focus-within:opacity-100 transition duration-1000" />
+                  <div className="relative flex items-center bg-white/95 backdrop-blur-xl rounded-full shadow-xl overflow-hidden border border-white/50">
+                    <button
+                      type="submit"
+                      className="ml-4 flex items-center outline-none"
+                    >
+                      <Search className="h-5 w-5 text-gray-400 group-focus-within:text-[#FF8E6E] transition-all" />
+                    </button>
+                    <input
+                      type="text"
+                      placeholder="วันนี้รู้สึกยังไง..."
+                      className="w-full py-3.5 sm:py-5 pl-3 pr-4 text-base sm:text-lg font-bold outline-none bg-transparent placeholder:text-gray-400"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                    {searchQuery && (
+                      <button
+                        type="submit"
+                        className="mr-2 px-4 py-2 bg-[#FF8E6E] text-white text-sm font-bold rounded-full shrink-0 active:scale-95 transition-transform"
+                      >
+                        ค้นหา
+                      </button>
+                    )}
+                  </div>
+                </form>
+              </div>
+              <p className="text-1xl sm:text-2xl font-black mt-12 mb-8 text-[#FF8E6E] tracking-wider leading-relaxed">
+                — หรือ —
+              </p>
+
+              {/* 4. ข้อความเชื่อมโยงก่อนเลือกอารมณ์ */}
+              <p className="text-sm sm:text-lg font-medium mt-10 mb-5 sm:mb-8 text-[#8E8E8E] leading-relaxed">
                 แตะเลือกอารมณ์ หรือพิมพ์บอกเราด้านบน
               </p>
+
+              {/* 5. ปุ่มเลือกอารมณ์ */}
               <div className="mt-2">
-                {/* 🌟 3. โยนทั้ง 2 ฟังก์ชันลงไปให้ MoodSelector ใช้ */}
-                <MoodSelector 
-                  onSelectMood={handleMoodSelect} 
+                <MoodSelector
+                  onSelectMood={handleMoodSelect}
                   onSearchText={performAiSearch}
                 />
               </div>
