@@ -19,6 +19,7 @@ import TripPlanner from "../pages/TripPlanner";
 import VerifyEmail from "../pages/VerifyEmail";
 import ForgotPassword from "../pages/ForgotPassword";
 import ResetPassword from "../pages/ResetPassword";
+import AdminAnnouncements from "@/pages/admin/AdminAnnouncements";
 
 // 🌟 ฟังก์ชันดึง Token ที่ครอบคลุมทั้ง Cookie และ LocalStorage
 const getToken = () => {
@@ -105,7 +106,11 @@ const router = createBrowserRouter([
             { 
                 path: "admin/profile", 
                 element: <ProtectedAdminRoute><AdminProfile /></ProtectedAdminRoute> 
-            }
+            },
+            {
+  path: "/admin/announcements",
+  element: <AdminAnnouncements />
+}   
         ]
     },
     { path: "*", element: <Navigate to="/" replace /> }

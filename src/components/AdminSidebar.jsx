@@ -78,6 +78,12 @@ export default function AdminSidebar() {
       icon: User,
       path: "/admin/profile",
     },
+    {
+      id: "announcements",
+      label: "จัดการประกาศ",
+      icon: LayoutDashboard,
+      path: "/admin/announcements",
+    },
   ];
 
   return (
@@ -144,6 +150,7 @@ export default function AdminSidebar() {
                   </span>
                 )}
               </button>
+              
             );
           })}
         </nav>

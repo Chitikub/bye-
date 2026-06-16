@@ -28,8 +28,29 @@ export default function HistoryPage() {
       setLoading(true);
       const res = await api.get("/history");
       const data = res.data.histories || res.data || [];
-      setHistories(Array.isArray(data) ? data : []);
-      setFilteredData(Array.isArray(data) ? data : []);
+      
+      if (Array.isArray(data)) {
+        // 🌟 1. เรียงลำดับจากเวลาล่าสุดไปหาอดีต (เพื่อให้การกดครั้งล่าสุดอยู่ด้านหน้าสุด)
+        const sortedData = data.sort((a, b) => new Date(b.visitedAt) - new Date(a.visitedAt));
+        
+        // 🌟 2. ทำการยุบรวมข้อมูลสถานที่ซ้ำ โดยเก็บเฉพาะรายการล่าสุดที่พบบนลิสต์
+        const uniqueHistories = [];
+        const seenPlaceIds = new Set();
+        
+        for (const item of sortedData) {
+          // ถ้าหากยังไม่เคยเจอ placeId นี้ในระบบมาก่อน ให้บันทึกข้อมูลเก็บไว้
+          if (!seenPlaceIds.has(item.placeId)) {
+            seenPlaceIds.add(item.placeId);
+            uniqueHistories.push(item);
+          }
+        }
+
+        setHistories(uniqueHistories);
+        setFilteredData(uniqueHistories);
+      } else {
+        setHistories([]);
+        setFilteredData([]);
+      }
     } catch (err) {
       console.error("Fetch History Error:", err);
       if (err.response?.status === 401) navigate("/login");

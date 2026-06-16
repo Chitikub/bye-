@@ -163,7 +163,7 @@ export default function AdminMessages() {
         Swal.fire({ title: 'ย้ายไปหน้าประวัติสำเร็จ!', icon: 'success', timer: 1000, showConfirmButton: false });
         
         setSelectedReport(null); // ปิดหน้าต่างคุยแชท
-        fetchReports(); // อัปเดตตาราง
+        fetchReports(); // อัปเดตตาราง โครงสร้างกรองจะจัดการย้ายแถวให้อัตโนมัติ
       } catch (err) { 
         Swal.fire('ผิดพลาด', 'ไม่สามารถดำเนินการได้ในขณะนี้', 'error'); 
       }
@@ -283,7 +283,6 @@ export default function AdminMessages() {
                       <Clock size={12}/> {isClosed ? 'ปิดห้องสนทนาแล้ว' : 'รอการตอบกลับ'}
                     </span>
                     
-                    {/* 🌟 แสดงปุ่มลบแชท เฉพาะเคสที่ยัง Active อยู่เท่านั้น (ถ้าปิดไปแล้วไม่ต้องโชว์ปุ่มลบซ้ำ) */}
                     {!isClosed && (
                       <button 
                         onClick={(e) => handleDeleteCase(e, report.id || report._id)} 
@@ -301,11 +300,11 @@ export default function AdminMessages() {
         )}
       </div>
 
-      {/* หน้าต่างกล่องแชทเมื่อกดเปิดห้องคุย (สามารถดูแชทย้อนหลังในอดีตได้ด้วย) */}
+      {/* หน้าต่างกล่องแชทเมื่อกดเปิดห้องคุย */}
       <AnimatePresence>
         {selectedReport && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6 bg-[#4A453A]/60 backdrop-blur-md">
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white rounded-[2rem] w-full max-w-3xl flex flex-col h-[85vh] max-h-[800px] overflow-hidden shadow-2xl relative">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white rounded-[2rem] w-full max-w-3xl flex flex-col h-[85vh] max-h-[700px] overflow-hidden shadow-2xl relative">
               <div className="bg-white border-b border-gray-100 p-4 flex justify-between items-center z-10 shadow-sm">
                 <div className="flex items-center gap-4">
                   <img src={(selectedReport.user || selectedReport).profileImage || `https://ui-avatars.com/api/?name=${(selectedReport.user || selectedReport).firstName}&background=FF8E6E&color=fff`} className="w-12 h-12 rounded-full object-cover shadow-sm" alt="user"/>
@@ -326,18 +325,67 @@ export default function AdminMessages() {
                   <div className="flex flex-col items-center justify-center h-full text-gray-400 opacity-60"><MessageCircle size={56} className="mb-3" /><p className="text-base font-bold">ไม่มีประวัติข้อความ</p></div>
                 ) : (
                   messages.map((msg, index) => {
+                    // 🌟 เพิ่ม Console log ไว้สำหรับเช็คข้อมูลผู้ส่ง
+                    console.log("เช็คข้อมูล Message ในระบบแอดมิน:", msg);
+
                     const customerId = (selectedReport.user || selectedReport)._id || (selectedReport.user || selectedReport).id;
-                    const msgSenderId = msg.senderId || (msg.sender && (msg.sender._id || msg.sender.id || msg.sender));
+                    const msgSenderId = msg.sender?.id || msg.sender?._id || msg.senderId || msg.sender;
                     const isCustomer = msgSenderId === customerId;
                     const isAdmin = !isCustomer;
 
+                    // 🌟 1. ดักจับข้อมูลฝั่งลูกค้า (ชิดซ้าย)
+                    const customerInfo = selectedReport.user || selectedReport;
+                    const customerName = `${customerInfo.firstName || "User"} ${customerInfo.lastName || ""}`.trim();
+                    const customerImage = customerInfo.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(customerInfo.firstName || 'User')}&background=FF8E6E&color=fff`;
+
+                    // 🌟 2. ดักจับข้อมูลฝั่งแอดมินคนพิมพ์ตอบ (ชิดขวา)
+                    const adminFirstName = msg.sender?.firstName || "Admin";
+                    const adminFullName = msg.sender?.firstName ? `${msg.sender.firstName} ${msg.sender.lastName || ""}`.trim() : "Admin";
+                    const adminImage = msg.sender?.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(adminFirstName)}&background=4A453A&color=fff`;
+
                     return (
-                      <div key={index} className={`flex ${isAdmin ? "justify-end" : "justify-start"}`}>
-                        <div className={`max-w-[75%] px-5 py-3 shadow-sm ${isAdmin ? "bg-[#FF8E6E] text-white rounded-[1.5rem] rounded-tr-sm" : "bg-white border border-gray-100 text-[#4A453A] rounded-[1.5rem] rounded-tl-sm"}`}>
-                          {!isAdmin && <p className="text-[10px] font-bold text-gray-400 mb-1">{(selectedReport.user || selectedReport).firstName}</p>}
-                          <p className="font-medium leading-relaxed text-[15px]">{msg.message || msg.text || msg.content || ""}</p>
-                          <p className={`text-[10px] mt-1 text-right ${isAdmin ? "text-white/70" : "text-gray-400"}`}>{new Date(msg.createdAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}</p>
-                        </div>
+                      <div key={index} className={`flex w-full ${isAdmin ? "justify-end" : "justify-start"}`}>
+                        {isAdmin ? (
+                          /* 🌟 ฝั่งแอดมินคนพิมพ์ (ชิดขวา มีรูปโปรไฟล์แอดมินจริง + ชื่อแอดมินจริง) */
+                          <div className="flex gap-3 max-w-[85%] flex-row-reverse">
+                            <img 
+                              src={adminImage} 
+                              alt="Admin Profile" 
+                              className="w-10 h-10 rounded-full shadow-sm border border-gray-200 flex-shrink-0 object-cover mt-1" 
+                            />
+                            <div className="flex flex-col items-end">
+                              <span className="text-[12px] font-bold text-gray-500 mb-1 mr-2">
+                                {adminFullName} (ฉัน)
+                              </span>
+                              <div className="bg-[#FF8E6E] text-white px-5 py-3 rounded-[1.5rem] rounded-tr-sm shadow-sm text-left">
+                                <p className="font-medium leading-relaxed text-[15px]">{msg.message || msg.text || msg.content || ""}</p>
+                                <p className="text-[10px] mt-1 text-right text-white/70">
+                                  {new Date(msg.createdAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          /* 🌟 ฝั่งลูกค้าผู้สอบถาม (ชิดซ้าย มีรูปโปรไฟล์ลูกค้าจริง + ชื่อลูกค้าจริง) */
+                          <div className="flex gap-3 max-w-[85%]">
+                            <img 
+                              src={customerImage} 
+                              alt="Customer Profile" 
+                              className="w-10 h-10 rounded-full shadow-sm border border-gray-200 flex-shrink-0 object-cover mt-1" 
+                            />
+                            <div className="flex flex-col">
+                              <span className="text-[12px] font-bold text-gray-500 mb-1 ml-2">
+                                {customerName}
+                              </span>
+                              <div className="bg-white border border-gray-100 text-[#4A453A] px-5 py-3 rounded-[1.5rem] rounded-tl-sm shadow-sm">
+                                <p className="font-medium leading-relaxed text-[15px]">{msg.message || msg.text || msg.content || ""}</p>
+                                <p className="text-[10px] mt-1 text-right text-gray-400">
+                                  {new Date(msg.createdAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
                   })
@@ -363,7 +411,7 @@ export default function AdminMessages() {
         )}
       </AnimatePresence>
 
-      {/* หน้าต่าง Popup ตารางสรุปรีวิวข้อเสนอแนะรวม (Anonymous Feedback Modal) */}
+      {/* หน้าต่าง Popup ตารางสรุปรีวิวข้อเสนอแนะรวม */}
       <AnimatePresence>
         {showFeedbackModal && (
           <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-[#4A453A]/60 backdrop-blur-md">

@@ -4,6 +4,7 @@ import AdminSidebar from "../components/AdminSidebar"; // ตรวจสอบ 
 import AdminDashboard from "./admin/AdminDashboard";
 import AdminUsers from "./admin/AdminUsers";
 import AdminMessages from "./admin/AdminMessages";
+import AdminAnnouncements from "./admin/AdminAnnouncements"; // 🌟 นำเข้าหน้าประกาศระบบที่สร้างใหม่
 import { io } from "socket.io-client";
 
 export default function Admin() {
@@ -40,6 +41,9 @@ export default function Admin() {
         {tab === "dashboard" && <AdminDashboard setTab={setTab} />}
         {tab === "users" && <AdminUsers />}
         {tab === "messages" && <AdminMessages setContactsCount={setContactsCount} />}
+        
+        {/* 🌟 3. เพิ่มเงื่อนไขเปิดหน้าจอกล่องจัดการประกาศเมื่อแอดมินกดสลับแท็บเมนู */}
+        {tab === "announcements" && <AdminAnnouncements />}
       </main>
     </div>
   );

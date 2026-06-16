@@ -5,8 +5,14 @@ import { Send, MessageCircle, X, ChevronDown } from "lucide-react";
 import Swal from "sweetalert2";
 import api from "@/api/axios";
 import { io } from "socket.io-client";
-// 🌟 เพิ่ม import Framer Motion
 import { motion, AnimatePresence } from "framer-motion";
+
+// 🌟 [แก้ไขสำคัญ] ประกาศสร้าง Audio ไว้นอก Component (Global Singleton) 
+// เพื่อให้มันฝังตัวอยู่ใน Memory ตลอดการเปิดเว็บ เน็ตไม่หลุด เปลี่ยนหน้าสิทธิ์เล่นเสียงก็จะไม่หายไป
+const globalAlertSound = typeof window !== "undefined" ? new Audio("/notification.mp3") : null;
+if (globalAlertSound) {
+  globalAlertSound.load();
+}
 
 const socket = io("https://moodlocationfinder-backend.onrender.com");
 
@@ -27,9 +33,38 @@ export default function FloatingChatWidget() {
   const [inputMessage, setInputMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [isAdminTyping, setIsAdminTyping] = useState(false);
-  
+  const [unreadCount, setUnreadCount] = useState(0);
+
   const chatEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
+  const isExpandedRef = useRef(isWidgetExpanded);
+
+  // 🌟 ระบบดักจับการปลดล็อกเสียงแบบ Global ครั้งเดียวตั้งแต่เปิดหน้าแรก
+  useEffect(() => {
+    const unlockAudioGlobal = () => {
+      if (globalAlertSound) {
+        globalAlertSound.play()
+          .then(() => {
+            globalAlertSound.pause();
+            globalAlertSound.currentTime = 0;
+            console.log("🔓 [Global] สิทธิ์เสียงถูกปลดล็อกยาวถาวรในเซสชันนี้แล้ว เปลี่ยนหน้าก็ไม่หลุด!");
+            
+            // ปลดล็อกได้แล้วถอดปลั๊ก Event ทิ้งทันที ไม่ให้รันซ้ำซ้อน
+            window.removeEventListener("click", unlockAudioGlobal);
+            window.removeEventListener("touchstart", unlockAudioGlobal);
+          })
+          .catch(() => {});
+      }
+    };
+
+    window.addEventListener("click", unlockAudioGlobal);
+    window.addEventListener("touchstart", unlockAudioGlobal);
+
+    return () => {
+      window.removeEventListener("click", unlockAudioGlobal);
+      window.removeEventListener("touchstart", unlockAudioGlobal);
+    };
+  }, []);
 
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem("user"));
@@ -38,6 +73,13 @@ export default function FloatingChatWidget() {
       if (isWidgetExpanded && roomId) fetchChatHistory(roomId);
     }
   }, []);
+
+  useEffect(() => {
+    isExpandedRef.current = isWidgetExpanded;
+    if (isWidgetExpanded) {
+      setUnreadCount(0); 
+    }
+  }, [isWidgetExpanded]);
 
   const fetchChatHistory = async (targetRoomId) => {
     try {
@@ -49,11 +91,39 @@ export default function FloatingChatWidget() {
     }
   };
 
+  // จัดการ Socket
   useEffect(() => {
     if (roomId) {
       socket.emit("join_room", roomId);
 
       socket.on("receive_message", (newMessage) => {
+        const msgSenderId = newMessage.senderId || (newMessage.sender && (newMessage.sender._id || newMessage.sender.id || newMessage.sender));
+        const userId = user?._id || user?.id;
+
+        const senderStr = String(msgSenderId || "");
+        const userStr = String(userId || "");
+
+        console.log("📨 มีข้อความเข้า! คนส่ง:", senderStr, "ตัวฉัน:", userStr);
+
+        // ถ้าข้อความมาจากแอดมิน
+        if (senderStr !== userStr && userStr !== "") {
+          
+          // 🌟 สั่งเล่นเสียงผ่าน Global Object ทันที ไม่ดีเลย์ ไม่สนว่าอยู่หน้าไหน
+          if (globalAlertSound) {
+            globalAlertSound.currentTime = 0;
+            globalAlertSound.play()
+              .then(() => console.log("🔔 [Global] เสียงแจ้งเตือนดังเรียบร้อย!"))
+              .catch(err => {
+                console.log("🔈 เสียงสแตนด์บายรอ (ผู้ใช้ยังไม่ได้คลิกอะไรเลยตั้งแต่เข้าเว็บครั้งแรก)");
+              });
+          }
+
+          // ถ้าพับจอแชทอยู่ ให้เพิ่มจุดตัวเลขแจ้งเตือน
+          if (!isExpandedRef.current) {
+            setUnreadCount((prev) => prev + 1);
+          }
+        }
+
         setMessages((prev) => {
           if (prev.some(msg => msg._id === newMessage._id || msg.id === newMessage.id)) return prev;
           return [...prev, newMessage];
@@ -84,8 +154,9 @@ export default function FloatingChatWidget() {
       socket.off("room_closed");
       socket.off("admin_closed_chat");
     };
-  }, [roomId]);
+  }, [roomId, user]);
 
+  // Polling ทุก 3 วินาที
   useEffect(() => {
     let intervalId;
     if (isWidgetExpanded && roomId) {
@@ -102,6 +173,7 @@ export default function FloatingChatWidget() {
     setIsWidgetExpanded(false);
     setRoomId(null);
     setMessages([]);
+    setUnreadCount(0);
     localStorage.removeItem("isWidgetExpanded");
     localStorage.removeItem("activeRoomId");
   };
@@ -174,10 +246,8 @@ export default function FloatingChatWidget() {
 
   return (
     <div className="fixed bottom-6 right-6 z-[100] font-['Prompt']">
-      {/* 🌟 ครอบด้วย AnimatePresence เพื่อให้สลับหน้าต่างได้อย่างนุ่มนวล */}
       <AnimatePresence mode="wait">
         {!isWidgetExpanded ? (
-          /* 🌟 ปุ่มกลมๆ ตอนย่อ (ใส่แอนิเมชันเด้งๆ) */
           <motion.button 
             key="chat-bubble"
             onClick={toggleWidget} 
@@ -187,12 +257,22 @@ export default function FloatingChatWidget() {
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             transition={{ type: "spring", stiffness: 260, damping: 20 }}
-            className="w-16 h-16 bg-[#FF8E6E] hover:bg-[#ff7a55] text-white rounded-full flex items-center justify-center shadow-2xl"
+            className="w-16 h-16 bg-[#FF8E6E] hover:bg-[#ff7a55] text-white rounded-full flex items-center justify-center shadow-2xl relative"
           >
             <MessageCircle size={32} />
+            
+            {/* จุดแจ้งเตือนจำนวนข้อความค้างส่ง */}
+            {unreadCount > 0 && (
+              <motion.span 
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="absolute -top-1 -right-1 min-w-[24px] h-6 bg-red-500 text-white text-xs font-black rounded-full flex items-center justify-center px-1.5 shadow-lg animate-bounce border-2 border-white"
+              >
+                {unreadCount}
+              </motion.span>
+            )}
           </motion.button>
         ) : (
-          /* 🌟 หน้าต่างแชทตอนเปิด (แอนิเมชันขยายตัวจากมุมขวาล่าง) */
           <motion.div 
             key="chat-window"
             initial={{ opacity: 0, y: 50, scale: 0.5, transformOrigin: "bottom right" }}
@@ -227,9 +307,7 @@ export default function FloatingChatWidget() {
 
             {/* ส่วนเนื้อหาแชท */}
             <div className="flex-1 overflow-y-auto p-4 bg-[#F8F9FA] flex flex-col gap-4">
-              {loading ? (
-                <div className="flex justify-center items-center h-full text-gray-400 font-bold text-sm">กำลังเชื่อมต่อ...</div>
-              ) : messages.length === 0 ? (
+              {messages.length === 0 ? (
                 <motion.div 
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -242,8 +320,16 @@ export default function FloatingChatWidget() {
                 messages.map((msg, index) => {
                   const msgSenderId = msg.senderId || (msg.sender && (msg.sender._id || msg.sender.id || msg.sender));
                   const userId = user?._id || user?.id;
-                  const isUser = msgSenderId === userId; 
+                  const isUser = String(msgSenderId) === String(userId); 
                   
+                  const adminFirstName = msg.sender?.firstName || "Admin";
+                  const adminLastName = msg.sender?.lastName || "";
+                  const adminFullName = msg.sender?.firstName ? `${adminFirstName} ${adminLastName}`.trim() : "Admin";
+                  const adminProfileImg = msg.sender?.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(adminFirstName)}&background=4A453A&color=fff`;
+
+                  const userFirstName = user?.firstName || "User";
+                  const userProfileImg = user?.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(userFirstName)}&background=FF8E6E&color=fff`;
+
                   return (
                     <motion.div 
                       initial={{ opacity: 0, y: 10 }}
@@ -252,30 +338,25 @@ export default function FloatingChatWidget() {
                       className={`flex w-full ${isUser ? "justify-end" : "justify-start"}`}
                     >
                       {isUser ? (
-                        <div className="max-w-[80%] px-4 py-2.5 shadow-sm bg-[#25D366] text-white rounded-[1.5rem] rounded-tr-sm">
-                          <p className="font-medium leading-relaxed text-[14px]">{msg.message || msg.text || msg.content || ""}</p>
-                          <div className="flex items-center justify-end gap-1 mt-1">
-                            <p className="text-[10px] text-white/80">{new Date(msg.createdAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}</p>
-                            <svg viewBox="0 0 16 15" width="14" height="14" className="fill-white/80"><path d="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.879a.32.32 0 0 1-.484.033l-.358-.325a.319.319 0 0 0-.484.032l-.378.483a.418.418 0 0 0 .036.541l1.32 1.266c.143.14.361.125.484-.033l6.272-8.048a.366.366 0 0 0-.064-.512zm-4.1 0l-.478-.372a.365.365 0 0 0-.51.063L4.566 9.879a.32.32 0 0 1-.484.033L1.891 7.769a.366.366 0 0 0-.515.006l-.423.433a.364.364 0 0 0 .006.514l3.258 3.185c.143.14.361.125.484-.033l6.272-8.048a.365.365 0 0 0-.063-.51z"></path></svg>
+                        <div className="flex gap-2 max-w-[85%] flex-row-reverse">
+                          <img src={userProfileImg} alt="User Profile" className="w-8 h-8 rounded-full shadow-sm border border-gray-200 flex-shrink-0 object-cover mt-3" />
+                          <div className="flex flex-col items-end">
+                            <span className="text-[11px] font-bold text-gray-500 mb-0.5 mr-2">
+                              {user?.firstName ? `${user.firstName} ${user.lastName || ""}`.trim() : "ฉัน"}
+                            </span>
+                            <div className="bg-[#FF8E6E] text-white px-4 py-2.5 rounded-[1.5rem] rounded-tr-sm shadow-sm text-left">
+                              <p className="font-medium leading-relaxed text-[14px]">{msg.message || msg.text || msg.content || ""}</p>
+                              <p className="text-[10px] mt-1 text-right text-white/70">{new Date(msg.createdAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}</p>
+                            </div>
                           </div>
                         </div>
                       ) : (
                         <div className="flex gap-2 max-w-[85%]">
-                          {/* รูปโปรไฟล์แอดมิน */}
-                          <img 
-                            src={msg.sender?.profileImage || "https://cdn-icons-png.flaticon.com/512/4140/4140048.png"} 
-                            alt="Admin" 
-                            className="w-8 h-8 rounded-full shadow-sm border border-gray-200 flex-shrink-0 object-cover mt-3" 
-                          />
+                          <img src={adminProfileImg} alt="Admin Profile" className="w-8 h-8 rounded-full shadow-sm border border-gray-200 flex-shrink-0 object-cover mt-3" />
                           <div className="flex flex-col">
-                            
-                            {/* 🌟 แสดงชื่อ Admin ตามข้อมูล User จริงๆ ของแอดมินคนนั้น */}
                             <span className="text-[11px] font-bold text-gray-500 mb-0.5 ml-2">
-                              {msg.sender?.firstName 
-                                ? `${msg.sender.firstName} ${msg.sender.lastName || ""}` 
-                                : msg.sender?.name || "Admin"}
+                              {adminFullName}
                             </span>
-                            
                             <div className="bg-white border border-gray-200/60 text-[#4A453A] px-4 py-2.5 rounded-[1.5rem] rounded-tl-sm shadow-sm">
                               <p className="font-medium leading-relaxed text-[14px]">{msg.message || msg.text || msg.content || ""}</p>
                               <p className="text-[10px] mt-1 text-right text-gray-400">{new Date(msg.createdAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}</p>
@@ -288,7 +369,6 @@ export default function FloatingChatWidget() {
                 })
               )}
 
-              {/* 🌟 อนิเมชันตอนแอดมินกำลังพิมพ์ */}
               {isAdminTyping && (
                 <motion.div 
                   initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}

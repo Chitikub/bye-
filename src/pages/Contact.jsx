@@ -251,29 +251,47 @@ export default function ContactPage() {
               const userId = user._id || user.id;
               const isUser = msgSenderId === userId; 
               
+              // 🌟 แก้ไข: จัดเตรียมตัวแปรชื่อและรูปโปรไฟล์แอดมินจาก Data จริงแบบไดนามิก
+              const adminFirstName = msg.sender?.firstName || "Admin";
+              const adminLastName = msg.sender?.lastName || "";
+              const adminFullName = msg.sender?.firstName ? `${adminFirstName} ${adminLastName}`.trim() : "Admin (Customer Service)";
+              
+              // 🌟 แก้ไข: ดึงรูปแอดมิน ถ้าแอดมินคนนั้นไม่มีรูปโปรไฟล์ จะเจนรูปตัวอักษรย่อจากชื่อจริงให้แทนอัตโนมัติ (พื้นหลังสีเทาเข้ม)
+              const adminProfileImg = msg.sender?.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(adminFirstName)}&background=4A453A&color=fff`;
+
               return (
                 <div key={index} className={`flex w-full ${isUser ? "justify-end" : "justify-start"} animate-in fade-in slide-in-from-bottom-2`}>
                   {isUser ? (
                     /* 🌟 ฝั่งผู้ใช้ */
-                    <div className="max-w-[75%] px-5 py-3 shadow-sm bg-[#FF8E6E] text-white rounded-[1.5rem] rounded-tr-sm">
-                      <p className="font-medium leading-relaxed text-[15px]">{msg.message || msg.text || msg.content || ""}</p>
-                      <p className="text-[10px] mt-1 text-right text-white/70">
-                        {new Date(msg.createdAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
-                      </p>
+                    <div className="flex gap-3 max-w-[85%] flex-row-reverse">
+                      <img 
+                        src={user?.profileImage || `https://ui-avatars.com/api/?name=${user?.firstName || 'User'}&background=FF8E6E&color=fff`} 
+                        alt="User" 
+                        className="w-10 h-10 rounded-full shadow-sm border border-gray-200 flex-shrink-0 object-cover mt-1" 
+                      />
+                      <div className="flex flex-col items-end">
+                        <span className="text-[12px] font-bold text-gray-500 mb-1 mr-2">
+                          {user?.firstName ? `${user.firstName} ${user.lastName || ""}` : "ฉัน"}
+                        </span>
+                        <div className="bg-[#FF8E6E] text-white px-5 py-3 rounded-[1.5rem] rounded-tr-sm shadow-sm">
+                          <p className="font-medium leading-relaxed text-[15px]">{msg.message || msg.text || msg.content || ""}</p>
+                          <p className="text-[10px] mt-1 text-right text-white/70">
+                            {new Date(msg.createdAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   ) : (
-                    /* 🌟 ฝั่งแอดมิน (แสดงชื่อจริง และ รูปโปรไฟล์) */
+                    /* 🌟 ฝั่งแอดมิน (อัปเดตรูปตามข้อมูล User นั้นๆ และชื่อแอดมินจริงเรียบร้อย) */
                     <div className="flex gap-3 max-w-[85%]">
                       <img 
-                        src={msg.sender?.profileImage || "https://cdn-icons-png.flaticon.com/512/4140/4140048.png"} 
+                        src={adminProfileImg} 
                         alt="Admin" 
                         className="w-10 h-10 rounded-full shadow-sm border border-gray-200 flex-shrink-0 object-cover mt-1" 
                       />
                       <div className="flex flex-col">
                         <span className="text-[12px] font-bold text-gray-500 mb-1 ml-2">
-                          {msg.sender?.firstName 
-                            ? `${msg.sender.firstName} ${msg.sender.lastName || ""}` 
-                            : msg.sender?.name || "Admin (Customer Service)"}
+                          {adminFullName}
                         </span>
                         <div className="bg-white border border-gray-100 text-[#4A453A] px-5 py-3 rounded-[1.5rem] rounded-tl-sm shadow-sm">
                           <p className="font-medium leading-relaxed text-[15px]">{msg.message || msg.text || msg.content || ""}</p>
@@ -289,7 +307,7 @@ export default function ContactPage() {
             })
           )}
 
-          {/* 🌟 อนิเมชันตอนแอดมินกำลังพิมพ์ (เข้าชุดกัน) */}
+          {/* 🌟 อนิเมชันตอนแอดมินกำลังพิมพ์ */}
           {isAdminTyping && (
             <div className="flex justify-start gap-3 w-full max-w-[85%] animate-in fade-in slide-in-from-bottom-2">
               <img 
