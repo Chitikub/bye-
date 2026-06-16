@@ -78,8 +78,22 @@ export default function ContactPage() {
           text: "ห้องแชทนี้ถูกปิดเนื่องจากไม่มีการโต้ตอบเกิน 10 นาที",
           confirmButtonColor: "#FF8E6E"
         });
-        // 🌟 เคลียร์ค่าใน localStorage เมื่อห้องโดนปิด
         handleCloseChatState();
+      });
+
+      // 🌟 สิ่งที่เพิ่มเข้ามาใหม่: ดักฟังว่าแอดมินปิดห้องหรือยัง
+      socket.on("admin_closed_chat", (closedRoomId) => {
+        // ถ้ารหัสห้องที่โดนปิด ตรงกับห้องที่กำลังเปิดอยู่
+        if (roomId === closedRoomId) {
+          Swal.fire({
+            icon: "info",
+            title: "แชทสิ้นสุดลง",
+            text: "แอดมินได้ทำการปิดเคสนี้แล้ว หากมีข้อสอบถามเพิ่มเติม ระบบจะสร้างห้องแชทใหม่ให้คุณอัตโนมัติเมื่อกดเริ่มแชทใหม่",
+            confirmButtonColor: "#FF8E6E"
+          });
+          // เคลียร์สถานะในหน้าจอและล้าง LocalStorage ทิ้ง
+          handleCloseChatState();
+        }
       });
     }
 
@@ -87,6 +101,7 @@ export default function ContactPage() {
       socket.off("receive_message");
       socket.off("display_typing");
       socket.off("room_closed");
+      socket.off("admin_closed_chat"); // อย่าลืมเคลียร์ socket เมื่อ component unmount
     };
   }, [roomId]);
 
@@ -132,7 +147,6 @@ export default function ContactPage() {
   const handleOpenChat = async () => {
     setIsChatOpen(true);
     setLoading(true);
-    // 🌟 บันทึกสถานะการเปิดลง localStorage ทันที
     localStorage.setItem("isChatOpen", "true");
     
     try {
@@ -141,7 +155,6 @@ export default function ContactPage() {
       
       if (currentRoomId) {
         setRoomId(currentRoomId);
-        // 🌟 บันทึกรหัสห้องลง localStorage ป้องกันการหายเมื่อรีเฟรช
         localStorage.setItem("activeRoomId", currentRoomId);
         await fetchChatHistory(currentRoomId);
       }
@@ -209,7 +222,6 @@ export default function ContactPage() {
     <div className="min-h-screen bg-[#FDF8F1] flex items-center justify-center py-8 px-4 font-['Prompt']">
       <div className="w-full max-w-xl bg-white rounded-[2rem] shadow-2xl border border-gray-100 flex flex-col h-[80vh] max-h-[750px] min-h-[500px] overflow-hidden relative animate-in fade-in zoom-in-95 duration-300">
         <div className="bg-white border-b border-gray-100 p-4 flex items-center gap-4 z-10 shadow-sm">
-          {/* 🌟 ปรับปรุง: เมื่อกดปุ่มย้อนกลับ ให้เคลียร์สถานะใน localStorage เพื่อปิดห้องแชทกลับไปหน้าแรก */}
           <button onClick={handleCloseChatState} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500">
             <ArrowLeft size={24} />
           </button>
@@ -240,25 +252,58 @@ export default function ContactPage() {
               const isUser = msgSenderId === userId; 
               
               return (
-                <div key={index} className={`flex ${isUser ? "justify-end" : "justify-start"} animate-in fade-in slide-in-from-bottom-2`}>
-                  <div className={`max-w-[75%] px-5 py-3 shadow-sm ${isUser ? "bg-[#FF8E6E] text-white rounded-[1.5rem] rounded-tr-sm" : "bg-white border border-gray-100 text-[#4A453A] rounded-[1.5rem] rounded-tl-sm"}`}>
-                    <p className="font-medium leading-relaxed text-[15px]">{msg.message || msg.text || msg.content || ""}</p>
-                    <p className={`text-[10px] mt-1 text-right ${isUser ? "text-white/70" : "text-gray-400"}`}>
-                      {new Date(msg.createdAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                  </div>
+                <div key={index} className={`flex w-full ${isUser ? "justify-end" : "justify-start"} animate-in fade-in slide-in-from-bottom-2`}>
+                  {isUser ? (
+                    /* 🌟 ฝั่งผู้ใช้ */
+                    <div className="max-w-[75%] px-5 py-3 shadow-sm bg-[#FF8E6E] text-white rounded-[1.5rem] rounded-tr-sm">
+                      <p className="font-medium leading-relaxed text-[15px]">{msg.message || msg.text || msg.content || ""}</p>
+                      <p className="text-[10px] mt-1 text-right text-white/70">
+                        {new Date(msg.createdAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
+                  ) : (
+                    /* 🌟 ฝั่งแอดมิน (แสดงชื่อจริง และ รูปโปรไฟล์) */
+                    <div className="flex gap-3 max-w-[85%]">
+                      <img 
+                        src={msg.sender?.profileImage || "https://cdn-icons-png.flaticon.com/512/4140/4140048.png"} 
+                        alt="Admin" 
+                        className="w-10 h-10 rounded-full shadow-sm border border-gray-200 flex-shrink-0 object-cover mt-1" 
+                      />
+                      <div className="flex flex-col">
+                        <span className="text-[12px] font-bold text-gray-500 mb-1 ml-2">
+                          {msg.sender?.firstName 
+                            ? `${msg.sender.firstName} ${msg.sender.lastName || ""}` 
+                            : msg.sender?.name || "Admin (Customer Service)"}
+                        </span>
+                        <div className="bg-white border border-gray-100 text-[#4A453A] px-5 py-3 rounded-[1.5rem] rounded-tl-sm shadow-sm">
+                          <p className="font-medium leading-relaxed text-[15px]">{msg.message || msg.text || msg.content || ""}</p>
+                          <p className="text-[10px] mt-1 text-right text-gray-400">
+                            {new Date(msg.createdAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })
           )}
 
+          {/* 🌟 อนิเมชันตอนแอดมินกำลังพิมพ์ (เข้าชุดกัน) */}
           {isAdminTyping && (
-            <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2">
-              <div className="bg-white border border-gray-100 px-5 py-3.5 rounded-[1.5rem] rounded-tl-sm shadow-sm flex items-center gap-1">
-                <span className="text-[10px] font-bold text-gray-400 mr-1">Admin</span>
-                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+            <div className="flex justify-start gap-3 w-full max-w-[85%] animate-in fade-in slide-in-from-bottom-2">
+              <img 
+                src="https://cdn-icons-png.flaticon.com/512/4140/4140048.png" 
+                alt="Admin" 
+                className="w-10 h-10 rounded-full shadow-sm border border-gray-200 flex-shrink-0 object-cover mt-1" 
+              />
+              <div className="flex flex-col">
+                <span className="text-[12px] font-bold text-gray-500 mb-1 ml-2">Admin กำลังพิมพ์...</span>
+                <div className="bg-white border border-gray-100 px-5 py-3.5 rounded-[1.5rem] rounded-tl-sm shadow-sm flex items-center gap-1.5 w-fit">
+                  <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                  <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                  <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                </div>
               </div>
             </div>
           )}

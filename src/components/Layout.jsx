@@ -3,6 +3,7 @@ import { Outlet, useLocation } from "react-router-dom";
 import Footer from "./Footer";
 import Header from "./Header";
 import AdminSidebar from "./AdminSidebar"; // ✨ Import Sidebar มาใช้
+import FloatingChatWidget from "./FloatingChatWidget";
 
 function Layout() {
   const location = useLocation();
@@ -27,6 +28,8 @@ function Layout() {
 
       {/* 4. แสดง Footer เฉพาะหน้าบ้านปกติ */}
       {!isAdminPage && <Footer />}
+
+      <FloatingChatWidget />
     </div>
   );
 }

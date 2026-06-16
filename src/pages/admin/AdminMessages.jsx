@@ -156,10 +156,14 @@ export default function AdminMessages() {
     if (result.isConfirmed) {
       try {
         await api.put(`/contact/admin/${id}/close`); 
+        
+        // 🌟 สิ่งที่ต้องเพิ่ม: ส่งสัญญาณ Socket ไปบอกฝั่ง User ว่าแอดมินปิดห้องนี้แล้ว
+        socket.emit("admin_closed_chat", id); 
+
         Swal.fire({ title: 'ย้ายไปหน้าประวัติสำเร็จ!', icon: 'success', timer: 1000, showConfirmButton: false });
         
         setSelectedReport(null); // ปิดหน้าต่างคุยแชท
-        fetchReports(); // อัปเดตตาราง โครงสร้างกรองจะจัดการย้ายแถวให้อัตโนมัติ
+        fetchReports(); // อัปเดตตาราง
       } catch (err) { 
         Swal.fire('ผิดพลาด', 'ไม่สามารถดำเนินการได้ในขณะนี้', 'error'); 
       }

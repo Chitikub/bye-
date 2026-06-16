@@ -91,7 +91,7 @@ export default function AuthPage() {
           await Swal.fire({
             icon: "info",
             title: "สมัครสมาชิกสำเร็จ!",
-            text: "กรุณาตรวจสอบอีเมลของคุณเพื่อยืนยันตัวตนก่อนเข้าสู่ระบบ",
+            text: "กรุณาตรวจสอบอีเมลของคุณเพื่อยืนยันตัวตนก่อนเข้าสู่ระบบ (หากหาไม่เจอโปรดดูที่จดหมายขยะ)",
             confirmButtonColor: "#FF7F67",
             customClass: { popup: "rounded-[30px]" },
           });

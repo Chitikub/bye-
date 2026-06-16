@@ -87,11 +87,16 @@ export default function GooglePlaceDetail() {
       });
     }
 
+    // ✅ แปลงรหัสรูปภาพให้เป็น URL ลิงก์รูปภาพแบบเต็มก่อนส่งไปหลังบ้าน
+    const imageUrl = place.photos && place.photos.length > 0 
+      ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=1000&photo_reference=${place.photos[0].photo_reference}&key=${API_KEY}`
+      : "";
+
     try {
       const res = await api.post("/favorites/toggle", { 
         placeId: placeId,
         name: place.name,
-        image: place.photos?.[0]?.photo_reference || "" 
+        image: imageUrl // ✅ ส่งลิงก์รูปภาพแบบเต็มไปบันทึก
       }, {
         headers: { Authorization: `Bearer ${token}` } 
       });
@@ -118,12 +123,18 @@ export default function GooglePlaceDetail() {
   // 🚀 ฟังก์ชัน: นำทาง และ บันทึกประวัติ
   const handleNavigation = async () => {
     const token = localStorage.getItem("token");
+
+    // ✅ แปลงรหัสรูปภาพให้เป็น URL ลิงก์รูปภาพแบบเต็มก่อนส่งไปหลังบ้าน
+    const imageUrl = place.photos && place.photos.length > 0 
+      ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=1000&photo_reference=${place.photos[0].photo_reference}&key=${API_KEY}`
+      : "";
+
     if (token) {
       try {
         await api.post("/history", { 
           placeId: placeId,
           name: place.name,
-          image: place.photos?.[0]?.photo_reference || ""
+          image: imageUrl // ✅ ส่งลิงก์รูปภาพแบบเต็มไปบันทึก
         }, {
           headers: { Authorization: `Bearer ${token}` }
         });

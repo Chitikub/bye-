@@ -148,6 +148,7 @@ export default function AuthPage() {
           icon: "warning",
           title: "ยังไม่ได้ยืนยันอีเมล",
           text: "กรุณายืนยันอีเมลของคุณในกล่องจดหมายก่อนเข้าสู่ระบบ",
+          
           confirmButtonColor: "#FF7F67",
           customClass: { popup: "rounded-[30px]" },
         });
