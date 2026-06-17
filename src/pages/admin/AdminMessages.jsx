@@ -16,15 +16,9 @@ export default function AdminMessages() {
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState("");
   
-  // 🌟 State ใหม่สำหรับสลับหน้าจอระหวา่งแชทปัจจุบัน กับ ประวัติแชททั้งหมด
-  // 'active' = แชทที่กำลังคุย, 'closed' = ประวัติแชททั้งหมดที่ถูกลบ/ปิดเคสไปแล้ว
   const [currentTab, setCurrentTab] = useState("active");
-
-  // State สำหรับเปิดดูตารางข้อเสนอแนะ (Feedback)
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [feedbacks, setFeedbacks] = useState([]);
-
-  // สถานะเช็คว่าผู้ใช้ปิดแชทไปแล้วหรือยัง
   const [isUserClosedActive, setIsUserClosedActive] = useState(false);
 
   const chatEndRef = useRef(null);
@@ -33,10 +27,8 @@ export default function AdminMessages() {
     try {
       const res = await api.get('/contact/admin/all'); 
       const data = res.data.rooms || res.data || [];
-      // บันทึกข้อมูลดิบทั้งหมดลงไปก่อน
       setReports(Array.isArray(data) ? data.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)) : []);
       
-      // ดักเช็คสถานะห้องแชทที่เปิดอยู่ผ่าน Polling
       if (selectedReport) {
         const currentRoomId = selectedReport.id || selectedReport._id;
         const matchingRoom = data.find(r => (r.id || r._id) === currentRoomId);
@@ -51,7 +43,6 @@ export default function AdminMessages() {
     }
   };
 
-  // ฟังก์ชันดึงรายการข้อเสนอแนะรวมแบบไม่ระบุตัวตน (Anonymous)
   const fetchFeedbacks = async () => {
     try {
       const res = await api.get('/contact/rating/stats');
@@ -68,11 +59,8 @@ export default function AdminMessages() {
     }
   };
 
-  useEffect(() => { 
-    fetchReports(); 
-  }, []);
+  useEffect(() => { fetchReports(); }, []);
 
-  // จัดการ Socket
   useEffect(() => {
     if (selectedReport) {
       const roomId = selectedReport.id || selectedReport._id;
@@ -98,7 +86,6 @@ export default function AdminMessages() {
         fetchReports();
       });
     }
-
     return () => {
       socket.off("receive_message");
       socket.off("user_closed_chat");
@@ -106,7 +93,6 @@ export default function AdminMessages() {
     };
   }, [selectedReport]);
 
-  // Polling ข้อความและแชททุก 3 วินาที
   useEffect(() => {
     let intervalId;
     if (selectedReport) {
@@ -116,7 +102,6 @@ export default function AdminMessages() {
           const response = await api.get(`/contact/${roomId}/messages`);
           const msgs = response.data.messages || response.data || [];
           if (Array.isArray(msgs)) setMessages(msgs);
-          
           fetchReports();
         } catch (error) { console.error("Admin polling error:", error); }
       }, 3000);
@@ -124,11 +109,8 @@ export default function AdminMessages() {
     return () => { if (intervalId) clearInterval(intervalId); };
   }, [selectedReport]);
 
-  // โหลดข้อมูลเคสใหม่ทุก 5 วินาที
   useEffect(() => {
-    const intervalId = setInterval(() => { 
-      if (!selectedReport) fetchReports(); 
-    }, 5000);
+    const intervalId = setInterval(() => { if (!selectedReport) fetchReports(); }, 5000);
     return () => clearInterval(intervalId);
   }, [selectedReport]);
 
@@ -136,7 +118,6 @@ export default function AdminMessages() {
     if (selectedReport) chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, selectedReport]);
 
-  // 🌟 ฟังก์ชันกดลบ/ปิดเคสแชท (ย้ายห้องไปอยู่หน้าประวัติ)
   const handleDeleteCase = async (e, id) => {
     e.stopPropagation(); 
     if (!id) return;
@@ -156,17 +137,11 @@ export default function AdminMessages() {
     if (result.isConfirmed) {
       try {
         await api.put(`/contact/admin/${id}/close`); 
-        
-        // 🌟 สิ่งที่ต้องเพิ่ม: ส่งสัญญาณ Socket ไปบอกฝั่ง User ว่าแอดมินปิดห้องนี้แล้ว
         socket.emit("admin_closed_chat", id); 
-
         Swal.fire({ title: 'ย้ายไปหน้าประวัติสำเร็จ!', icon: 'success', timer: 1000, showConfirmButton: false });
-        
-        setSelectedReport(null); // ปิดหน้าต่างคุยแชท
-        fetchReports(); // อัปเดตตาราง โครงสร้างกรองจะจัดการย้ายแถวให้อัตโนมัติ
-      } catch (err) { 
-        Swal.fire('ผิดพลาด', 'ไม่สามารถดำเนินการได้ในขณะนี้', 'error'); 
-      }
+        setSelectedReport(null);
+        fetchReports();
+      } catch (err) { Swal.fire('ผิดพลาด', 'ไม่สามารถดำเนินการได้ในขณะนี้', 'error'); }
     }
   };
 
@@ -185,26 +160,21 @@ export default function AdminMessages() {
     } catch (err) { Swal.fire('ผิดพลาด', 'ไม่สามารถส่งข้อความได้', 'error'); }
   };
 
-  // 🌟 1. กรองสลับข้อมูลแชทจริงตาม Tab ที่แอดมินเลือกดู + กรองช่อง Search ค้นหาชื่อ
   const filteredReports = reports.filter(r => {
     const userInfo = r.user || r; 
-    
-    // ตรวจสอบเงื่อนไขแถบเมนูแชท (Active Chat หรือ History Chat)
     const matchTab = currentTab === "active" ? r.status !== "closed" : r.status === "closed";
-    
-    // ตรวจสอบเงื่อนไขคำค้นหา (Search)
-    const matchSearch = userInfo.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    const topicText = r.topic || "";
+    const matchSearch = topicText.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                        userInfo.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) || 
                         userInfo.email?.toLowerCase().includes(searchTerm.toLowerCase());
-                        
     return matchTab && matchSearch;
   });
 
-  // คำนวณสถิติจริงจากฐานข้อมูลเพื่อโชว์ในกล่อง Dashboard ตัวบน
   const totalActiveContacts = reports.filter(r => r.status !== 'closed').length;
   const totalClosedContacts = reports.filter(r => r.status === 'closed').length;
 
   return (
-    <div className="flex-1 p-8 md:p-12 bg-[#FDF8F1] min-h-screen font-['Kanit'] text-[#4A453A]">
+    <div className="flex-1 p-8 md:p-12 bg-[#FDF8F1] min-h-screen font-['Prompt'] text-[#4A453A]">
       <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-8">
         <div>
           <h1 className="text-5xl font-black text-[#4A453A]">จัดการ <span className="text-[#FF8E6E]">แชทลูกค้า</span></h1>
@@ -212,19 +182,13 @@ export default function AdminMessages() {
         </div>
         <div className="relative w-full md:w-80">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input type="text" placeholder="ค้นหาชื่อหรืออีเมล..." className="w-full pl-12 pr-6 py-4 rounded-2xl bg-white border-none shadow-sm focus:ring-4 focus:ring-[#FF8E6E]/10 font-bold outline-none" onChange={(e) => setSearchTerm(e.target.value)} />
+          <input type="text" placeholder="ค้นหาหัวข้อ, ชื่อ, อีเมล..." className="w-full pl-12 pr-6 py-4 rounded-2xl bg-white border-none shadow-sm focus:ring-4 focus:ring-[#FF8E6E]/10 font-bold outline-none" onChange={(e) => setSearchTerm(e.target.value)} />
         </div>
       </header>
 
-      {/* แถบสถิติ Dashboard และปุ่มดูรีวิวข้อเสนอแนะ */}
       <section className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-8 w-full">
-        {/* 🌟 2. ปุ่มสลับโหมดมุมมอง (กล่องสถิติที่สามารถคลิกเพื่อสลับหน้า Active / History ได้ในตัว) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-xl">
-          {/* ปุ่มแท็บ: แชทที่กำลังคุยอยู่ */}
-          <div 
-            onClick={() => setCurrentTab("active")}
-            className={`p-6 rounded-3xl shadow-sm flex items-center gap-4 cursor-pointer transition-all border-4 ${currentTab === "active" ? "bg-white border-[#FF8E6E] scale-105" : "bg-white/60 border-transparent opacity-70 hover:opacity-100"}`}
-          >
+          <div onClick={() => setCurrentTab("active")} className={`p-6 rounded-3xl shadow-sm flex items-center gap-4 cursor-pointer transition-all border-4 ${currentTab === "active" ? "bg-white border-[#FF8E6E] scale-105" : "bg-white/60 border-transparent opacity-70 hover:opacity-100"}`}>
             <div className="w-14 h-14 bg-orange-50 rounded-2xl flex items-center justify-center text-[#FF8E6E]"><Inbox size={28}/></div>
             <div>
               <p className="text-sm font-bold text-gray-400 leading-tight">แชทที่กำลังติดต่อ</p>
@@ -232,11 +196,7 @@ export default function AdminMessages() {
             </div>
           </div>
           
-          {/* ปุ่มแท็บ: ประวัติแชททั้งหมด (ห้องที่กดลบไปแล้ว) */}
-          <div 
-            onClick={() => setCurrentTab("closed")}
-            className={`p-6 rounded-3xl shadow-sm flex items-center gap-4 cursor-pointer transition-all border-4 ${currentTab === "closed" ? "bg-white border-[#FF8E6E] scale-105" : "bg-white/60 border-transparent opacity-70 hover:opacity-100"}`}
-          >
+          <div onClick={() => setCurrentTab("closed")} className={`p-6 rounded-3xl shadow-sm flex items-center gap-4 cursor-pointer transition-all border-4 ${currentTab === "closed" ? "bg-white border-[#FF8E6E] scale-105" : "bg-white/60 border-transparent opacity-70 hover:opacity-100"}`}>
             <div className="w-14 h-14 bg-gray-100 rounded-2xl flex items-center justify-center text-gray-500"><History size={28}/></div>
             <div>
               <p className="text-sm font-bold text-gray-400 leading-tight">ประวัติแชททั้งหมด</p>
@@ -245,21 +205,17 @@ export default function AdminMessages() {
           </div>
         </div>
 
-        <button 
-          onClick={fetchFeedbacks}
-          className="px-6 py-4 bg-white border-2 border-[#FF8E6E] text-[#FF8E6E] rounded-2xl font-black text-sm shadow-sm hover:bg-[#FF8E6E] hover:text-white transition-all flex items-center gap-2"
-        >
+        <button onClick={fetchFeedbacks} className="px-6 py-4 bg-white border-2 border-[#FF8E6E] text-[#FF8E6E] rounded-2xl font-black text-sm shadow-sm hover:bg-[#FF8E6E] hover:text-white transition-all flex items-center gap-2">
           <MessageSquare size={18}/> ดูข้อเสนอแนะรวมจากผู้ใช้
         </button>
       </section>
 
-      {/* หัวข้อแสดงระบุหน้าแท็บที่กำลังดูอยู่ */}
       <h2 className="text-xl font-black mb-4 text-gray-400 flex items-center gap-2">
         {currentTab === "active" ? <span className="w-2 h-2 rounded-full bg-orange-400 animate-pulse"></span> : null}
         {currentTab === "active" ? "รายการแชทที่กำลังติดต่อคุยอยู่" : "กล่องเก็บประวัติแชทเก่าที่ลบ/ปิดเคสแล้ว"}
       </h2>
 
-      {/* รายการการ์ดแชทลูกค้า (จะแยกการแสดงผลตามแท็บที่เลือกอัตโนมัติ) */}
+      {/* 🌟 แสดงรายการหน้าการ์ด */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredReports.length === 0 ? (
           <div className="col-span-full text-center py-16 text-gray-400 font-bold bg-white rounded-[2rem] shadow-inner">ไม่มีข้อมูลแชทในหมวดหมู่นี้</div>
@@ -267,30 +223,29 @@ export default function AdminMessages() {
           filteredReports.map((report) => {
             const userInfo = report.user || report; 
             const isClosed = report.status === 'closed';
+            
+            // 🌟 พระเอกของงาน: ดึงหัวข้อมาแสดง ถ้าไม่มีให้ขึ้นแจ้งเตือนชั่วคราว
+            const chatTopic = report.topic || "รอข้อมูลหัวข้อจากระบบ...";
+            const customerName = `${userInfo.firstName || 'ลูกค้า'} ${userInfo.lastName || ''}`.trim();
 
             return (
               <motion.div layout key={report.id || report._id} onClick={() => setSelectedReport(report)} className={`bg-white rounded-[2.5rem] p-6 shadow-md border-4 border-white cursor-pointer hover:shadow-xl hover:scale-[1.02] transition-all relative overflow-hidden group ${isClosed ? 'bg-gray-50/70 border-gray-100 opacity-80' : ''}`}>
                 <div className="space-y-4">
                   <div className="flex items-center gap-3">
-                    <img src={userInfo.profileImage || `https://ui-avatars.com/api/?name=${userInfo.firstName}&background=FF8E6E&color=fff`} className="w-12 h-12 rounded-2xl object-cover border-2 border-orange-50" alt="profile"/>
+                    <img src={userInfo.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(userInfo.firstName)}&background=FF8E6E&color=fff`} className="w-12 h-12 rounded-2xl object-cover border-2 border-orange-50 shrink-0" alt="profile"/>
                     <div className="flex-1 min-w-0">
-                      <p className="font-black text-[#4A453A] truncate text-lg leading-tight">{userInfo.firstName} {userInfo.lastName}</p>
-                      <p className="text-[11px] font-bold text-[#FF8E6E] truncate">{userInfo.email}</p>
+                      {/* 🌟 แสดงหัวข้อตัวใหญ่ */}
+                      <p className="font-black text-[#4A453A] truncate text-lg leading-tight">{chatTopic}</p>
+                      {/* 🌟 แสดงชื่อลูกค้าตัวเล็กด้านล่าง */}
+                      <p className="text-[11px] font-bold text-[#FF8E6E] truncate mt-0.5">โดย: คุณ {customerName}</p>
                     </div>
                   </div>
                   <div className="flex justify-between items-center pt-2">
                     <span className="text-[10px] font-bold text-gray-400 flex items-center gap-1 uppercase tracking-widest">
                       <Clock size={12}/> {isClosed ? 'ปิดห้องสนทนาแล้ว' : 'รอการตอบกลับ'}
                     </span>
-                    
                     {!isClosed && (
-                      <button 
-                        onClick={(e) => handleDeleteCase(e, report.id || report._id)} 
-                        className="p-2 text-gray-300 hover:text-rose-500 transition-colors"
-                        title="ลบแชท / ปิดเคส"
-                      >
-                        <Trash2 size={18} />
-                      </button>
+                      <button onClick={(e) => handleDeleteCase(e, report.id || report._id)} className="p-2 text-gray-300 hover:text-rose-500 transition-colors" title="ลบแชท / ปิดเคส"><Trash2 size={18} /></button>
                     )}
                   </div>
                 </div>
@@ -300,45 +255,42 @@ export default function AdminMessages() {
         )}
       </div>
 
-      {/* หน้าต่างกล่องแชทเมื่อกดเปิดห้องคุย */}
+      {/* 🌟 หน้าต่างแชท */}
       <AnimatePresence>
         {selectedReport && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6 bg-[#4A453A]/60 backdrop-blur-md">
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white rounded-[2rem] w-full max-w-3xl flex flex-col h-[85vh] max-h-[700px] overflow-hidden shadow-2xl relative">
               <div className="bg-white border-b border-gray-100 p-4 flex justify-between items-center z-10 shadow-sm">
                 <div className="flex items-center gap-4">
-                  <img src={(selectedReport.user || selectedReport).profileImage || `https://ui-avatars.com/api/?name=${(selectedReport.user || selectedReport).firstName}&background=FF8E6E&color=fff`} className="w-12 h-12 rounded-full object-cover shadow-sm" alt="user"/>
-                  <div>
-                    <h3 className="text-lg font-black text-[#2D2A26] leading-tight">{(selectedReport.user || selectedReport).firstName} {(selectedReport.user || selectedReport).lastName}</h3>
-                    <p className={`text-xs font-bold flex items-center gap-1 ${selectedReport.status === 'closed' || isUserClosedActive ? 'text-rose-500' : 'text-green-500'}`}>
-                      <span className={`w-2 h-2 rounded-full ${selectedReport.status === 'closed' || isUserClosedActive ? 'bg-rose-500' : 'bg-green-500'}`}></span> 
-                      {selectedReport.status === 'closed' || isUserClosedActive ? 'ประวัติการแชทย้อนหลัง (ห้องปิดแล้ว)' : 'ห้องสนทนาใช้งานได้'}
+                  <img src={(selectedReport.user || selectedReport).profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent((selectedReport.user || selectedReport).firstName)}&background=FF8E6E&color=fff`} className="w-12 h-12 rounded-full object-cover shadow-sm" alt="user"/>
+                  <div className="min-w-0 max-w-[200px] sm:max-w-xs">
+                    {/* 🌟 แสดงหัวข้อในหัวแชท */}
+                    <h3 className="text-lg font-black text-[#2D2A26] leading-tight truncate">{selectedReport.topic || "รอข้อมูลหัวข้อจากระบบ..."}</h3>
+                    <p className={`text-[11px] font-bold mt-1 flex items-center gap-1 ${selectedReport.status === 'closed' || isUserClosedActive ? 'text-rose-500' : 'text-gray-500'}`}>
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${selectedReport.status === 'closed' || isUserClosedActive ? 'bg-rose-500' : 'bg-green-500'}`}></span> 
+                      {/* 🌟 ชื่อลูกค้าในหัวแชท */}
+                      <span className="truncate">คุณ {((selectedReport.user || selectedReport).firstName || "ผู้ใช้")} {(selectedReport.user || selectedReport).lastName || ""}</span>
                     </p>
                   </div>
                 </div>
                 <button onClick={() => { setSelectedReport(null); setMessages([]); }} className="p-2 text-gray-400 hover:bg-gray-100 rounded-full transition-all"><X size={24}/></button>
               </div>
 
-              {/* ส่วนแสดงประวัติแชท */}
+              {/* ส่วนแสดงข้อความ */}
               <div className="flex-1 overflow-y-auto p-4 bg-gray-50/50 flex flex-col gap-4">
                 {messages.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full text-gray-400 opacity-60"><MessageCircle size={56} className="mb-3" /><p className="text-base font-bold">ไม่มีประวัติข้อความ</p></div>
                 ) : (
                   messages.map((msg, index) => {
-                    // 🌟 เพิ่ม Console log ไว้สำหรับเช็คข้อมูลผู้ส่ง
-                    console.log("เช็คข้อมูล Message ในระบบแอดมิน:", msg);
-
                     const customerId = (selectedReport.user || selectedReport)._id || (selectedReport.user || selectedReport).id;
                     const msgSenderId = msg.sender?.id || msg.sender?._id || msg.senderId || msg.sender;
                     const isCustomer = msgSenderId === customerId;
                     const isAdmin = !isCustomer;
 
-                    // 🌟 1. ดักจับข้อมูลฝั่งลูกค้า (ชิดซ้าย)
                     const customerInfo = selectedReport.user || selectedReport;
-                    const customerName = `${customerInfo.firstName || "User"} ${customerInfo.lastName || ""}`.trim();
-                    const customerImage = customerInfo.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(customerInfo.firstName || 'User')}&background=FF8E6E&color=fff`;
+                    const customerName = `${customerInfo.firstName || "ลูกค้า"} ${customerInfo.lastName || ""}`.trim();
+                    const customerImage = customerInfo.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(customerInfo.firstName || 'C')}&background=FF8E6E&color=fff`;
 
-                    // 🌟 2. ดักจับข้อมูลฝั่งแอดมินคนพิมพ์ตอบ (ชิดขวา)
                     const adminFirstName = msg.sender?.firstName || "Admin";
                     const adminFullName = msg.sender?.firstName ? `${msg.sender.firstName} ${msg.sender.lastName || ""}`.trim() : "Admin";
                     const adminImage = msg.sender?.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(adminFirstName)}&background=4A453A&color=fff`;
@@ -346,19 +298,12 @@ export default function AdminMessages() {
                     return (
                       <div key={index} className={`flex w-full ${isAdmin ? "justify-end" : "justify-start"}`}>
                         {isAdmin ? (
-                          /* 🌟 ฝั่งแอดมินคนพิมพ์ (ชิดขวา มีรูปโปรไฟล์แอดมินจริง + ชื่อแอดมินจริง) */
                           <div className="flex gap-3 max-w-[85%] flex-row-reverse">
-                            <img 
-                              src={adminImage} 
-                              alt="Admin Profile" 
-                              className="w-10 h-10 rounded-full shadow-sm border border-gray-200 flex-shrink-0 object-cover mt-1" 
-                            />
+                            <img src={adminImage} alt="Admin Profile" className="w-10 h-10 rounded-full shadow-sm border border-gray-200 flex-shrink-0 object-cover mt-1" />
                             <div className="flex flex-col items-end">
-                              <span className="text-[12px] font-bold text-gray-500 mb-1 mr-2">
-                                {adminFullName} (ฉัน)
-                              </span>
+                              <span className="text-[12px] font-bold text-gray-500 mb-1 mr-2">{adminFullName} (ฉัน)</span>
                               <div className="bg-[#FF8E6E] text-white px-5 py-3 rounded-[1.5rem] rounded-tr-sm shadow-sm text-left">
-                                <p className="font-medium leading-relaxed text-[15px]">{msg.message || msg.text || msg.content || ""}</p>
+                                <p className="font-medium leading-relaxed text-[15px] whitespace-pre-line">{msg.message || msg.text || msg.content || ""}</p>
                                 <p className="text-[10px] mt-1 text-right text-white/70">
                                   {new Date(msg.createdAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
                                 </p>
@@ -366,19 +311,12 @@ export default function AdminMessages() {
                             </div>
                           </div>
                         ) : (
-                          /* 🌟 ฝั่งลูกค้าผู้สอบถาม (ชิดซ้าย มีรูปโปรไฟล์ลูกค้าจริง + ชื่อลูกค้าจริง) */
                           <div className="flex gap-3 max-w-[85%]">
-                            <img 
-                              src={customerImage} 
-                              alt="Customer Profile" 
-                              className="w-10 h-10 rounded-full shadow-sm border border-gray-200 flex-shrink-0 object-cover mt-1" 
-                            />
+                            <img src={customerImage} alt="Customer Profile" className="w-10 h-10 rounded-full shadow-sm border border-gray-200 flex-shrink-0 object-cover mt-1" />
                             <div className="flex flex-col">
-                              <span className="text-[12px] font-bold text-gray-500 mb-1 ml-2">
-                                {customerName}
-                              </span>
+                              <span className="text-[12px] font-bold text-gray-500 mb-1 ml-2">{customerName}</span>
                               <div className="bg-white border border-gray-100 text-[#4A453A] px-5 py-3 rounded-[1.5rem] rounded-tl-sm shadow-sm">
-                                <p className="font-medium leading-relaxed text-[15px]">{msg.message || msg.text || msg.content || ""}</p>
+                                <p className="font-medium leading-relaxed text-[15px] whitespace-pre-line">{msg.message || msg.text || msg.content || ""}</p>
                                 <p className="text-[10px] mt-1 text-right text-gray-400">
                                   {new Date(msg.createdAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
                                 </p>
@@ -393,7 +331,7 @@ export default function AdminMessages() {
                 <div ref={chatEndRef} />
               </div>
 
-              {/* บาร์ส่งข้อความด้านล่าง */}
+              {/* บาร์ส่งข้อความ */}
               <div className="p-4 bg-white border-t border-gray-100">
                 {selectedReport.status === 'closed' || isUserClosedActive ? (
                   <div className="bg-rose-50 text-rose-500 font-bold text-center py-3 rounded-full text-sm border border-rose-100/50">
@@ -411,7 +349,6 @@ export default function AdminMessages() {
         )}
       </AnimatePresence>
 
-      {/* หน้าต่าง Popup ตารางสรุปรีวิวข้อเสนอแนะรวม */}
       <AnimatePresence>
         {showFeedbackModal && (
           <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-[#4A453A]/60 backdrop-blur-md">

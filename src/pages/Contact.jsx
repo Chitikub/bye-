@@ -13,7 +13,7 @@ export default function ContactPage() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   
-  // 🌟 ปรับปรุง: โหลดสถานะเดิมจาก localStorage เพื่อให้รีเฟรชแล้วไม่หลุด
+  // 🌟 โหลดสถานะเดิมจาก localStorage เพื่อให้รีเฟรชแล้วไม่หลุด
   const [isChatOpen, setIsChatOpen] = useState(() => {
     return localStorage.getItem("isChatOpen") === "true";
   });
@@ -25,6 +25,11 @@ export default function ContactPage() {
   const [inputMessage, setInputMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [isAdminTyping, setIsAdminTyping] = useState(false);
+
+  // 🌟 State สำหรับฟอร์มก่อนเข้าแชท
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [topic, setTopic] = useState("");
+  const [detail, setDetail] = useState("");
   
   const chatEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
@@ -34,7 +39,7 @@ export default function ContactPage() {
     const storedUser = JSON.parse(localStorage.getItem("user"));
     if (storedUser) {
       setUser(storedUser);
-      // 🌟 ถ้าตรวจพบว่าเคยเปิดแชทค้างไว้และมี roomId ให้ดึงข้อมูลมาแสดงทันที
+      // ถ้าตรวจพบว่าเคยเปิดแชทค้างไว้และมี roomId ให้ดึงข้อมูลมาแสดงทันที
       if (isChatOpen && roomId) {
         fetchChatHistory(roomId);
       }
@@ -81,9 +86,8 @@ export default function ContactPage() {
         handleCloseChatState();
       });
 
-      // 🌟 สิ่งที่เพิ่มเข้ามาใหม่: ดักฟังว่าแอดมินปิดห้องหรือยัง
+      // ดักฟังว่าแอดมินปิดห้องหรือยัง
       socket.on("admin_closed_chat", (closedRoomId) => {
-        // ถ้ารหัสห้องที่โดนปิด ตรงกับห้องที่กำลังเปิดอยู่
         if (roomId === closedRoomId) {
           Swal.fire({
             icon: "info",
@@ -91,7 +95,6 @@ export default function ContactPage() {
             text: "แอดมินได้ทำการปิดเคสนี้แล้ว หากมีข้อสอบถามเพิ่มเติม ระบบจะสร้างห้องแชทใหม่ให้คุณอัตโนมัติเมื่อกดเริ่มแชทใหม่",
             confirmButtonColor: "#FF8E6E"
           });
-          // เคลียร์สถานะในหน้าจอและล้าง LocalStorage ทิ้ง
           handleCloseChatState();
         }
       });
@@ -101,7 +104,7 @@ export default function ContactPage() {
       socket.off("receive_message");
       socket.off("display_typing");
       socket.off("room_closed");
-      socket.off("admin_closed_chat"); // อย่าลืมเคลียร์ socket เมื่อ component unmount
+      socket.off("admin_closed_chat"); 
     };
   }, [roomId]);
 
@@ -129,6 +132,7 @@ export default function ContactPage() {
     setMessages([]);
     localStorage.removeItem("isChatOpen");
     localStorage.removeItem("activeRoomId");
+    setIsFormOpen(false);
   };
 
   // พิมพ์ข้อความแจ้งเตือนสถานะฝั่งส่ง
@@ -144,19 +148,42 @@ export default function ContactPage() {
     }, 2000);
   };
 
+  // 🌟 ฟังก์ชันสร้างห้องแชทพร้อมส่ง Topic
   const handleOpenChat = async () => {
-    setIsChatOpen(true);
+    if (!topic.trim()) {
+      return Swal.fire("แจ้งเตือน", "กรุณาระบุหัวข้อที่ต้องการติดต่อ", "warning");
+    }
+
     setLoading(true);
-    localStorage.setItem("isChatOpen", "true");
     
     try {
-      const response = await api.post("/contact"); 
+      // 1. สร้างห้องแชทพร้อมแนบ Topic & Detail ไปให้ Backend (เพื่อให้แอดมินเอาไปใช้ตั้งชื่อห้องได้)
+      const response = await api.post("/contact", {
+        topic: topic.trim(),
+        detail: detail.trim()
+      }); 
       const currentRoomId = response.data._id || response.data.id || response.data.roomId; 
       
       if (currentRoomId) {
         setRoomId(currentRoomId);
+        setIsChatOpen(true);
+        localStorage.setItem("isChatOpen", "true");
         localStorage.setItem("activeRoomId", currentRoomId);
+
+        // 2. ส่งข้อความบอทอัตโนมัติแจ้งหัวข้อ เพื่อให้แอดมินเห็นในช่องแชททันที
+        const autoFirstMessage = `📌 หัวข้อ: ${topic.trim()}\n📝 รายละเอียด: ${detail.trim() || "-"}`;
+        await api.post(`/contact/${currentRoomId}/send`, { 
+          message: autoFirstMessage,
+          text: autoFirstMessage,
+          content: autoFirstMessage
+        });
+
         await fetchChatHistory(currentRoomId);
+
+        // เคลียร์ฟอร์ม
+        setTopic("");
+        setDetail("");
+        setIsFormOpen(false);
       }
     } catch (error) {
       console.error("Failed to open chat", error);
@@ -201,23 +228,90 @@ export default function ContactPage() {
     );
   }
 
+  // 🌟 โหมดตอนยังไม่เปิดห้องแชท (สลับระหว่างปุ่ม vs ฟอร์ม)
   if (!isChatOpen) {
     return (
       <div className="min-h-screen bg-[#FDF8F1] flex flex-col items-center justify-center font-['Prompt'] text-[#4A453A] p-6">
-        <div className="bg-white p-10 rounded-[3rem] shadow-xl max-w-lg w-full text-center border border-gray-100 flex flex-col items-center animate-in fade-in zoom-in duration-500">
-          <div className="w-24 h-24 bg-gradient-to-tr from-[#FF8E6E] to-[#FFB385] rounded-full flex items-center justify-center mb-6 shadow-inner shadow-white/50">
-            <MessageCircle size={48} className="text-white" />
-          </div>
-          <h1 className="text-3xl font-black mb-3 text-[#4A453A]">ติดต่อทีมงาน</h1>
-          <p className="text-gray-500 mb-8 leading-relaxed font-medium">หากพบปัญหา สามารถเปิดช่องแชทเพื่อพูดคุยกับ Admin ได้โดยตรง</p>
-          <button onClick={handleOpenChat} className="w-full py-4 bg-[#FF8E6E] text-white rounded-2xl font-bold text-lg shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2">
-            <MessageCircle size={24} /> เปิดช่องแชท
-          </button>
+        <div className="bg-white p-8 sm:p-10 rounded-[3rem] shadow-xl max-w-lg w-full text-center border border-gray-100 flex flex-col items-center animate-in fade-in zoom-in duration-500 overflow-hidden">
+          
+          {!isFormOpen ? (
+            // ── หน้าแรก: ปุ่มกด ──
+            <div className="flex flex-col items-center w-full animate-in slide-in-from-left-8 duration-300">
+              <div className="w-24 h-24 bg-gradient-to-tr from-[#FF8E6E] to-[#FFB385] rounded-full flex items-center justify-center mb-6 shadow-inner shadow-white/50">
+                <MessageCircle size={48} className="text-white" />
+              </div>
+              <h1 className="text-3xl font-black mb-3 text-[#4A453A]">ติดต่อทีมงาน</h1>
+              <p className="text-gray-500 mb-8 leading-relaxed font-medium px-4">
+                หากพบปัญหาในการใช้งาน สามารถเปิดช่องแชทเพื่อพูดคุยกับ Admin ได้โดยตรง
+              </p>
+              <button 
+                onClick={() => setIsFormOpen(true)} 
+                className="w-full py-4 bg-[#FF8E6E] text-white rounded-2xl font-bold text-lg shadow-lg hover:bg-[#ff7a55] active:scale-95 transition-all flex items-center justify-center gap-2"
+              >
+                <MessageCircle size={24} /> เปิดช่องแชท
+              </button>
+            </div>
+          ) : (
+            // ── หน้าสอง: ฟอร์มกรอกหัวข้อ ──
+            <div className="w-full text-left animate-in slide-in-from-right-8 duration-300">
+              <button 
+                onClick={() => setIsFormOpen(false)} 
+                className="mb-4 text-gray-400 hover:text-[#FF8E6E] flex items-center gap-1 font-bold text-sm transition-colors"
+              >
+                <ArrowLeft size={16} /> ย้อนกลับ
+              </button>
+              <h2 className="text-2xl font-black mb-6 text-[#4A453A] border-b border-gray-100 pb-4">
+                ระบุเรื่องที่ต้องการติดต่อ
+              </h2>
+              
+              <div className="space-y-5">
+                <div>
+                  <label className="block text-sm font-bold text-gray-600 mb-2">
+                    หัวข้อ <span className="text-red-500">*</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    value={topic}
+                    onChange={(e) => setTopic(e.target.value)}
+                    placeholder="เช่น สอบถามการใช้งาน, แจ้งปัญหา..." 
+                    className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 outline-none focus:ring-2 focus:ring-[#FF8E6E]/30 focus:border-[#FF8E6E] transition-all font-medium text-[#4A453A]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-600 mb-2">
+                    รายละเอียดเบื้องต้น (ถ้ามี)
+                  </label>
+                  <textarea 
+                    value={detail}
+                    onChange={(e) => setDetail(e.target.value)}
+                    placeholder="อธิบายรายละเอียดเพิ่มเติมเพื่อให้ทีมงานช่วยเหลือได้เร็วขึ้น..." 
+                    rows={3}
+                    className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 outline-none focus:ring-2 focus:ring-[#FF8E6E]/30 focus:border-[#FF8E6E] transition-all font-medium text-[#4A453A] resize-none"
+                  ></textarea>
+                </div>
+                
+                <button 
+                  onClick={handleOpenChat} 
+                  disabled={!topic.trim() || loading}
+                  className="w-full mt-4 py-4 bg-[#FF8E6E] text-white rounded-2xl font-bold text-lg shadow-lg hover:bg-[#ff7a55] active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:active:scale-100"
+                >
+                  {loading ? (
+                    <span className="flex items-center gap-2">
+                      <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span> 
+                      กำลังสร้างห้องแชท...
+                    </span>
+                  ) : "ยืนยันและเริ่มแชท"}
+                </button>
+              </div>
+            </div>
+          )}
+
         </div>
       </div>
     );
   }
 
+  // 🌟 โหมดเปิดหน้าต่างแชท
   return (
     <div className="min-h-screen bg-[#FDF8F1] flex items-center justify-center py-8 px-4 font-['Prompt']">
       <div className="w-full max-w-xl bg-white rounded-[2rem] shadow-2xl border border-gray-100 flex flex-col h-[80vh] max-h-[750px] min-h-[500px] overflow-hidden relative animate-in fade-in zoom-in-95 duration-300">
@@ -251,18 +345,15 @@ export default function ContactPage() {
               const userId = user._id || user.id;
               const isUser = msgSenderId === userId; 
               
-              // 🌟 แก้ไข: จัดเตรียมตัวแปรชื่อและรูปโปรไฟล์แอดมินจาก Data จริงแบบไดนามิก
               const adminFirstName = msg.sender?.firstName || "Admin";
               const adminLastName = msg.sender?.lastName || "";
               const adminFullName = msg.sender?.firstName ? `${adminFirstName} ${adminLastName}`.trim() : "Admin (Customer Service)";
               
-              // 🌟 แก้ไข: ดึงรูปแอดมิน ถ้าแอดมินคนนั้นไม่มีรูปโปรไฟล์ จะเจนรูปตัวอักษรย่อจากชื่อจริงให้แทนอัตโนมัติ (พื้นหลังสีเทาเข้ม)
               const adminProfileImg = msg.sender?.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(adminFirstName)}&background=4A453A&color=fff`;
 
               return (
                 <div key={index} className={`flex w-full ${isUser ? "justify-end" : "justify-start"} animate-in fade-in slide-in-from-bottom-2`}>
                   {isUser ? (
-                    /* 🌟 ฝั่งผู้ใช้ */
                     <div className="flex gap-3 max-w-[85%] flex-row-reverse">
                       <img 
                         src={user?.profileImage || `https://ui-avatars.com/api/?name=${user?.firstName || 'User'}&background=FF8E6E&color=fff`} 
@@ -274,7 +365,7 @@ export default function ContactPage() {
                           {user?.firstName ? `${user.firstName} ${user.lastName || ""}` : "ฉัน"}
                         </span>
                         <div className="bg-[#FF8E6E] text-white px-5 py-3 rounded-[1.5rem] rounded-tr-sm shadow-sm">
-                          <p className="font-medium leading-relaxed text-[15px]">{msg.message || msg.text || msg.content || ""}</p>
+                          <p className="font-medium leading-relaxed text-[15px] whitespace-pre-line">{msg.message || msg.text || msg.content || ""}</p>
                           <p className="text-[10px] mt-1 text-right text-white/70">
                             {new Date(msg.createdAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
                           </p>
@@ -282,7 +373,6 @@ export default function ContactPage() {
                       </div>
                     </div>
                   ) : (
-                    /* 🌟 ฝั่งแอดมิน (อัปเดตรูปตามข้อมูล User นั้นๆ และชื่อแอดมินจริงเรียบร้อย) */
                     <div className="flex gap-3 max-w-[85%]">
                       <img 
                         src={adminProfileImg} 
@@ -294,7 +384,7 @@ export default function ContactPage() {
                           {adminFullName}
                         </span>
                         <div className="bg-white border border-gray-100 text-[#4A453A] px-5 py-3 rounded-[1.5rem] rounded-tl-sm shadow-sm">
-                          <p className="font-medium leading-relaxed text-[15px]">{msg.message || msg.text || msg.content || ""}</p>
+                          <p className="font-medium leading-relaxed text-[15px] whitespace-pre-line">{msg.message || msg.text || msg.content || ""}</p>
                           <p className="text-[10px] mt-1 text-right text-gray-400">
                             {new Date(msg.createdAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
                           </p>
@@ -307,7 +397,6 @@ export default function ContactPage() {
             })
           )}
 
-          {/* 🌟 อนิเมชันตอนแอดมินกำลังพิมพ์ */}
           {isAdminTyping && (
             <div className="flex justify-start gap-3 w-full max-w-[85%] animate-in fade-in slide-in-from-bottom-2">
               <img 
