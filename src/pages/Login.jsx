@@ -116,7 +116,7 @@ export default function AuthPage() {
         // 🌟 ถ้ายกเลิกการจำฉัน ให้ลบอีเมลทิ้ง แต่ถ้าเลือกไว้ให้บันทึกอีเมล
         if (rememberMe) {
           localStorage.setItem("rememberedEmail", form.email);
-          Cookies.set("token", token, { expires: 7 }); // จำไว้ 7 วัน
+          Cookies.set("token", token, { expires: 7 });
         } else {
           localStorage.removeItem("rememberedEmail");
           Cookies.set("token", token); // ลบเมื่อปิดเบราว์เซอร์
