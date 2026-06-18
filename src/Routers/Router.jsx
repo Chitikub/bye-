@@ -27,7 +27,7 @@ const getToken = () => {
         .split("; ")
         .find((row) => row.startsWith("token="))
         ?.split("=")[1];
-    
+
     return cookieToken || localStorage.getItem("token");
 };
 
@@ -35,7 +35,7 @@ const getToken = () => {
 const AuthRoute = ({ children }) => {
     const token = getToken();
     const user = JSON.parse(localStorage.getItem("user"));
-    
+
     if (token && user) {
         return <Navigate to={user.role === 'admin' ? "/admin" : "/"} replace />;
     }
@@ -46,7 +46,7 @@ const AuthRoute = ({ children }) => {
 const ProtectedAdminRoute = ({ children }) => {
     const token = getToken();
     const user = JSON.parse(localStorage.getItem("user"));
-    
+
     if (!token || user?.role !== 'admin') {
         return <Navigate to="/login" replace />;
     }
@@ -66,7 +66,7 @@ const ProtectedUserRoute = ({ children }) => {
 
 const router = createBrowserRouter([
     {
-        path: "/", 
+        path: "/",
         element: <Layout />,
         children: [
             // หน้าบ้าน: Admin เข้าไม่ได้ (โดนดีดไป /admin)
@@ -78,44 +78,44 @@ const router = createBrowserRouter([
             { path: "filter", element: <ProtectedUserRoute><FilterPage /></ProtectedUserRoute> },
             { path: "g-place/:placeId", element: <ProtectedUserRoute><GooglePlaceDetail /></ProtectedUserRoute> },
             { path: "planner", element: <ProtectedUserRoute><TripPlanner /></ProtectedUserRoute> },
-            
+
 
             // หน้าที่เข้าได้ทั้งคู่
-            { path: "profile", element: <Profile /> }, 
+            { path: "profile", element: <Profile /> },
 
             // หน้า Auth: Login แล้วห้ามเข้าหน้าพวกนี้ซ้ำ
             { path: "login", element: <AuthRoute><Login /></AuthRoute> },
             { path: "register", element: <AuthRoute><Register /></AuthRoute> },
             { path: "verify-email", element: <AuthRoute><VerifyEmail /> </AuthRoute> },
             { path: "forgot-password", element: <AuthRoute><ForgotPassword /></AuthRoute> },
-{ path: "reset-password", element: <ResetPassword /> },
-            
+            { path: "reset-password", element: <ResetPassword /> },
+
             // หน้าระบบ Admin: User ทั่วไปห้ามเข้า
-            { 
-                path: "admin", 
-                element: <ProtectedAdminRoute><AdminDashboard /></ProtectedAdminRoute> 
-            },
-            { 
-                path: "admin/users", 
-                element: <ProtectedAdminRoute><AdminUsers /></ProtectedAdminRoute> 
-            },
-            { 
-                path: "admin/messages", 
-                element: <ProtectedAdminRoute><AdminMessages /></ProtectedAdminRoute> 
-            },
-            { 
-                path: "admin/profile", 
-                element: <ProtectedAdminRoute><AdminProfile /></ProtectedAdminRoute> 
+            {
+                path: "admin",
+                element: <ProtectedAdminRoute><AdminDashboard /></ProtectedAdminRoute>
             },
             {
-  path: "/admin/announcements",
-  element: <AdminAnnouncements />
-}   
+                path: "admin/users",
+                element: <ProtectedAdminRoute><AdminUsers /></ProtectedAdminRoute>
+            },
+            {
+                path: "admin/messages",
+                element: <ProtectedAdminRoute><AdminMessages /></ProtectedAdminRoute>
+            },
+            {
+                path: "admin/profile",
+                element: <ProtectedAdminRoute><AdminProfile /></ProtectedAdminRoute>
+            },
+            {
+                path: "/admin/announcements",
+                element: <AdminAnnouncements />
+            }
         ]
     },
     { path: "*", element: <Navigate to="/" replace /> }
 ]);
-    
+
 export default function Routers() {
     return <RouterProvider router={router} />;
 }
