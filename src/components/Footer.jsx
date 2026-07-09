@@ -3,16 +3,16 @@ import { MapPin, Youtube, Facebook, MessageCircle, Mail } from "lucide-react";
 
 const Footer = () => {
   return (
-    <footer className="bg-[#F9F4E8] text-[#4A453A] pt-12 pb-8 sm:pt-16 border-t border-[#EFE9D9] font-['Prompt'] mt-10">
-      <div className="container mx-auto px-6 md:px-12">
+    <footer className="bg-[#F9F4E8] text-[#4A453A] pt-6 pb-6 sm:pt-16 border-t border-[#EFE9D9] font-['Prompt'] mt-10">
+      <div className="container mx-auto px-4 md:px-6">
         <div className="flex flex-col lg:flex-row justify-between items-start gap-10 lg:gap-12">
           
           {/* ─── ด้านซ้าย: โลโก้ & ลิขสิทธิ์ ─── */}
           <div className="flex flex-col gap-4 lg:gap-6 lg:w-1/4 w-full">
             <div className="flex items-center justify-center lg:justify-start gap-3">
               {/* ปรับขนาดโลโก้ให้ยืดหยุ่นตามหน้าจอ */}
-              <img src="/logo1.png" alt="MoodLocation Logo" className="w-16 h-16 sm:w-20 sm:h-20 object-contain" />
-              <span className="text-2xl sm:text-3xl font-black tracking-tight text-[#4A453A]">MoodLocation</span>
+              <img src="/logo1.png" alt="MoodLocation Logo" className="w-12 h-12 sm:w-14 sm:h-14 object-contain gap-2 " />
+              <span className="text-xl sm:text-2xl font-black tracking-tight text-[#4A453A]">MoodLocation</span>
             </div>
             
             {/* แสดงลิขสิทธิ์ตรงนี้เฉพาะจอคอม (จอเล็กจะย้ายไปล่างสุด) */}
@@ -29,7 +29,7 @@ const Footer = () => {
             <div className="flex flex-col sm:flex-row justify-between items-center sm:items-start gap-8 mb-8">
               
               {/* กริดลิงก์ (จัดเป็น 2 คอลัมน์ในมือถือ) */}
-              <div className="grid grid-cols-2 gap-x-8 sm:gap-x-12 gap-y-6 w-full sm:w-auto">
+              <div className="grid grid-cols-2 gap-x-6 sm:gap-x-12 gap-y-4 w-full sm:w-auto">
                 
                 {/* คอลัมน์ที่ 1 */}
                 <div className="flex flex-col gap-4 border-l-2 border-[#FF8E6E]/40 pl-4">
@@ -45,13 +45,13 @@ const Footer = () => {
               </div>
 
               {/* ปุ่ม CONTACT US (เต็มจอในมือถือ) */}
-              <Link to="/contact" className="w-full sm:w-auto text-center bg-[#FF8E6E] text-white px-8 py-3.5 rounded-2xl font-bold shadow-md hover:bg-[#ff7a55] hover:shadow-lg transition-all active:scale-95 whitespace-nowrap text-sm tracking-wide">
+              <Link to="/contact" className="w-full sm:w-auto text-center bg-[#FF8E6E] text-white px-8 py-2 rounded-2xl font-bold shadow-md hover:bg-[#ff7a55] hover:shadow-lg transition-all active:scale-95 whitespace-nowrap text-sm tracking-wide">
                 ศูนย์ช่วยเหลือ
               </Link>
             </div>
 
             {/* เส้นคั่นแนวนอน */}
-            <div className="w-full h-px bg-[#EFE9D9] mb-6 md:mb-8"></div>
+            <div className="w-full h-px bg-[#EFE9D9] mb-4 md:mb-6"></div>
 
             {/* แถวล่าง: ไอคอน Social Media & Copyright มือถือ */}
             <div className="flex flex-col-reverse md:flex-row justify-between items-center gap-6">
@@ -64,19 +64,19 @@ const Footer = () => {
 
               {/* ไอคอนโซเชียลมีเดีย */}
               <div className="flex justify-center md:justify-end gap-4 w-full md:w-auto">
-                <a href="https://www.youtube.com/channel/UCTdofgacojSQ9yC53muHA1w" target="_blank" rel="noopener noreferrer" title="YouTube" className="w-10 h-10 rounded-full bg-white border border-[#EFE9D9] flex items-center justify-center text-[#7E7869] hover:text-white hover:bg-[#FF0000] hover:border-[#FF0000] transition-all shadow-sm">
+                <a href="https://www.youtube.com/channel/UCTdofgacojSQ9yC53muHA1w" target="_blank" rel="noopener noreferrer" title="YouTube" className="w-8 h-8 rounded-full bg-white border border-[#EFE9D9] flex items-center justify-center text-[#7E7869] hover:text-white hover:bg-[#FF0000] hover:border-[#FF0000] transition-all shadow-sm">
                   <Youtube size={18} />
                 </a>
                 
-                <a href="#" target="_blank" rel="noopener noreferrer" title="Facebook" className="w-10 h-10 rounded-full bg-white border border-[#EFE9D9] flex items-center justify-center text-[#7E7869] hover:text-white hover:bg-[#FF8E6E] hover:border-[#FF8E6E] transition-all shadow-sm">
+                <a href="#" target="_blank" rel="noopener noreferrer" title="Facebook" className="w-8 h-8 rounded-full bg-white border border-[#EFE9D9] flex items-center justify-center text-[#7E7869] hover:text-white hover:bg-[#FF8E6E] hover:border-[#FF8E6E] transition-all shadow-sm">
                   <Facebook size={18} />
                 </a>
                 
-                <a href="#" target="_blank" rel="noopener noreferrer" title="Line" className="w-10 h-10 rounded-full bg-white border border-[#EFE9D9] flex items-center justify-center text-[#7E7869] hover:text-white hover:bg-[#00B900] hover:border-[#00B900] transition-all shadow-sm">
+                <a href="#" target="_blank" rel="noopener noreferrer" title="Line" className="w-8 h-8 rounded-full bg-white border border-[#EFE9D9] flex items-center justify-center text-[#7E7869] hover:text-white hover:bg-[#00B900] hover:border-[#00B900] transition-all shadow-sm">
                   <MessageCircle size={18} />
                 </a>
 
-                <a href="mailto:moodlocationfinder@gmail.com" title="moodlocationfinder@gmail.com" className="w-10 h-10 rounded-full bg-white border border-[#EFE9D9] flex items-center justify-center text-[#7E7869] hover:text-white hover:bg-[#EA4335] hover:border-[#EA4335] transition-all shadow-sm">
+                <a href="mailto:moodlocationfinder@gmail.com" title="moodlocationfinder@gmail.com" className="w-8  h-8 rounded-full bg-white border border-[#EFE9D9] flex items-center justify-center text-[#7E7869] hover:text-white hover:bg-[#EA4335] hover:border-[#EA4335] transition-all shadow-sm">
                   <Mail size={18} />
                 </a>
               </div>
