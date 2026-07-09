@@ -110,9 +110,9 @@ export default function Index() {
   const performAiSearch = async (textToSearch) => {
     if (!textToSearch.trim()) return;
     if (!checkAuth()) return;
-    const isNumberOnly = /^\d+$/.test(textToSearch.trim());
+    const isTextonly= /^[a-zA-Zก-ฮ-์\s]+$/.test(textToSearch.trim());
 
-    if (isNumberOnly) {
+    if (!isTextonly) {
       Swal.fire({
         title: "แจ้งเตือน",
         text: "กรุณากรอกข้อความที่สื่อความหมาย",
