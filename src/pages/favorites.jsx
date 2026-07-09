@@ -22,8 +22,17 @@ export default function FavoritesPage() {
 
   const fetchFavorites = async () => {
     try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+      console.log("ไม่มี Token, กรุณาเข้าสู่ระบบ");
+      return; 
+    }
       setLoading(true);
-      const res = await api.get("/favorites");
+      const res = await api.get("/favorites", {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
       const data = res.data.favorites || res.data || [];
       const limitedData = Array.isArray(data) ? data.slice(0, 10) : [];
       setFavorites(limitedData);

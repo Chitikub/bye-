@@ -14,80 +14,106 @@ export default function GooglePlaceDetail() {
   const [place, setPlace] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false); 
-  
-  // 🌟 State เก็บระยะทางและเวลาเดินทางที่ได้จาก API
+  const [totalfavorite, setTotalfavorite] = useState(0);
   const [distance, setDistance] = useState(null); 
   const [duration, setDuration] = useState(null); 
 
   const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
-  useEffect(() => {
-    const fetchDetails = async () => {
-      try {
-        setLoading(true);
-        const res = await api.get(`/maps/details/${placeId}`);
-        const placeData = res.data;
-        setPlace(placeData);
+  const normalizeFavorites = (data) => {
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data?.favorites)) return data.favorites;
+    if (Array.isArray(data?.items)) return data.items;
+    return [];
+  };
 
-        // 🌟 ขอพิกัด GPS ผู้ใช้เพื่อยิง API หาระยะทางขับรถจริง
-        if (navigator.geolocation && placeData.geometry?.location) {
-          navigator.geolocation.getCurrentPosition(
-            async (position) => {
-              const userLat = position.coords.latitude;
-              const userLng = position.coords.longitude;
-              const placeLat = placeData.geometry.location.lat;
-              const placeLng = placeData.geometry.location.lng;
-              
-              try {
-                // ยิงไปที่ Backend เพื่อขอ Distance Matrix
-                const distRes = await api.get('/maps/distance', {
-                  params: { originLat: userLat, originLng: userLng, destLat: placeLat, destLng: placeLng }
-                });
-                
-                setDistance(distRes.data.distanceText); // เช่น "5.2 กม."
-                setDuration(distRes.data.durationText); // เช่น "15 นาที"
-              } catch (e) {
-                console.log("ไม่สามารถดึงข้อมูลระยะทางจาก API ได้ (ตรวจสอบว่าทำ Backend หรือยัง)");
-              }
-            },
-            (error) => {
-              console.warn("ไม่สามารถดึง GPS ผู้ใช้ได้", error);
-            }
-          );
-        }
+  // ฟังก์ชันดึงข้อมูลร้าน
+  const fetchDetails = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get(`/maps/details/${placeId}`);
+      setPlace(res.data);
 
-        // เช็คสถานะหัวใจ (ต้องแนบ Token)
-        const token = localStorage.getItem("token");
-        if (token) {
-          try {
-            const favRes = await api.get(`/favorites/check/${placeId}`, {
-              headers: { Authorization: `Bearer ${token}` }
-            });
-            setIsFavorite(favRes.data.isFavorite);
-          } catch (e) { console.log("Check favorite status failed"); }
-        }
-      } catch (error) {
-        console.error("Error fetching details", error);
-      } finally {
-        setLoading(false);
+      if (navigator.geolocation && res.data.geometry?.location) {
+        navigator.geolocation.getCurrentPosition(
+          async (position) => {
+            const userLat = position.coords.latitude;
+            const userLng = position.coords.longitude;
+            const placeLat = res.data.geometry.location.lat;
+            const placeLng = res.data.geometry.location.lng;
+            try {
+              const distRes = await api.get('/maps/distance', {
+                params: { originLat: userLat, originLng: userLng, destLat: placeLat, destLng: placeLng }
+              });
+              setDistance(distRes.data.distanceText);
+              setDuration(distRes.data.durationText);
+            } catch (e) { console.log("Distance API error"); }
+          }
+        );
       }
-    };
-    if (placeId) fetchDetails();
+
+      const token = localStorage.getItem("token");
+      if (token) {
+        try {
+          const favRes = await api.get(`/favorites/check/${placeId}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          setIsFavorite(favRes.data.isFavorite);
+        } catch (e) { console.log("Check favorite failed"); }
+      }
+    } catch (error) {
+      console.error("Error fetching details", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ฟังก์ชันดึงจำนวนรายการโปรด
+  const fetchTotalFavorites = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setTotalfavorite(0);
+        return;
+      }
+      const res = await api.get("/favorites", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const favorites = normalizeFavorites(res.data);
+      setTotalfavorite(favorites.length);
+    } catch (error) { console.log("ไม่สามารถโหลดรายการโปรดได้"); }
+  };
+
+  useEffect(() => {
+    if (placeId) {
+      fetchDetails();
+      fetchTotalFavorites();
+    }
   }, [placeId]);
 
-  // 💖 ฟังก์ชัน: บันทึก/ยกเลิก รายการโปรด
+  // ฟังก์ชันบันทึกรายการโปรด
   const handleToggleFavorite = async () => {
     const token = localStorage.getItem("token");
     if (!token) {
+      return Swal.fire({ icon: 'warning', title: 'กรุณาเข้าสู่ระบบ', confirmButtonColor: '#FF8E6E' });
+    }
+
+    const resAll = await api.get("/favorites", { headers: { Authorization: `Bearer ${token}` } });
+    const favorites = normalizeFavorites(resAll.data);
+    const currentFavoriteCount = favorites.length;
+    const isFull = !isFavorite && currentFavoriteCount >= 10;
+
+    // เช็คจำนวนก่อนบันทึก
+    if (isFull) {
+      setTotalfavorite(currentFavoriteCount);
       return Swal.fire({
+        title: 'บันทึกไม่สำเร็จ!',
+        text: 'รายการโปรดของคุณเต็มแล้ว (สูงสุด 10 รายการ)',
         icon: 'warning',
-        title: 'กรุณาเข้าสู่ระบบ',
-        text: 'คุณต้องเข้าสู่ระบบก่อนจึงจะสามารถบันทึกรายการโปรดได้',
         confirmButtonColor: '#FF8E6E'
       });
     }
 
-    // ✅ แปลงรหัสรูปภาพให้เป็น URL ลิงก์รูปภาพแบบเต็มก่อนส่งไปหลังบ้าน
     const imageUrl = place.photos && place.photos.length > 0 
       ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=1000&photo_reference=${place.photos[0].photo_reference}&key=${API_KEY}`
       : "";
@@ -96,66 +122,44 @@ export default function GooglePlaceDetail() {
       const res = await api.post("/favorites/toggle", { 
         placeId: placeId,
         name: place.name,
-        image: imageUrl // ✅ ส่งลิงก์รูปภาพแบบเต็มไปบันทึก
-      }, {
-        headers: { Authorization: `Bearer ${token}` } 
-      });
+        image: place.photos ? `...` : "" 
+      }, { headers: { Authorization: `Bearer ${token}` } });
       
       setIsFavorite(res.data.isFavorite);
+      // อัปเดตตัวเลขจำนวนรายการโปรดทันทีหลังกด
+      setTotalfavorite(prev => res.data.isFavorite ? prev + 1 : prev - 1);
       
       Swal.fire({
         icon: 'success',
-        title: res.data.isFavorite ? 'บันทึกรายการโปรดแล้ว' : 'นำออกจากรายการโปรดแล้ว',
+        title: res.data.isFavorite ? 'บันทึกสำเร็จ' : 'นำออกสำเร็จ',
         timer: 1000,
-        showConfirmButton: false,
-        customClass: { popup: 'rounded-[30px]' }
+        showConfirmButton: false
       });
     } catch (error) {
-      Swal.fire({
-        icon: 'error',
-        title: 'เกิดข้อผิดพลาด',
-        text: 'เซสชันอาจหมดอายุ กรุณาเข้าสู่ระบบใหม่',
-        confirmButtonColor: '#FF8E6E'
-      });
+      // ตรงนี้คือที่ที่หลังบ้านส่ง Error กลับมา (ถ้าเกิน 10 แล้วเราไม่ดักไว้ข้างบน)
+      Swal.fire({ icon: 'error', title: 'ไม่สามารถบันทึกได้', text: 'รายการโปรดเต็มแล้ว' });
     }
   };
 
-  // 🚀 ฟังก์ชัน: นำทาง และ บันทึกประวัติ
   const handleNavigation = async () => {
     const token = localStorage.getItem("token");
-
-    // ✅ แปลงรหัสรูปภาพให้เป็น URL ลิงก์รูปภาพแบบเต็มก่อนส่งไปหลังบ้าน
     const imageUrl = place.photos && place.photos.length > 0 
       ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=1000&photo_reference=${place.photos[0].photo_reference}&key=${API_KEY}`
       : "";
 
     if (token) {
       try {
-        await api.post("/history", { 
-          placeId: placeId,
-          name: place.name,
-          image: imageUrl // ✅ ส่งลิงก์รูปภาพแบบเต็มไปบันทึก
-        }, {
+        await api.post("/history", { placeId, name: place.name, image: imageUrl }, {
           headers: { Authorization: `Bearer ${token}` }
         });
-      } catch (error) {
-        console.error("Save history to backend failed", error);
-      }
+      } catch (error) { console.error("Save history failed"); }
     }
-    
-    // สร้าง URL เปิด Google Maps โหมดเส้นทาง (Directions) ทันที
-    const navUrl = `https://www.google.com/maps/dir/?api=1&destination=$${encodeURIComponent(place.name)}&destination_place_id=${placeId}`;
+    const navUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(place.name)}&destination_place_id=${placeId}`;
     window.open(navUrl, '_blank');
   };
 
-  if (loading) return (
-    <div className="min-h-screen bg-[#FDF8F1] flex flex-col items-center justify-center">
-      <Loader2 className="w-16 h-16 text-[#FF8E6E] animate-spin mb-4" />
-      <h2 className="text-2xl font-black text-[#4A453A]">กำลังโหลดข้อมูลร้าน...</h2>
-    </div>
-  );
-
-  if (!place) return <div className="text-center py-20 font-bold">ไม่พบข้อมูลสถานที่นี้</div>;
+  if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-16 h-16 text-[#FF8E6E] animate-spin" /></div>;
+  if (!place) return <div className="text-center py-20 font-bold">ไม่พบข้อมูล</div>;
 
   return (
     <div className="min-h-screen bg-[#FDF8F1] font-['Prompt'] pt-24 pb-20">
@@ -169,6 +173,7 @@ export default function GooglePlaceDetail() {
           
           <button 
             onClick={handleToggleFavorite}
+            title={!isFavorite && totalfavorite >= 10 ? 'รายการโปรดเต็มแล้ว' : ''}
             className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-90 ${isFavorite ? 'bg-red-500 text-white' : 'bg-white text-gray-400'}`}
           >
             <Heart className={`w-6 h-6 ${isFavorite ? 'fill-current' : ''}`} />
