@@ -110,6 +110,22 @@ export default function Index() {
   const performAiSearch = async (textToSearch) => {
     if (!textToSearch.trim()) return;
     if (!checkAuth()) return;
+    const isNumberOnly = /^\d+$/.test(textToSearch.trim());
+
+    if (isNumberOnly) {
+      Swal.fire({
+        title: "แจ้งเตือน",
+        text: "กรุณากรอกข้อความที่สื่อความหมาย",
+        icon: "warning",
+        confirmButtonColor: "#FF8E6E",
+        confirmButtonText: "ตกลง",
+        reverseButtons: true,
+        customClass: { popup: "rounded-[30px]" },
+      });
+
+      return;
+    }
+
 
     try {
       Swal.fire({
