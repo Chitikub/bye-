@@ -22,16 +22,9 @@ function App() {
         socketUrl = envUrl.replace(/\/api\/v1\/?$/, ""); 
       }
 
-      console.log("🔗 กำลังเชื่อมต่อ Socket ไปที่:", socketUrl);
       
       const socket = io(socketUrl);
 
-      // 🌟 เช็คว่าเชื่อมต่อสำเร็จไหม
-      socket.on("connect", () => {
-        console.log("✅ Socket เชื่อมต่อสำเร็จ! Socket ID ของเครื่องนี้คือ:", socket.id);
-        const userId = user.id || user._id;
-        socket.emit("register_user", userId);
-      });
 
       // 🌟 เช็คว่ามี Error ตอนเชื่อมต่อไหม
       socket.on("connect_error", (err) => {

@@ -10,7 +10,7 @@ import { io } from "socket.io-client";
 import { motion, AnimatePresence, Reorder } from "framer-motion";
 import api from "@/api/axios";
 
-const socket = io("https://moodlocationfinder-backend.onrender.com");
+const socket = io(import.meta.env.VITE_SOCKET_URL);
 
 export default function AdminAnnouncements() {
   const [currentView, setCurrentView] = useState("history"); // 'history' | 'editor'

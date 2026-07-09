@@ -19,7 +19,7 @@ import heroBg3 from "@/assets/hero-bg3.png";
 import heroBg4 from "@/assets/hero-bg4.png";
 
 // เชื่อมต่อ Socket
-const socket = io("https://moodlocationfinder-backend.onrender.com");
+const socket = io(import.meta.env.VITE_SOCKET_URL);
 
 export default function Index() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -118,10 +118,9 @@ export default function Index() {
         allowOutsideClick: false,
         didOpen: () => Swal.showLoading(),
       });
-
       const aiRes = await api.post("/ai/analyze-emotion", { text: textToSearch });
       const { emotion, reason } = aiRes.data;
-
+      console.log(aiRes.data) // ตรวจสอบผลลัพธ์จาก AI
       let moodKey = "happy";
       if (emotion.includes("สุข")) moodKey = "happy";
       else if (emotion.includes("โกรธ")) moodKey = "angry";

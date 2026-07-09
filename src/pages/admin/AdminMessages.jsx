@@ -6,7 +6,7 @@ import Swal from "sweetalert2";
 import { motion, AnimatePresence } from "framer-motion";
 import { io } from "socket.io-client";
 
-const socket = io("https://moodlocationfinder-backend.onrender.com");
+const socket = io(import.meta.env.VITE_SOCKET_URL);
 
 export default function AdminMessages() {
   const [reports, setReports] = useState([]);

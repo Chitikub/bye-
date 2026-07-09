@@ -14,7 +14,7 @@ if (globalAlertSound) {
   globalAlertSound.load();
 }
 
-const socket = io("https://moodlocationfinder-backend.onrender.com");
+const socket = io(import.meta.env.VITE_SOCKET_URL);
 
 export default function FloatingChatWidget() {
   const navigate = useNavigate();
@@ -47,7 +47,6 @@ export default function FloatingChatWidget() {
           .then(() => {
             globalAlertSound.pause();
             globalAlertSound.currentTime = 0;
-            console.log("🔓 [Global] สิทธิ์เสียงถูกปลดล็อกยาวถาวรในเซสชันนี้แล้ว เปลี่ยนหน้าก็ไม่หลุด!");
             
             // ปลดล็อกได้แล้วถอดปลั๊ก Event ทิ้งทันที ไม่ให้รันซ้ำซ้อน
             window.removeEventListener("click", unlockAudioGlobal);

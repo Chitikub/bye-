@@ -8,7 +8,7 @@ import { io } from "socket.io-client";
 import { motion, AnimatePresence } from "framer-motion";
 
 // เชื่อมต่อ Socket
-const socket = io("https://moodlocationfinder-backend.onrender.com");
+const socket = io(import.meta.env.VITE_SOCKET_URL);
 
 export default function Header() {
   const navigate = useNavigate();

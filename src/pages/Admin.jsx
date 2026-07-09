@@ -16,7 +16,7 @@ export default function Admin() {
 
   useEffect(() => {
     // 🔌 เชื่อมต่อ Socket กลางที่หน้าหลัก เพื่อรับแจ้งเตือนทุกหน้า
-    const socket = io("https://moodlocationfinder-backend.onrender.com");
+    const socket = io(import.meta.env.VITE_SOCKET_URL);
     socket.emit("join_admin_room");
 
     socket.on("receive_message", (data) => {

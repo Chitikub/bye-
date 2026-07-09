@@ -24,7 +24,7 @@ export default function AdminSidebar() {
     const userStored = JSON.parse(localStorage.getItem("user"));
     if (userStored?.role !== "admin") return;
 
-    const socket = io("https://moodlocationfinder-backend.onrender.com");
+    const socket = io(import.meta.env.VITE_SOCKET_URL);
     socket.emit("join_admin_room");
     socket.on("receive_message", () => setContactsCount((prev) => prev + 1));
 
