@@ -273,43 +273,85 @@ export default function Index() {
         )}
       </AnimatePresence>
 
-      {/* ─── AI Modal ─── */}
+      {/* ─── Modal แสดงผล AI วิเคราะห์อารมณ์ ─── */}
       <AnimatePresence>
-        {aiModalData && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-md">
-            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 28, stiffness: 300 }} className="bg-white w-full rounded-t-[2rem] sm:rounded-[2.5rem] sm:max-w-2xl sm:mx-4 max-h-[92dvh] overflow-y-auto relative shadow-2xl">
-              <div className="sm:hidden flex justify-center pt-3 pb-1"><div className="w-10 h-1 rounded-full bg-gray-300" /></div>
-              <button onClick={() => setAiModalData(null)} className="absolute top-4 right-4 w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 hover:bg-[#FF8E6E] hover:text-white transition-colors z-10"><X size={18} /></button>
-              <div className="bg-[#FDF8F1] px-5 pt-4 pb-5 sm:px-10 sm:pt-8 sm:pb-6 rounded-t-[2rem] sm:rounded-t-[2.5rem] border-b border-b-[#EFE9D9]">
-                <div className="inline-block px-3 py-1.5 bg-orange-50 text-[#FF8E6E] rounded-full font-bold text-xs mb-3">AI วิเคราะห์เสร็จสิ้น 🤖</div>
-                <h2 className="text-2xl sm:text-3xl font-black text-[#4A453A] mb-2 leading-tight">ดูเหมือนคุณรู้สึก <span className="text-[#FF8E6E]">"{aiModalData.emotion}"</span> ใช่ไหม?</h2>
-                <p className="text-[#7E7869] text-sm sm:text-base font-medium leading-relaxed italic">"{aiModalData.reason}"</p>
-              </div>
-              <div className="px-5 py-5 sm:px-10 sm:py-8">
-                <h3 className="text-lg sm:text-xl font-black text-[#4A453A] mb-4">สถานที่แนะนำสำหรับคุณ 🎯</h3>
-                <div className="space-y-3 mb-6">
-                  {aiModalData.places.map((place, idx) => (
-                    <div key={idx} onClick={() => navigate(`/g-place/${place.place_id}`)} className="group flex items-center gap-3 p-3 rounded-2xl border border-[#EFE9D9] hover:border-[#FF8E6E] hover:shadow-md active:scale-[0.98] transition-all cursor-pointer bg-white">
-                      <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-100 rounded-xl overflow-hidden shrink-0">
-                        {place.photos?.length > 0 ? (
-                          <img src={`https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${place.photos[0].photo_reference}&key=${API_KEY}`} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt={place.name} />
-                        ) : ( <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">ภาพ</div> )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-bold text-sm sm:text-base text-[#2D2A26] truncate group-hover:text-[#FF8E6E] transition-colors">{place.name}</h4>
-                        <p className="text-xs text-[#AFA99B] flex items-center gap-1 mt-0.5 truncate"><MapPin size={11} className="shrink-0" /><span className="truncate">{place.vicinity || place.formatted_address}</span></p>
-                        <span className="inline-flex items-center gap-1 text-xs font-bold bg-orange-50 text-[#FF8E6E] px-2 py-0.5 rounded-lg mt-1.5"><Star size={11} className="fill-[#FF8E6E]" /> {place.rating || "-"}</span>
-                      </div>
-                      <div className="w-9 h-9 rounded-full bg-gray-50 flex items-center justify-center text-[#7E7869] group-hover:bg-[#FF8E6E] group-hover:text-white transition-colors shrink-0"><Navigation size={16} className="translate-x-0.5" /></div>
-                    </div>
-                  ))}
+  {aiModalData && (
+    <motion.div 
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} 
+      className="fixed inset-0 z-[60] flex items-start sm:items-center justify-center bg-black/40 backdrop-blur-lg pt-20 sm:pt-16 px-4 pb-4"
+    >
+      <motion.div 
+        initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} 
+        transition={{ type: "spring", damping: 25, stiffness: 300 }} 
+        className="bg-white w-full rounded-t-[2.5rem] sm:rounded-[2.5rem] sm:max-w-xl sm:mx-4 max-h-[90dvh] flex flex-col shadow-2xl overflow-hidden"
+      >
+        {/* Header Modal */}
+        <div className="relative bg-[#FDF8F1] px-6 pt-2 pb-6  border-b border-[#EFE9D9]">
+          <button 
+            onClick={() => setAiModalData(null)} 
+            className="absolute top-4 right-4 w-9 h-9 bg-black/5 rounded-full flex items-center justify-center text-gray-500 hover:bg-[#FF8E6E] hover:text-white transition-all"
+          >
+            <X size={18} />
+          </button>
+          
+          <div className="inline-flex items-center gap-2 px-3 py-1  rounded-full font-bold text-xs mb-3 ">
+          </div>
+          <h2 className="text-2xl sm:text-3xl font-black text-[#4A453A] mb-2 leading-tight">
+            รู้สึก <span className="text-[#FF8E6E]">"{aiModalData.emotion}"</span> ใช่ไหม?
+          </h2>
+          <p className="text-[#7E7869] text-sm font-medium italic leading-relaxed">"{aiModalData.reason}"</p>
+        </div>
+
+        {/* Content List */}
+        <div className="flex-1 overflow-y-auto p-6 sm:p-8">
+          <h3 className="text-lg font-black text-[#4A453A] mb-5 flex items-center gap-2">
+            สถานที่แนะนำสำหรับคุณ <span className="text-[#FF8E6E]">🎯</span>
+          </h3>
+          
+          <div className="space-y-4">
+            {aiModalData.places.map((place, idx) => (
+              <motion.div 
+                initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: idx * 0.1 }}
+                key={idx} 
+                onClick={() => navigate(`/g-place/${place.place_id}`)} 
+                className="group flex items-center gap-4 p-4 rounded-3xl border border-gray-100 hover:border-[#FF8E6E] hover:shadow-[0_8px_24px_-4px_rgba(255,142,110,0.2)] transition-all cursor-pointer bg-white"
+              >
+                {/* รูปภาพ */}
+                <div className="w-20 h-20 bg-gray-100 rounded-2xl overflow-hidden shrink-0 shadow-inner">
+                  {place.photos?.length > 0 ? (
+                    <img src={`https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${place.photos[0].photo_reference}&key=${API_KEY}`} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt={place.name} />
+                  ) : ( <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">No image</div> )}
                 </div>
-                <button onClick={() => navigate(`/filter?mood=${aiModalData.moodKey}`)} className="w-full py-4 bg-[#4A453A] text-white rounded-2xl font-bold hover:bg-[#FF8E6E] transition-colors shadow-lg active:scale-95 text-sm sm:text-base">ดูสถานที่บำบัดทั้งหมด</button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+
+                {/* ข้อมูล */}
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-bold text-base text-[#2D2A26] truncate group-hover:text-[#FF8E6E] transition-colors">{place.name}</h4>
+                  <p className="text-xs text-gray-400 mt-1 flex items-center gap-1"><MapPin size={12} /> {place.vicinity || place.formatted_address}</p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="inline-flex items-center gap-1 text-xs font-bold bg-orange-50 text-[#FF8E6E] px-2 py-1 rounded-lg">
+                      <Star size={11} className="fill-[#FF8E6E]" /> {place.rating || "New"}
+                    </span>
+                  </div>
+                </div>
+                
+                <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center group-hover:bg-[#FF8E6E] group-hover:text-white text-gray-400 transition-colors">
+                  <Navigation size={18} />
+                </div>
+              </motion.div>
+            ))}
+          </div>
+
+          <button 
+            onClick={() => navigate(`/filter?mood=${aiModalData.moodKey}`)} 
+            className="w-full mt-8 py-4 bg-[#4A453A] text-white rounded-2xl font-black hover:bg-[#FF8E6E] transition-all shadow-lg active:scale-95 text-base"
+          >
+            ดูสถานที่ทั้งหมด
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  )}
+</AnimatePresence>
 
       {/* ─── 🌟 HERO SECTION (Parallax + Carousel Slider) ─── */}
       <section className="relative w-full flex items-center justify-center overflow-hidden bg-[#FDF8F1]" style={{ height: "100vh" }}>
