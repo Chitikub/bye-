@@ -25,6 +25,11 @@ export default function HistoryPage() {
 
   const fetchHistory = async () => {
     try {
+      const token = localStorage.getItem("token");
+if (!token) {
+  console.log("ไม่มี Token, กรุณาเข้าสู่ระบบ");
+  return; 
+}
       setLoading(true);
       const res = await api.get("/history");
       const data = res.data.histories || res.data || [];
@@ -218,10 +223,7 @@ export default function HistoryPage() {
 
                         <button
                           onClick={() =>
-                            window.open(
-                              `https://www.google.com/maps/search/?api=1&query=Google&query_place_id=${item.placeId}`,
-                              "_blank",
-                            )
+                            window.open(`https://www.google.com/maps/dir/?api=1&destination=Google&destination_place_id=${item.placeId}`, "_blank")
                           }
                           className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 bg-[#4A453A] text-white rounded-xl text-xs font-bold hover:bg-[#FF8E6E] transition-colors shadow-lg active:scale-95"
                         >
