@@ -165,8 +165,20 @@ if (!token) {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-8">
             <AnimatePresence mode="popLayout">
               {filteredData.map((item) => {
-                const imageUrl = item.placeImage
-                  ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${item.placeImage}&key=${API_KEY}`
+                const rawImage = item.placeImage;
+                const normalizedImage = Array.isArray(rawImage)
+                  ? rawImage[0]?.toString().trim()
+                  : rawImage?.toString().trim();
+                const imageUrl = normalizedImage
+                  ? normalizedImage.startsWith("http") || normalizedImage.startsWith("//")
+                    ? normalizedImage.startsWith("//")
+                      ? `https:${normalizedImage}`
+                      : normalizedImage
+                    : normalizedImage.includes("maps.googleapis.com/maps/api/place/photo")
+                      ? normalizedImage
+                      : normalizedImage.includes("photo_reference=")
+                        ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&${normalizedImage}`
+                        : `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${encodeURIComponent(normalizedImage)}&key=${API_KEY}`
                   : "https://placehold.co/600x400/EFE9D9/4A453A?text=No+Image";
 
                 return (
@@ -183,6 +195,7 @@ if (!token) {
                       <img
                         src={imageUrl}
                         alt={item.placeName}
+                        onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "https://placehold.co/600x400/EFE9D9/4A453A?text=No+Image"; }}
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                       />
 

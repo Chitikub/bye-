@@ -122,7 +122,7 @@ export default function GooglePlaceDetail() {
       const res = await api.post("/favorites/toggle", { 
         placeId: placeId,
         name: place.name,
-        image: place.photos ? `...` : "" 
+        image: imageUrl
       }, { headers: { Authorization: `Bearer ${token}` } });
       
       setIsFavorite(res.data.isFavorite);

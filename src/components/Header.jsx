@@ -288,7 +288,7 @@ export default function Header() {
                       <hr style={{ margin: "5px 10px", opacity: 0.1 }} />
                     </div>
                     <Link to="/profile" className="drop-item" onClick={() => setIsProfileOpen(false)}>โปรไฟล์ของฉัน</Link>
-                    <Link append to="/favorites" className="drop-item" onClick={() => setIsProfileOpen(false)}>รายการโปรด</Link>
+                    <Link to="/favorites" className="drop-item" onClick={() => setIsProfileOpen(false)}>รายการโปรด</Link>
                     <Link to="/history" className="drop-item" onClick={() => setIsProfileOpen(false)}>ประวัติการนำทาง</Link>
                     <Link to="/planner" className="drop-item" onClick={() => setIsProfileOpen(false)}>วางแผนการเดินทาง</Link>
                   </div>
