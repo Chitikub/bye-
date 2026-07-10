@@ -181,7 +181,7 @@ export default function FilterPage() {
             const placeLng = place.geometry?.location?.lng;
 
             if (!placeLat || !placeLng)
-              return { ...place, distanceValue: 99999999 };
+              return { ...place, distanceValue: Infinity };
 
             try {
               const distRes = await api.get("/maps/distance", {
@@ -200,7 +200,7 @@ export default function FilterPage() {
                 distanceValue: distRes.data.distanceValue,
               };
             } catch (e) {
-              return { ...place, distanceValue: 99999999 };
+              return { ...place, distanceValue: Infinity };
             }
           }),
         );
