@@ -110,7 +110,7 @@ export default function Index() {
   const performAiSearch = async (textToSearch) => {
     if (!textToSearch.trim()) return;
     if (!checkAuth()) return;
-    const isTextonly= /^[a-zA-Zก-ฮ-์\s]+$/.test(textToSearch.trim());
+    const isTextonly= /^[a-zA-Zก-์\s]+$/.test(textToSearch.trim());
 
     if (!isTextonly) {
       Swal.fire({

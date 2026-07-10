@@ -111,11 +111,6 @@ export default function ContactPage() {
   // ระบบดึงข้อความอัตโนมัติ (Polling) ทุกๆ 3 วินาที
   useEffect(() => {
     let intervalId;
-    if (isChatOpen && roomId) {
-      intervalId = setInterval(() => {
-        fetchChatHistory(roomId);
-      }, 3000); 
-    }
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
