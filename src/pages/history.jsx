@@ -165,9 +165,12 @@ if (!token) {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-8">
             <AnimatePresence mode="popLayout">
               {filteredData.map((item) => {
-                const imageUrl = item.placeImage
-                  ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${item.placeImage}&key=${API_KEY}`
-                  : "https://placehold.co/600x400/EFE9D9/4A453A?text=No+Image";
+                console.log("history image source:", item.placeImage, item);
+                const imageUrl = item.placeImage && item.placeImage.startsWith("http")
+  ? item.placeImage
+  : item.placeImage
+    ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${item.placeImage}&key=${API_KEY}`
+    : "https://placehold.co/600x400/EFE9D9/4A453A?text=No+Image";
 
                 return (
                   <motion.div
