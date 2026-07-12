@@ -48,6 +48,8 @@ export default function TripPlanner() {
   const [calculating, setCalculating] = useState(false);
 
   const [selectedDistance, setSelectedDistance] = useState(null);
+  const [customDistance, setCustomDistance] = useState("");
+  const [customDistanceError, setCustomDistanceError] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   
   const [map, setMap] = useState(null);
@@ -66,9 +68,9 @@ export default function TripPlanner() {
 
   const distanceOptions = [
     { label: "รายการโปรดทั้งหมด", value: null },
-    { label: "ใกล้ฉันมาก (< 5 กม.)", value: 5 },
-    { label: "รัศมีปานกลาง (< 15 กม.)", value: 15 },
-    { label: "รัศมีกว้าง (< 30 กม.)", value: 30 },
+    { label: "ใกล้ฉันมาก (น้อยกว่า 5 กิโลเมตร)", value: 5 },
+    { label: "รัศมีปานกลาง (น้อยกว่า 15 กิโลเมตร)", value: 15 },
+    { label: "รัศมีกว้าง (น้อยกว่า 30 กิโลเมตร)", value: 30 },
   ];
 
   useEffect(() => {
@@ -157,6 +159,20 @@ export default function TripPlanner() {
   const filteredPlaces = selectedDistance 
     ? places.filter(p => p.distance !== 9999 && p.distance <= selectedDistance) 
     : places;
+
+  const currentDistanceLabel = distanceOptions.find(opt => opt.value === selectedDistance)?.label
+    || (selectedDistance ? `ระยะที่กำหนดเอง (น้อยกว่า ${selectedDistance} กิโลเมตร)` : "รายการโปรดทั้งหมด");
+
+  const applyCustomDistance = () => {
+    const value = parseFloat(customDistance);
+    if (Number.isNaN(value) || value <= 0) {
+      setCustomDistanceError("กรุณาใส่ตัวเลขมากกว่า 0");
+      return;
+    }
+    setSelectedDistance(value);
+    setCustomDistanceError("");
+    setIsDropdownOpen(false);
+  };
 
   const onLoadMap = useCallback((mapInstance) => {
     setMap(mapInstance);
@@ -248,7 +264,7 @@ export default function TripPlanner() {
             <div className="flex flex-col md:flex-row gap-3 mb-4">
               
               <div className="flex items-center flex-1 bg-[#FDF8F1] rounded-full px-1 border border-[#EFE9D9] overflow-hidden">
-                <button onClick={() => scrollRegions('left')} className="p-2 text-gray-400 hover:text-[#FF8E6E] shrink-0">
+                <button onClick={() => scrollRegions('left')} className="p-2 text-[#4A453A]/70 bg-white/70 rounded-full hover:bg-[#FF8E6E]/20 hover:text-[#FF8E6E] shrink-0 transition-all">
                   <ChevronLeft size={20} />
                 </button>
                 
@@ -264,7 +280,7 @@ export default function TripPlanner() {
                   ))}
                 </div>
 
-                <button onClick={() => scrollRegions('right')} className="p-2 text-gray-400 hover:text-[#FF8E6E] shrink-0">
+                <button onClick={() => scrollRegions('right')} className="p-2 text-[#4A453A]/70 bg-white/70 rounded-full hover:bg-[#FF8E6E]/20 hover:text-[#FF8E6E] shrink-0 transition-all">
                   <ChevronRight size={20} />
                 </button>
               </div>
@@ -339,7 +355,7 @@ export default function TripPlanner() {
 
         {/* Dropdown คัดกรองระยะทาง */}
         {!loading && !calculating && places.length > 0 && (
-          <div className="flex items-center gap-4 mb-10 bg-white p-5 rounded-[2rem] shadow-sm border border-[#EFE9D9]">
+          <div className="grid gap-4 mb-10 bg-white p-5 rounded-[2rem] shadow-sm border border-[#EFE9D9] md:grid-cols-[1fr_auto] items-end">
             <div className="relative w-full">
               <label className="text-xs font-bold text-gray-400 mb-1 block ml-2 text-left">กรองจากรายการโปรดของคุณ</label>
               <button 
@@ -348,7 +364,7 @@ export default function TripPlanner() {
               >
                 <span className="flex items-center gap-2 text-left">
                   <Filter size={18} className="text-[#FF8E6E]" />
-                  {distanceOptions.find(opt => opt.value === selectedDistance)?.label}
+                  {currentDistanceLabel}
                 </span>
                 <ChevronDown size={18} className={`transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
@@ -362,7 +378,7 @@ export default function TripPlanner() {
                     {distanceOptions.map((opt, idx) => (
                       <button
                         key={idx}
-                        onClick={() => { setSelectedDistance(opt.value); setIsDropdownOpen(false); }}
+                        onClick={() => { setSelectedDistance(opt.value); setCustomDistance(""); setCustomDistanceError(""); setIsDropdownOpen(false); }}
                         className={`w-full text-left px-5 py-4 font-medium transition-colors border-b border-gray-50 last:border-0 ${
                           selectedDistance === opt.value ? 'bg-orange-50 text-[#FF8E6E] font-bold' : 'text-[#7E7869] hover:bg-gray-50'
                         }`}
@@ -373,6 +389,34 @@ export default function TripPlanner() {
                   </motion.div>
                 )}
               </AnimatePresence>
+            </div>
+
+            <div className="col-span-full flex items-center justify-center text-sm font-bold text-[#7E7869]">หรือ</div>
+
+            <div className="grid gap-3 md:gap-2">
+              <label className="text-xs font-bold text-gray-400 ml-2">โปรดระบุระยะ</label>
+              <div className="flex items-center gap-2">
+                <div className="relative w-full">
+                  <input
+                    type="number"
+                    min="1"
+                    value={customDistance}
+                    onChange={(e) => setCustomDistance(e.target.value)}
+                    placeholder="เช่น 40"
+                    className="w-full pr-16 pl-4 py-3.5 border border-gray-100 rounded-2xl text-sm font-bold text-[#4A453A] outline-none focus:border-[#FF8E6E]"
+                  />
+                  <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-[#4A453A]">กม.</span>
+                </div>
+                <button
+                  onClick={applyCustomDistance}
+                  className="px-4 py-3.5 bg-[#4A453A] text-white rounded-2xl font-bold hover:bg-[#FF8E6E] transition-all"
+                >
+                  ใช้
+                </button>
+              </div>
+              {customDistanceError && (
+                <p className="text-xs text-red-500">{customDistanceError}</p>
+              )}
             </div>
           </div>
         )}
