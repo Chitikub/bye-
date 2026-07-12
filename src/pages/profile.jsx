@@ -46,7 +46,20 @@ export default function Profile() {
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
-    if (!file) return;
+    if (!file) {
+      return;
+  }
+
+  if (!file.name.toLowerCase().endsWith('.png')) {
+        Swal.fire({
+            icon: 'error',
+            title: 'ผิดพลาด',
+            text: 'กรุณาเลือกไฟล์ .png เท่านั้น'
+        });
+        e.target.value = ""; // แก้จาก event เป็น e
+        return;
+    }
+
 
     const fileSizeInMB = file.size / (1024 * 1024);
     if (fileSizeInMB > 10) {
@@ -194,7 +207,7 @@ export default function Profile() {
                 ref={fileInputRef}
                 onChange={handleFileChange}
                 accept="image/*"
-                className="hidden"
+                className="hidden"x
               />
               <div
                 className="relative group cursor-pointer mb-4 sm:mb-6"
