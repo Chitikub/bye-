@@ -26,6 +26,8 @@ export default function Index() {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [activeMood, setActiveMood] = useState(null);
   const [aiModalData, setAiModalData] = useState(null);
+  const [searchPlaces, setSearchPlaces] = useState([]);
+  const [isSearchingPlaces, setIsSearchingPlaces] = useState(false);
   
   // 🌟 State สำหรับระบบประกาศ
   const [announcements, setAnnouncements] = useState([]);
@@ -111,6 +113,8 @@ export default function Index() {
     if (!textToSearch.trim()) return;
     if (!checkAuth()) return;
     const isTextonly= /^[a-zA-Zก-์\s]+$/.test(textToSearch.trim());
+    setSearchPlaces([]);
+    setIsSearchingPlaces(true);
 
     if (!isTextonly) {
       Swal.fire({
@@ -151,12 +155,16 @@ export default function Index() {
           .get("/maps/search", { params: { keyword: randomCategory, lat, lng } })
           .then((res) => {
             Swal.close();
-            setAiModalData({ emotion, reason, moodKey, places: res.data.slice(0, 3) });
+            const places = Array.isArray(res.data) ? res.data.slice(0, 7) : [];
+            setAiModalData({ emotion, reason, moodKey, places });
+            setSearchPlaces(places);
           })
           .catch(() => {
             Swal.close();
             setAiModalData({ emotion, reason, moodKey, places: [] });
-          });
+            setSearchPlaces([]);
+          })
+          .finally(() => setIsSearchingPlaces(false));
       };
 
       if (navigator.geolocation) {
@@ -169,6 +177,8 @@ export default function Index() {
       }
     } catch (error) {
       Swal.fire("เกิดข้อผิดพลาด", "ไม่สามารถเชื่อมต่อระบบ AI ได้ในขณะนี้", "error");
+      setIsSearchingPlaces(false);
+      setSearchPlaces([]);
     }
   };
 
@@ -278,7 +288,7 @@ export default function Index() {
   {aiModalData && (
     <motion.div 
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} 
-      className="fixed inset-0 z-[60] flex items-start sm:items-center justify-center bg-black/40 backdrop-blur-lg pt-20 sm:pt-16 px-4 pb-4"
+      className="fixed inset-0 z-[60] flex items-start sm:items-center justify-center bg-black/40 backdrop-blur-lg pt-28 sm:pt-24 px-4 pb-4"
     >
       <motion.div 
         initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} 
@@ -342,7 +352,7 @@ export default function Index() {
           </div>
 
           <button 
-            onClick={() => navigate(`/filter?mood=${aiModalData.moodKey}`)} 
+            onClick={() => navigate(`/filter?mood=${aiModalData.moodKey}&all=true`)} 
             className="w-full mt-8 py-4 bg-[#4A453A] text-white rounded-2xl font-black hover:bg-[#FF8E6E] transition-all shadow-lg active:scale-95 text-base"
           >
             ดูสถานที่ทั้งหมด
@@ -430,10 +440,18 @@ export default function Index() {
                 </form>
               </div>
 
-              <p className="text-1xl sm:text-2xl font-black mt-12 mb-8 text-[#FF8E6E] tracking-wider leading-relaxed">— หรือ —</p>
-              <p className="text-sm sm:text-lg font-medium mb-5 sm:mb-8 text-[#8E8E8E]">เลือกหมวดหมู่อารมณ์เพื่อค้นหาสถานที่ด่วน</p>
+              <p className="text-1xl sm:text-2xl font-black mt-10 sm:mt-12 mb-6 sm:mb-8 text-[#FF8E6E] tracking-wider leading-relaxed">— หรือ —</p>
+              <p className="text-sm sm:text-lg font-medium mb-6 sm:mb-8 text-[#8E8E8E]">เลือกหมวดหมู่อารมณ์เพื่อค้นหาสถานที่ด่วน</p>
+
+              {isSearchingPlaces && (
+                <div className="mt-8 sm:mt-10 flex justify-center">
+                  <div className="w-10 h-10 border-4 border-[#FF8E6E] border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+
               
-              <div className="mt-2">
+              
+              <div className="mt-6 sm:mt-8">
                 <MoodSelector onSelectMood={handleMoodSelect} onSearchText={performAiSearch} />
               </div>
             </div>

@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -146,7 +146,63 @@ export default function FilterPage() {
   };
   const displayCategories =
     moodCategories[selectedMood] || moodCategories.happy;
-  const currentMoodLabel = moodLabels[selectedMood] || "กำลังค้นหาพิกัด";
+  const showAll = searchParams.get("all") === "true";
+  const currentMoodLabel = showAll
+    ? `สถานที่ทั้งหมดสำหรับ ${moodLabels[selectedMood] || "อารมณ์นี้"}`
+    : moodLabels[selectedMood] || "กำลังค้นหาพิกัด";
+
+  const getCurrentPosition = () =>
+    new Promise((resolve) => {
+      if (!navigator.geolocation) return resolve(null);
+      navigator.geolocation.getCurrentPosition(
+        (position) => resolve({ lat: position.coords.latitude, lng: position.coords.longitude }),
+        () => resolve(null),
+        { timeout: 7000 },
+      );
+    });
+
+  const fetchAllPlacesForMood = async (mood) => {
+    setSelectedCategoryName("ทั้งหมด");
+    setIsSearching(true);
+
+    const categories = moodCategories[mood] || moodCategories.happy;
+    const location = await getCurrentPosition();
+    const params = location
+      ? { lat: location.lat, lng: location.lng }
+      : { lat: null, lng: null };
+
+    try {
+      const results = await Promise.all(
+        categories.map((cat) =>
+          api
+            .get("/maps/search", { params: { keyword: cat.query, ...params } })
+            .then((res) => (Array.isArray(res.data) ? res.data : []))
+            .catch(() => []),
+        ),
+      );
+
+      const mergedPlaces = results.flat().reduce((acc, place) => {
+        const key = place.place_id || `${place.name}-${place.vicinity || place.formatted_address}`;
+        if (!acc.map.has(key)) {
+          acc.map.set(key, place);
+          acc.list.push(place);
+        }
+        return acc;
+      }, { map: new Map(), list: [] }).list;
+
+      setApiResults(mergedPlaces);
+    } catch (err) {
+      console.error(err);
+      Swal.fire({
+        icon: "error",
+        title: "เกิดข้อผิดพลาด",
+        text: "ไม่สามารถดึงข้อมูลสถานที่ได้ในขณะนี้",
+      });
+      setApiResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
 
   const handleCardClick = (categoryQuery, categoryLabel) => {
     setSelectedCategoryName(categoryLabel);
@@ -175,45 +231,7 @@ export default function FilterPage() {
         params: { keyword: keyword, lat: lat, lng: lng },
       });
 
-      let placesData = res.data;
-
-      if (lat && lng && Array.isArray(placesData) && placesData.length > 0) {
-        const placesWithRealDistance = await Promise.all(
-          placesData.map(async (place) => {
-            const placeLat = place.geometry?.location?.lat;
-            const placeLng = place.geometry?.location?.lng;
-
-            if (!placeLat || !placeLng)
-              return { ...place, distanceValue: Infinity };
-
-            try {
-              const distRes = await api.get("/maps/distance", {
-                params: {
-                  originLat: lat,
-                  originLng: lng,
-                  destLat: placeLat,
-                  destLng: placeLng,
-                },
-              });
-
-              return {
-                ...place,
-                distanceText: distRes.data.distanceText,
-                durationText: distRes.data.durationText,
-                distanceValue: distRes.data.distanceValue,
-              };
-            } catch (e) {
-              return { ...place, distanceValue: Infinity };
-            }
-          }),
-        );
-
-        placesWithRealDistance.sort(
-          (a, b) => a.distanceValue - b.distanceValue,
-        );
-        placesData = placesWithRealDistance;
-      }
-
+      const placesData = Array.isArray(res.data) ? res.data : [];
       setApiResults(placesData);
     } catch (err) {
       console.error(err);
@@ -227,6 +245,12 @@ export default function FilterPage() {
       setIsSearching(false);
     }
   };
+
+  useEffect(() => {
+    if (showAll && selectedMood && apiResults === null && !isSearching) {
+      fetchAllPlacesForMood(selectedMood);
+    }
+  }, [showAll, selectedMood]);
 
   return (
     <div className="min-h-screen bg-[#FDF8F1] font-['Prompt',sans-serif] text-[#4A453A] pt-24 sm:pt-28 pb-20 sm:pb-32">
