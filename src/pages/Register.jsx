@@ -84,7 +84,6 @@ export default function AuthPage() {
         : form;
 
       const response = await api.post(endpoint, payload);
-
       if (response.data) {
         // 🌟 กรณีสมัครสมาชิกสำเร็จ (แต่ยังไม่ได้ Verify Email)
         if (!isLogin) {
@@ -93,6 +92,7 @@ export default function AuthPage() {
             title: "สมัครสมาชิกสำเร็จ!",
             text: "กรุณาตรวจสอบอีเมลของคุณเพื่อยืนยันตัวตนก่อนเข้าสู่ระบบ (หากหาไม่เจอโปรดดูที่จดหมายขยะ)",
             confirmButtonColor: "#FF7F67",
+            timer: 5000,
             customClass: { popup: "rounded-[30px]" },
           });
           handleNavigation("/login");
