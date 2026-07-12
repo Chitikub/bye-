@@ -9,6 +9,7 @@ import {
   Navigation,
   Loader2,
   Car,
+  Image as ImageIcon,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import api from "@/api/axios";
@@ -22,6 +23,8 @@ export default function FilterPage() {
   const [isSearching, setIsSearching] = useState(false);
   const [apiResults, setApiResults] = useState(null);
   const [selectedCategoryName, setSelectedCategoryName] = useState("");
+
+  const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
   const moodCategories = {
     happy: [
@@ -271,12 +274,27 @@ export default function FilterPage() {
                   transition={{ delay: index * 0.1 }}
                   className="bg-white rounded-[2rem] p-5 sm:p-6 shadow-sm hover:shadow-xl transition-all border border-[#EFE9D9] flex flex-col"
                 >
+                  <div className="mb-4 h-40 overflow-hidden rounded-2xl bg-[#FDF8F1]">
+                    {place.photos?.length > 0 ? (
+                      <img
+                        src={`https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${place.photos[0].photo_reference}&key=${API_KEY}`}
+                        alt={place.name}
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-gray-400">
+                        <ImageIcon size={36} />
+                      </div>
+                    )}
+                  </div>
+
                   <div className="flex-grow">
                     <h3 className="text-lg sm:text-xl font-black text-[#2D2A26] mb-2 line-clamp-2">
                       {place.name}
                     </h3>
                     <p className="text-[#AFA99B] text-xs sm:text-sm mb-4 line-clamp-2">
-                      📍 {place.vicinity || place.formatted_address}
+                      <MapPin size={16} className="inline-block mr-1" /> {place.vicinity || place.formatted_address}
                     </p>
 
                     <div className="flex items-center flex-wrap gap-2 mb-6">

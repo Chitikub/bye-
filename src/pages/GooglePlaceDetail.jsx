@@ -171,30 +171,38 @@ export default function GooglePlaceDetail() {
             <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" /> ย้อนกลับ
           </button>
           
-          <button 
-            onClick={handleToggleFavorite}
-            title={!isFavorite && totalfavorite >= 10 ? 'รายการโปรดเต็มแล้ว' : ''}
-            className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-90 ${isFavorite ? 'bg-red-500 text-white' : 'bg-white text-gray-400'}`}
-          >
-            <Heart className={`w-6 h-6 ${isFavorite ? 'fill-current' : ''}`} />
-          </button>
+          
         </div>
 
         {/* --- Card รายละเอียดหลัก --- */}
         <div className="bg-white rounded-[3rem] shadow-xl overflow-hidden border border-[#EFE9D9]">
+          
           {place.photos && place.photos.length > 0 ? (
             <div className="h-[300px] md:h-[450px] overflow-hidden relative">
+              <button 
+    onClick={handleToggleFavorite}
+    title={!isFavorite && totalfavorite >= 10 ? 'รายการโปรดเต็มแล้ว' : ''}
+    className={`absolute top-4 right-4 z-10 w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-90 hover:scale-120 ${
+      isFavorite ? 'bg-red-500 text-white' : 'bg-white text-gray-400'
+    }`}
+  >
+    <Heart className={`w-6 h-6 ${isFavorite ? 'fill-current' : ''}`} />
+  </button>
               <img 
                 src={`https://maps.googleapis.com/maps/api/place/photo?maxwidth=1000&photo_reference=${place.photos[0].photo_reference}&key=${API_KEY}`} 
                 className="w-full h-full object-cover" 
                 alt={place.name}
               />
+              
               <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
             </div>
           ) : (
             <div className="h-60 bg-gray-100 flex items-center justify-center text-gray-400">
                 <ImageIcon size={48} className="opacity-20" />
+                
             </div>
+
+            
           )}
 
           <div className="p-8 md:p-12">
