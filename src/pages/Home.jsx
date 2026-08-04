@@ -12,12 +12,6 @@ import api from "../api/axios";
 import Swal from "sweetalert2";
 import { io } from "socket.io-client";
 
-// 🌟 นำเข้ารูปภาพสไลด์
-import heroBg1 from "@/assets/hero-bg1.png";
-import heroBg2 from "@/assets/hero-bg2.png";
-import heroBg3 from "@/assets/hero-bg3.png";
-import heroBg4 from "@/assets/hero-bg4.png";
-
 // เชื่อมต่อ Socket
 const socket = io(import.meta.env.VITE_SOCKET_URL);
 
@@ -32,10 +26,6 @@ export default function Index() {
   // 🌟 State สำหรับระบบประกาศ
   const [announcements, setAnnouncements] = useState([]);
   const [selectedNews, setSelectedNews] = useState(null); 
-
-  // 🌟 State สำหรับสไลด์ภาพ Hero
-  const [currentSlide, setCurrentSlide] = useState(0);
-  const slideImages = [heroBg1, heroBg2, heroBg3, heroBg4];
 
   const navigate = useNavigate();
   const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
@@ -86,14 +76,6 @@ export default function Index() {
       { id: "shooting", label: "🔫 สนามยิงปืน", query: "สนามยิงปืน" },
     ],
   };
-
-  // เลื่อนภาพสไลด์อัตโนมัติทุกๆ 5 วินาที
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % slideImages.length);
-    }, 5000);
-    return () => clearInterval(timer);
-  }, [slideImages.length]);
 
   const checkAuth = () => {
     const token = localStorage.getItem("token");
@@ -382,8 +364,8 @@ export default function Index() {
   )}
 </AnimatePresence>
 
-      {/* ─── 🌟 HERO SECTION (Parallax + Carousel Slider) ─── */}
-      <section className="relative w-full flex items-center justify-center overflow-hidden bg-[#FDF8F1]" style={{ height: "100vh" }}>
+      {/* ─── 🌟 HERO SECTION ─── */}
+      <section className="relative w-full flex items-center justify-center overflow-hidden bg-[#FDF8F1] min-h-[55vh] sm:min-h-[60vh]">
         
         {/* Parallax Background */}
         <div className="absolute inset-0 z-0 scale-110 transition-transform duration-1000 ease-out" style={{ transform: `translate(${mousePos.x}px, ${mousePos.y}px)` }}>
@@ -392,46 +374,17 @@ export default function Index() {
         <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-transparent z-10" />
         <div className="absolute inset-0 bg-gradient-to-t from-[#FDF8F1] via-[#FDF8F1]/60 to-transparent z-20" />
 
-        <div className="container relative z-30 px-4 sm:px-5 text-center mx-auto flex flex-col items-center justify-center pt-16">
-          <h1 className="animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-300 font-black leading-tight drop-shadow-sm text-4xl sm:text-6xl lg:text-7xl text-[#4A4A4A] mb-8">
+        <div className="container relative z-30 px-4 sm:px-5 text-center mx-auto flex flex-col items-center justify-center pt-4 sm:pt-8 pb-3 sm:pb-4">
+          <h1 className="animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-300 font-black leading-tight drop-shadow-sm text-4xl sm:text-6xl lg:text-7xl text-[#4A4A4A] mb-3 sm:mb-4">
             ไปไหนดี... <br className="hidden xs:block" />
             <span className="text-[#FF8E6E] inline-block hover:scale-105 transition-transform cursor-default drop-shadow-md mt-1 sm:mt-0">ให้อารมณ์บอก</span>
           </h1>
-
-          {/* Slider Carousel */}
-          <div className="relative w-full max-w-4xl h-[200px] sm:h-[500px] rounded-[1.5rem] sm:rounded-[2rem] overflow-hidden shadow-2xl border-4 border-white/40 backdrop-blur-sm animate-in fade-in slide-in-from-bottom-10 duration-1000 delay-500">
-            <AnimatePresence mode="wait">
-              <motion.img
-                key={currentSlide}
-                src={slideImages[currentSlide]}
-                initial={{ opacity: 0, scale: 1.05 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.8, ease: "easeInOut" }}
-                className="absolute inset-0 w-full h-full object-cover"
-                alt="Recommended Place"
-              />
-            </AnimatePresence>
-
-            <div className="absolute bottom-3 sm:bottom-4 w-full flex justify-center gap-2 z-30">
-              {slideImages.map((_, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setCurrentSlide(idx)}
-                  className={`block w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full transition-all shadow-md ${
-                    currentSlide === idx ? "bg-white scale-125 w-5 sm:w-6" : "bg-white/50 hover:bg-white/80"
-                  }`}
-                />
-              ))}
-            </div>
-            <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/50 to-transparent pointer-events-none" />
-          </div>
         </div>
       </section>
 
       {/* ─── CONTENT SECTION ─── */}
-      <main className="container mx-auto px-4 sm:px-5 mt-12 sm:mt-20 relative z-40 pb-24">
-        <section className="bg-white/90 backdrop-blur-2xl p-5 sm:p-16 shadow-[0_32px_64px_-16px_rgba(74,69,58,0.1)] text-center border border-white rounded-[2.5rem] sm:rounded-[5rem] w-full min-h-0 sm:min-h-[400px]">
+      <main className="container mx-auto px-4 sm:px-5 relative z-40 pb-24 -mt-16 sm:-mt-20">
+        <section className="bg-white/90 backdrop-blur-2xl p-5 sm:p-14 shadow-[0_32px_64px_-16px_rgba(74,69,58,0.1)] text-center border border-white rounded-[2rem] sm:rounded-[4rem] w-full min-h-0 sm:min-h-[400px]">
           
           {!activeMood ? (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
