@@ -139,7 +139,7 @@ export default function Index() {
         allowOutsideClick: false,
         didOpen: () => Swal.showLoading(),
       });
-      const aiRes = await api.post("/api/v1/ai/analyze-emotion", { text: textToSearch });
+      const aiRes = await api.post("/ai/analyze-emotion", { text: textToSearch });
       const { emotion, reason } = aiRes.data;
       console.log(aiRes.data) // ตรวจสอบผลลัพธ์จาก AI
       let moodKey = "happy";
