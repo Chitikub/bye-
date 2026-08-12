@@ -1,8 +1,8 @@
-'use client';
+"use client";
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { 
-  ArrowLeft, Star, MapPin, Clock, Phone, 
+  ChevronLeft, Star, MapPin, Clock, Phone, 
   Navigation, Loader2, Image as ImageIcon, Heart, Car 
 } from "lucide-react";
 import api from "@/api/axios";
@@ -17,6 +17,9 @@ export default function GooglePlaceDetail() {
   const [totalfavorite, setTotalfavorite] = useState(0);
   const [distance, setDistance] = useState(null); 
   const [duration, setDuration] = useState(null); 
+  
+  // 🌟 State สำหรับกรองดาวรีวิว (ค่าเริ่มต้นคือ all)
+  const [reviewFilter, setReviewFilter] = useState("all");
 
   const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
@@ -27,7 +30,6 @@ export default function GooglePlaceDetail() {
     return [];
   };
 
-  // ฟังก์ชันดึงข้อมูลร้าน
   const fetchDetails = async () => {
     try {
       setLoading(true);
@@ -68,7 +70,6 @@ export default function GooglePlaceDetail() {
     }
   };
 
-  // ฟังก์ชันดึงจำนวนรายการโปรด
   const fetchTotalFavorites = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -91,7 +92,6 @@ export default function GooglePlaceDetail() {
     }
   }, [placeId]);
 
-  // ฟังก์ชันบันทึกรายการโปรด
   const handleToggleFavorite = async () => {
     const token = localStorage.getItem("token");
     if (!token) {
@@ -103,7 +103,6 @@ export default function GooglePlaceDetail() {
     const currentFavoriteCount = favorites.length;
     const isFull = !isFavorite && currentFavoriteCount >= 10;
 
-    // เช็คจำนวนก่อนบันทึก
     if (isFull) {
       setTotalfavorite(currentFavoriteCount);
       return Swal.fire({
@@ -126,7 +125,6 @@ export default function GooglePlaceDetail() {
       }, { headers: { Authorization: `Bearer ${token}` } });
       
       setIsFavorite(res.data.isFavorite);
-      // อัปเดตตัวเลขจำนวนรายการโปรดทันทีหลังกด
       setTotalfavorite(prev => res.data.isFavorite ? prev + 1 : prev - 1);
       
       Swal.fire({
@@ -136,7 +134,6 @@ export default function GooglePlaceDetail() {
         showConfirmButton: false
       });
     } catch (error) {
-      // ตรงนี้คือที่ที่หลังบ้านส่ง Error กลับมา (ถ้าเกิน 10 แล้วเราไม่ดักไว้ข้างบน)
       Swal.fire({ icon: 'error', title: 'ไม่สามารถบันทึกได้', text: 'รายการโปรดเต็มแล้ว' });
     }
   };
@@ -158,137 +155,186 @@ export default function GooglePlaceDetail() {
     window.open(navUrl, '_blank');
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-16 h-16 text-[#FF8E6E] animate-spin" /></div>;
-  if (!place) return <div className="text-center py-20 font-bold">ไม่พบข้อมูล</div>;
+  if (loading) return <div className="min-h-screen bg-[#FDF8F1] flex items-center justify-center"><Loader2 className="w-16 h-16 text-[#FF8E6E] animate-spin" /></div>;
+  if (!place) return <div className="min-h-screen bg-[#FDF8F1] text-center py-20 font-bold">ไม่พบข้อมูล</div>;
+
+  const isOpen = place.opening_hours?.open_now;
+
+  // 🌟 จัดเรียงคอมเมนต์: แสดง 5 ดาวขึ้นก่อนเสมอ (จัดเรียงจากดาวมากไปน้อย)
+  const sortedReviews = place.reviews ? [...place.reviews].sort((a, b) => b.rating - a.rating) : [];
+  
+  // 🌟 กรองข้อมูลตามดาวที่เลือก
+  const filteredReviews = reviewFilter === "all" 
+    ? sortedReviews 
+    : sortedReviews.filter(r => Math.floor(r.rating) === Number(reviewFilter));
 
   return (
-    <div className="min-h-screen bg-[#FDF8F1] font-['Prompt'] pt-24 pb-20">
-      <main className="container mx-auto px-4 max-w-4xl">
+    <div className="min-h-screen bg-[#FDF8F1] font-['Prompt'] pt-8 sm:pt-24 pb-20">
+      <main className="container mx-auto px-4 max-w-2xl">
         
-        {/* Header: ปุ่มย้อนกลับ และ ปุ่มหัวใจ */}
-        <div className="flex justify-between items-center mb-6 px-2">
-          <button onClick={() => navigate(-1)} className="group flex items-center gap-2 text-[#7E7869] hover:text-[#FF8E6E] font-bold transition-all">
-            <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" /> ย้อนกลับ
+        {/* Header: ปุ่มย้อนกลับ */}
+        <div className="flex justify-between items-center mb-6">
+          <button 
+            onClick={() => navigate(-1)} 
+            className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm text-gray-600 active:scale-95 transition-transform"
+          >
+            <ChevronLeft className="w-6 h-6" />
           </button>
-          
-          
         </div>
 
         {/* --- Card รายละเอียดหลัก --- */}
-        <div className="bg-white rounded-[3rem] shadow-xl overflow-hidden border border-[#EFE9D9]">
+        <div className="bg-white rounded-[2.5rem] shadow-[0_8px_30px_rgba(0,0,0,0.04)] p-6 relative">
           
-          {place.photos && place.photos.length > 0 ? (
-            <div className="h-[300px] md:h-[450px] overflow-hidden relative">
-              <button 
-    onClick={handleToggleFavorite}
-    title={!isFavorite && totalfavorite >= 10 ? 'รายการโปรดเต็มแล้ว' : ''}
-    className={`absolute top-4 right-4 z-10 w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-90 hover:scale-120 ${
-      isFavorite ? 'bg-red-500 text-white' : 'bg-white text-gray-400'
-    }`}
-  >
-    <Heart className={`w-6 h-6 ${isFavorite ? 'fill-current' : ''}`} />
-  </button>
+          <button 
+            onClick={handleToggleFavorite}
+            title={!isFavorite && totalfavorite >= 10 ? 'รายการโปรดเต็มแล้ว' : ''}
+            className={`absolute top-6 right-6 z-10 w-10 h-10 rounded-full flex items-center justify-center shadow-md transition-all active:scale-90 ${
+              isFavorite ? 'bg-white text-red-500' : 'bg-white text-gray-300'
+            }`}
+          >
+            <Heart className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''}`} />
+          </button>
+
+          {place.photos && place.photos.length > 0 && (
+            <div className="h-[200px] w-full rounded-[1.5rem] overflow-hidden mb-6">
               <img 
                 src={`https://maps.googleapis.com/maps/api/place/photo?maxwidth=1000&photo_reference=${place.photos[0].photo_reference}&key=${API_KEY}`} 
                 className="w-full h-full object-cover" 
                 alt={place.name}
               />
-              
-              <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
             </div>
-          ) : (
-            <div className="h-60 bg-gray-100 flex items-center justify-center text-gray-400">
-                <ImageIcon size={48} className="opacity-20" />
-                
-            </div>
-
-            
           )}
 
-          <div className="p-8 md:p-12">
-            <h1 className="text-3xl md:text-5xl font-black text-[#2D2A26] mb-4">{place.name}</h1>
-            
-            <div className="flex flex-wrap items-center gap-4 mb-8">
-              <div className="flex items-center gap-1.5 bg-orange-50 text-[#FF8E6E] px-4 py-2 rounded-xl font-black text-xl">
-                <Star className="fill-[#FF8E6E]" size={22} /> {place.rating || 'N/A'}
-              </div>
-              <span className="text-[#AFA99B] font-medium text-lg">จาก {place.user_ratings_total || 0} รีวิว</span>
-              
-              {/* 🌟 แสดงระยะทางและเวลาขับรถตรงนี้ */}
-              {distance && duration && (
-                <div className="flex items-center gap-2 bg-green-50 text-green-600 px-4 py-2 rounded-xl font-black text-lg ml-auto md:ml-0">
-                  <Car size={20} /> ห่างจากคุณ {distance} 
-                  <span className="text-sm font-medium ml-1">({duration})</span>
-                </div>
-              )}
+          <div className="flex items-center gap-3 mb-4">
+            <div className="flex items-center gap-1.5 bg-[#FFF5F3] text-[#FF8E6E] px-3 py-1.5 rounded-full font-black text-sm">
+              <Star className="fill-[#FF8E6E]" size={14} /> {place.rating || 'N/A'} คะแนน
             </div>
-
-            <div className="space-y-6 mb-10 border-t border-gray-50 pt-8">
-              <div className="flex items-start gap-4 text-[#7E7869] font-medium text-lg">
-                <MapPin className="shrink-0 text-[#FF8E6E] mt-1" size={24} /> 
-                <span>{place.formatted_address}</span>
-              </div>
-              
-              {place.formatted_phone_number && (
-                <div className="flex items-center gap-4 text-[#7E7869] font-medium text-lg">
-                  <Phone className="shrink-0 text-[#FF8E6E]" size={24} /> 
-                  <span>{place.formatted_phone_number}</span>
-                </div>
-              )}
-              
-              {place.opening_hours && (
-                <div className="flex items-center gap-4 text-[#7E7869] font-medium text-lg">
-                  <Clock className="shrink-0 text-[#FF8E6E]" size={24} />
-                  {place.opening_hours.open_now ? 
-                    <span className="text-green-500 font-bold">● เปิดอยู่ตอนนี้</span> : 
-                    <span className="text-red-500 font-bold">● ปิดแล้ว</span>
-                  }
-                </div>
-              )}
+            <div className="bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full font-bold text-sm">
+              {place.types?.[0] ? place.types[0].replace(/_/g, ' ') : 'สถานที่'}
             </div>
-
-            <button 
-              onClick={handleNavigation}
-              className="w-full py-5 bg-[#4A453A] text-white rounded-[1.5rem] font-black text-xl flex items-center justify-center gap-3 hover:bg-[#FF8E6E] transition-all shadow-lg active:scale-95"
-            >
-              <Navigation size={24} /> เริ่มการนำทางไปที่นี่
-            </button>
           </div>
+
+          <h1 className="text-2xl md:text-3xl font-black text-[#2D2A26] mb-6 leading-snug">
+            {place.name}
+          </h1>
+          
+          <div className="space-y-5 mb-8">
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 rounded-full bg-[#FFF5F3] flex items-center justify-center shrink-0">
+                <MapPin className="text-[#FF8E6E]" size={20} /> 
+              </div>
+              <div className="pt-1">
+                <p className="text-[#7E7869] text-sm font-medium leading-relaxed">
+                  {place.formatted_address}
+                </p>
+                {distance && (
+                  <p className="text-[#FF8E6E] text-xs font-bold mt-1 flex items-center gap-1">
+                    <Car size={12} /> ห่างจากคุณ {distance} ({duration})
+                  </p>
+                )}
+              </div>
+            </div>
+            
+            {place.formatted_phone_number && (
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-full bg-[#FFF5F3] flex items-center justify-center shrink-0">
+                  <Phone className="text-[#FF8E6E]" size={20} /> 
+                </div>
+                <span className="text-[#7E7869] text-sm font-medium pt-1">
+                  {place.formatted_phone_number}
+                </span>
+              </div>
+            )}
+            
+            <div className="flex items-start gap-4">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isOpen ? 'bg-green-50' : 'bg-red-50'}`}>
+                <Clock className={isOpen ? 'text-green-500' : 'text-red-500'} size={20} />
+              </div>
+              <div className="pt-1">
+                <p className={`font-bold text-sm ${isOpen ? 'text-green-600' : 'text-red-500'}`}>
+                  {isOpen ? 'เปิดให้บริการ' : 'ปิดแล้ว'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <button 
+            onClick={handleNavigation}
+            className="w-full py-4 bg-[#4A453A] text-white rounded-2xl font-black text-base flex items-center justify-center gap-2 hover:bg-[#322f27] transition-all shadow-md active:scale-95"
+          >
+            <Navigation size={18} /> ค้นหาเส้นทางในวิดีโอ
+          </button>
         </div>
 
         {/* --- ส่วนรีวิว --- */}
-        {place.reviews && place.reviews.length > 0 ? (
-          <div className="mt-16 px-2">
-            <h2 className="text-3xl font-black text-[#4A453A] mb-10">รีวิว</h2>
-            <div className="grid gap-8">
-              {place.reviews.map((review, idx) => (
-                <div key={idx} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-[#EFE9D9]">
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-4">
+        <div className="mt-10">
+          <div className="mb-6 px-2">
+            <h2 className="text-xl font-black text-[#4A453A] mb-4">รีวิว</h2>
+
+            {/* 🌟 UI คัดกรองดาว (ดีไซน์แบบปุ่มหน้าค้นหาสถานที่) */}
+            {place.reviews && place.reviews.length > 0 && (
+              <div className="bg-white p-3 rounded-[1.5rem] shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-gray-50">
+                <div className="flex justify-between items-center">
+                  <button
+                    onClick={() => setReviewFilter("all")}
+                    className={`flex flex-col items-center justify-center gap-1 p-2 w-[16%] rounded-xl transition-all ${
+                      reviewFilter === "all" ? 'bg-[#FFF5F3] text-[#FF8E6E] scale-105' : 'text-gray-400 hover:bg-gray-50'
+                    }`}
+                  >
+                    <span className="text-[10px] md:text-xs font-black uppercase tracking-wider mb-0.5">All</span>
+                    <span className="text-[10px] md:text-xs font-bold">ทั้งหมด</span>
+                  </button>
+
+                  {[5, 4, 3, 2, 1].map(star => (
+                    <button
+                      key={star}
+                      onClick={() => setReviewFilter(String(star))}
+                      className={`flex flex-col items-center justify-center gap-1 p-2 w-[16%] rounded-xl transition-all ${
+                        reviewFilter === String(star) ? 'bg-[#FFF5F3] text-[#FF8E6E] scale-105' : 'text-gray-400 hover:bg-gray-50'
+                      }`}
+                    >
+                      <Star size={20} className={reviewFilter === String(star) ? "fill-[#FF8E6E] text-[#FF8E6E]" : ""} />
+                      <span className="text-[10px] md:text-xs font-bold">{star} ดาว</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="grid gap-4">
+            {filteredReviews.length > 0 ? (
+              filteredReviews.map((review, idx) => (
+                <div key={idx} className="bg-white p-5 rounded-[2rem] shadow-[0_4px_20px_rgba(0,0,0,0.03)]">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-3">
                       <img 
                         src={review.profile_photo_url || `https://ui-avatars.com/api/?name=${review.author_name}&background=FF8E6E&color=fff`} 
                         alt="profile" 
-                        className="w-14 h-14 rounded-full border-2 border-orange-50 shadow-sm" 
+                        className="w-10 h-10 rounded-full border border-gray-100" 
                       />
                       <div>
-                        <p className="font-bold text-[#2D2A26] text-lg leading-tight">{review.author_name}</p>
-                        <p className="text-sm text-gray-400 mt-1">{review.relative_time_description}</p>
+                        <p className="font-bold text-[#2D2A26] text-sm">{review.author_name}</p>
+                        <p className="text-[10px] text-gray-400 mt-0.5">{review.relative_time_description}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 bg-orange-50 px-3 py-1 rounded-lg text-[#FF8E6E] font-black">
-                      <Star size={16} className="fill-[#FF8E6E]" /> {review.rating}
+                    <div className="bg-[#FFF5F3] text-[#FF8E6E] px-2 py-1 rounded-lg text-xs font-black">
+                      {review.rating.toFixed(1)}
                     </div>
                   </div>
-                  <p className="text-[#7E7869] font-medium leading-relaxed italic text-lg">"{review.text}"</p>
+                  <p className="text-[#7E7869] text-sm leading-relaxed mt-2 line-clamp-4">
+                    {review.text || "- ไม่มีความคิดเห็น -"}
+                  </p>
                 </div>
-              ))}
-            </div>
+              ))
+            ) : (
+              <div className="text-center py-12 bg-white/50 rounded-[2rem] border border-dashed border-gray-200">
+                 <p className="text-gray-400 font-bold text-sm">ไม่พบรีวิวในระดับดาวที่คุณเลือก</p>
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="mt-16 text-center py-10 bg-white/50 rounded-[2rem] border border-dashed border-gray-200">
-             <p className="text-gray-400 font-bold">ยังไม่มีข้อมูลรีวิวสำหรับสถานที่นี้</p>
-          </div>
-        )}
+        </div>
+
       </main>
     </div>
   );
