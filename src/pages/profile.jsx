@@ -45,39 +45,42 @@ export default function Profile() {
   }, [navigate]);
 
   const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) {
-      return;
+  const file = e.target.files[0];
+  if (!file) return;
+
+  // ✅ เปลี่ยนมาเช็ค MIME Type ให้รองรับ .jpg, .jpeg, .png, .webp
+  const validTypes = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
+  if (!validTypes.includes(file.type)) {
+    Swal.fire({
+      icon: "error",
+      title: "ประเภทไฟล์ไม่ถูกต้อง",
+      text: "กรุณาเลือกไฟล์รูปภาพ (.png, .jpg, .jpeg, .webp) เท่านั้น",
+    });
+    e.target.value = "";
+    return;
   }
 
-  if (!file.name.toLowerCase().endsWith('.png')) {
-        Swal.fire({
-            icon: 'error',
-            title: 'ผิดพลาด',
-            text: 'กรุณาเลือกไฟล์ .png เท่านั้น'
-        });
-        e.target.value = ""; // แก้จาก event เป็น e
-        return;
-    }
+  const fileSizeInMB = file.size / (1024 * 1024);
+  if (fileSizeInMB > 10) {
+    Swal.fire({
+      icon: "error",
+      title: "ไฟล์ใหญ่เกินไป!",
+      text: "กรุณาเลือกไฟล์ที่ไม่เกิน 10MB",
+      confirmButtonColor: "#FF7F67",
+    });
+    return;
+  }
 
-
-    const fileSizeInMB = file.size / (1024 * 1024);
-    if (fileSizeInMB > 10) {
-      Swal.fire({
-        icon: "error",
-        title: "ไฟล์ใหญ่เกินไป!",
-        text: "กรุณาเลือกไฟล์ที่ไม่เกิน 10MB",
-        confirmButtonColor: "#FF7F67",
-      });
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setUser({ ...user, profileImage: reader.result, imageFile: file });
-    };
-    reader.readAsDataURL(file);
+  const reader = new FileReader();
+  reader.onloadend = () => {
+    setUser((prev) => ({
+      ...prev,
+      profileImage: reader.result, // preview รูปทันที
+      imageFile: file,
+    }));
   };
+  reader.readAsDataURL(file);
+};
 
   const handleUpdateProfile = async () => {
     setLoading(true);
@@ -102,9 +105,7 @@ export default function Profile() {
         formData.append("profileImage", user.imageFile);
       }
 
-      const res = await api.put("/users/profile", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const res = await api.put("/users/profile", formData);
 
       const updatedUser = res.data.user || res.data;
       localStorage.setItem("user", JSON.stringify(updatedUser));
@@ -177,12 +178,18 @@ export default function Profile() {
   };
 
   const getProfileImage = () => {
-    if (!user.profileImage)
-      return `https://ui-avatars.com/api/?name=${user.firstName}&background=FF7F67&color=fff&size=200`;
-    if (user.profileImage.startsWith("data:")) return user.profileImage;
-    if (user.profileImage.startsWith("http")) return user.profileImage;
-    return `${IMAGE_BASE_URL}${user.profileImage}`;
-  };
+  if (!user.profileImage)
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(user.firstName || 'User')}&background=FF7F67&color=fff&size=200`;
+  
+  // รูป Preview จาก FileReader (Data URL) ไม่ต้องติด timestamp
+  if (user.profileImage.startsWith("data:")) return user.profileImage;
+  
+  // รูป URL เต็ม (เช่น Cloudinary หรือ URL ภายนอก)
+  if (user.profileImage.startsWith("http")) return `${user.profileImage}?t=${Date.now()}`;
+  
+  // รูปจาก Backend Server ตัวเอง
+  return `${IMAGE_BASE_URL}${user.profileImage}?t=${Date.now()}`;
+};
 
   return (
     <div className="min-h-screen bg-[#F6F0E8] pt-5 pb-20 px-4 font-['Prompt',sans-serif]">

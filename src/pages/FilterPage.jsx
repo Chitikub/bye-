@@ -10,13 +10,30 @@ import {
   Car,
   Image as ImageIcon,
   ChevronLeft,
-  Search,
+  
   Share2,
   ChevronDown,
+  SlidersHorizontal,
+  Heart,
+  RefreshCw,
+  ArrowRight
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import api from "@/api/axios";
 import Swal from "sweetalert2";
+
+// ฟังก์ชันคำนวณระยะทาง
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
+  if (!lat1 || !lon1 || !lat2 || !lon2) return null;
+  const R = 6371; 
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return parseFloat((R * c).toFixed(1)); 
+};
 
 export default function FilterPage() {
   const [searchParams] = useSearchParams();
@@ -27,12 +44,22 @@ export default function FilterPage() {
   const [apiResults, setApiResults] = useState(null);
   const [selectedCategoryName, setSelectedCategoryName] = useState("");
   
-  // State สำหรับปุ่ม "แสดงเพิ่มเติม" ในหน้าจอมือถือ
+  // State สำหรับ Desktop "แสดงเพิ่มเติม"
   const [showAllCategories, setShowAllCategories] = useState(false);
+
+  // 🌟 State ใหม่สำหรับ Mobile (ระบบคัดกรอง และ แสดงผล)
+  const [userLoc, setUserLoc] = useState(null);
+  const [filteredResults, setFilteredResults] = useState([]);
+  const [pageIndex, setPageIndex] = useState(0); // สำหรับแสดงผลทีละ 3 ตัว
+  const [favorites, setFavorites] = useState([]); // เก็บรายการโปรด
+
+  // State สำหรับ Drawer คัดกรอง
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [maxDistance, setMaxDistance] = useState(60); // 0 - 60 km
+  const [minRating, setMinRating] = useState(0); // 1 - 5 stars
 
   const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
-  // 🌟 อัปเดต: ใส่รูปภาพให้ตรงกับหมวดหมู่แต่ละอัน (ภาพจาก Unsplash)
   const moodCategories = {
     happy: [
       { id: "amusement", label: "สวนสนุก", icon: "🎢", query: "สวนสนุก", desc: "เติมพลังด้วยความตื่นเต้นและรอยยิ้ม", subtitle: "Amusement Parks", image: "https://images.unsplash.com/photo-1513889961551-628c1e5e2ee9?auto=format&fit=crop&w=600&q=80" },
@@ -109,6 +136,8 @@ export default function FilterPage() {
 
     const categories = moodCategories[mood] || moodCategories.happy;
     const location = await getCurrentPosition();
+    if(location) setUserLoc(location);
+
     const params = location
       ? { lat: location.lat, lng: location.lng }
       : { lat: null, lng: null };
@@ -155,6 +184,7 @@ export default function FilterPage() {
         async (position) => {
           const lat = position.coords.latitude;
           const lng = position.coords.longitude;
+          setUserLoc({lat, lng});
           fetchPlacesFromAPI(categoryQuery, lat, lng);
         },
         (error) => {
@@ -188,24 +218,142 @@ export default function FilterPage() {
     }
   };
 
+  // 🌟 Effect สำหรับคำนวณและกรองข้อมูลแบบ Real-time
   useEffect(() => {
-    if (!showAll || !selectedMood) {
-      setApiResults(null);
-      setSelectedCategoryName("");
-      setIsSearching(false);
-      return;
+    if (!apiResults) return;
+
+    let temp = [...apiResults];
+
+    // 1. กรองด้วยดาว (Rating)
+    if (minRating > 0) {
+      temp = temp.filter(p => (p.rating || 0) >= minRating);
     }
 
-    if (apiResults !== null || isSearching) {
-      return;
+    // 2. กรองด้วยระยะทาง
+    if (userLoc) {
+      temp = temp.filter(p => {
+        const lat = p.geometry?.location?.lat;
+        const lng = p.geometry?.location?.lng;
+        // รองรับทั้งแบบ function และ value จาก Google Maps
+        const latVal = typeof lat === 'function' ? lat() : lat;
+        const lngVal = typeof lng === 'function' ? lng() : lng;
+
+        if (latVal && lngVal) {
+          const dist = calculateDistance(userLoc.lat, userLoc.lng, latVal, lngVal);
+          p.calculatedDistance = dist; 
+          return dist <= maxDistance;
+        }
+        return true; 
+      });
     }
 
+    setFilteredResults(temp);
+    setPageIndex(0); // กลับไปหน้าแรกเสมอเมื่อฟิลเตอร์เปลี่ยน
+  }, [apiResults, minRating, maxDistance, userLoc]);
+
+  // ฟังก์ชันรีเฟรช/โหลดเพิ่มเติมทีละ 3 (วนลูป)
+  const handleLoadMore = () => {
+    setPageIndex(prev => {
+      const nextIndex = prev + 1;
+      // ถ้าเกินจำนวนที่มี ให้วนกลับไป 0 ใหม่
+      if (nextIndex * 3 >= filteredResults.length) {
+        return 0;
+      }
+      return nextIndex;
+    });
+  };
+
+  const toggleFavorite = (id) => {
+    setFavorites(prev => 
+      prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]
+    );
+  };
+
+  useEffect(() => {
     setApiResults(null);
-    fetchAllPlacesForMood(selectedMood);
-  }, [showAll, selectedMood, apiResults, isSearching]);
+    setSelectedCategoryName("");
+    setIsSearching(false);
+
+    if (showAll && selectedMood) {
+      fetchAllPlacesForMood(selectedMood);
+    }
+  }, [showAll, selectedMood]);
+
+  // ตัวแปรสำหรับสถานที่ 3 แห่งที่จะแสดงในหน้านี้
+  const currentPlacesToShow = filteredResults.slice(pageIndex * 3, (pageIndex * 3) + 3);
 
   return (
     <div className="min-h-screen bg-[#FDF8F1] font-['Prompt',sans-serif] text-[#4A453A] pt-12 sm:pt-28 pb-20 sm:pb-32">
+      
+      {/* 🌟 Drawer คัดกรอง (Mobile Only) */}
+      <AnimatePresence>
+        {isFilterOpen && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/40 z-50 md:hidden backdrop-blur-sm"
+              onClick={() => setIsFilterOpen(false)}
+            />
+            <motion.div 
+              initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25 }}
+              className="fixed bottom-0 left-0 w-full bg-white rounded-t-[2rem] z-[60] p-6 pb-12 shadow-xl md:hidden"
+            >
+              <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6" />
+              <h3 className="text-xl font-black mb-6 text-[#4A453A]">ตัวกรอง</h3>
+              
+              {/* เลือกระยะทาง */}
+              <div className="mb-8">
+                <div className="flex justify-between mb-2">
+                  <span className="font-bold text-sm text-gray-600">ระยะทางสูงสุด</span>
+                  <span className="font-bold text-sm text-[#FF7F67]">{maxDistance} กม.</span>
+                </div>
+                <input 
+                  type="range" min="0" max="60" value={maxDistance} 
+                  onChange={(e) => setMaxDistance(Number(e.target.value))}
+                  className="w-full accent-[#FF7F67] h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                />
+                <div className="flex justify-between mt-2 text-xs text-gray-400">
+                  <span>0 กม.</span>
+                  <span>60 กม.</span>
+                </div>
+              </div>
+
+              {/* เลือกดาว */}
+              <div className="mb-8">
+                <span className="font-bold text-sm text-gray-600 mb-3 block">คะแนนขั้นต่ำ</span>
+                <div className="flex justify-between">
+                  {[1, 2, 3, 4, 5].map(star => (
+                    <button 
+                      key={star}
+                      onClick={() => setMinRating(star)}
+                      className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${minRating === star ? 'bg-[#FFF5F3] text-[#FF7F67] scale-110' : 'text-gray-400'}`}
+                    >
+                      <Star size={24} className={minRating >= star ? "fill-[#FF7F67] text-[#FF7F67]" : ""} />
+                      <span className="text-xs font-bold">{star}+</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => { setMaxDistance(60); setMinRating(0); }}
+                  className="flex-1 py-3.5 bg-gray-100 text-gray-600 rounded-xl font-bold active:scale-95 transition-transform"
+                >
+                  รีเซ็ต
+                </button>
+                <button 
+                  onClick={() => setIsFilterOpen(false)}
+                  className="flex-[2] py-3.5 bg-[#FF7F67] text-white rounded-xl font-bold shadow-md active:scale-95 transition-transform"
+                >
+                  ตกลง
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
       <main className="container mx-auto px-4 sm:px-6 max-w-5xl">
         {/* --- โหมดที่ 1: กำลังโหลดค้นหาข้อมูล --- */}
         {isSearching && (
@@ -223,90 +371,214 @@ export default function FilterPage() {
         {/* --- โหมดที่ 2: แสดงผลลัพธ์จาก API --- */}
         {!isSearching && apiResults !== null && (
           <div className="animate-in fade-in slide-in-from-bottom-8 duration-700 mt-10 md:mt-0">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 sm:mb-10 gap-4">
-              <div>
-                <button
-                  onClick={() => setApiResults(null)}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-white rounded-full shadow-sm text-[#7E7869] hover:text-[#FF8E6E] hover:shadow-md transition-all mb-4 sm:mb-6 font-bold text-sm sm:text-base"
-                >
-                  <ArrowLeft size={18} /> กลับไปเลือกประเภทใหม่
-                </button>
-                <h1 className="text-2xl sm:text-3xl md:text-5xl font-black">
-                  ผลการค้นหา:{" "}
-                  <span className="text-[#FF8E6E]">{selectedCategoryName}</span>
-                </h1>
-                <p className="text-[#7E7869] mt-2 font-medium text-base sm:text-lg">
-                  พบสถานที่ที่น่าสนใจรอบตัวคุณ {apiResults.length} แห่ง
-                </p>
+            
+            {/* 🌟 2.1: Desktop View (แบบเก่าที่ขอคงไว้) 🌟 */}
+            <div className="hidden md:block">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 sm:mb-10 gap-4">
+                <div>
+                  <button
+                    onClick={() => setApiResults(null)}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-white rounded-full shadow-sm text-[#7E7869] hover:text-[#FF8E6E] hover:shadow-md transition-all mb-4 sm:mb-6 font-bold text-sm sm:text-base"
+                  >
+                    <ArrowLeft size={18} /> กลับไปเลือกประเภทใหม่
+                  </button>
+                  <h1 className="text-2xl sm:text-3xl md:text-5xl font-black">
+                    ผลการค้นหา:{" "}
+                    <span className="text-[#FF8E6E]">{selectedCategoryName}</span>
+                  </h1>
+                  <p className="text-[#7E7869] mt-2 font-medium text-base sm:text-lg">
+                    พบสถานที่ที่น่าสนใจรอบตัวคุณ {filteredResults.length} แห่ง
+                  </p>
+                </div>
               </div>
-            </div>
 
-            <div className="grid gap-5 sm:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-              {apiResults.map((place, index) => (
-                <motion.div
-                  key={place.place_id || index}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  className="bg-white rounded-[2rem] p-5 sm:p-6 shadow-sm hover:shadow-xl transition-all border border-[#EFE9D9] flex flex-col"
-                >
-                  <div className="mb-4 h-40 overflow-hidden rounded-2xl bg-[#FDF8F1]">
-                    {place.photos?.length > 0 ? (
-                      <img
-                        src={`https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${place.photos[0].photo_reference}&key=${API_KEY}`}
-                        alt={place.name}
-                        className="h-full w-full object-cover"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="flex h-full items-center justify-center text-gray-400">
-                        <ImageIcon size={36} />
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex-grow">
-                    <h3 className="text-lg sm:text-xl font-black text-[#2D2A26] mb-2 line-clamp-2">
-                      {place.name}
-                    </h3>
-                    <p className="text-[#AFA99B] text-xs sm:text-sm mb-4 line-clamp-2">
-                      <MapPin size={16} className="inline-block mr-1" /> {place.vicinity || place.formatted_address}
-                    </p>
-
-                    <div className="flex items-center flex-wrap gap-2 mb-6">
-                      <div className="flex items-center gap-1 bg-orange-50 px-3 py-1.5 rounded-xl text-[#FF8E6E] font-black text-xs sm:text-sm">
-                        <Star size={14} className="fill-[#FF8E6E]" />{" "}
-                        {place.rating || "ไม่มีคะแนน"}
-                      </div>
-                      <span className="text-xs text-gray-400 font-medium">
-                        ({place.user_ratings_total || 0} รีวิว)
-                      </span>
-
-                      {place.distanceText && place.durationText && (
-                        <div className="ml-auto flex items-center gap-1.5 bg-green-50 text-green-600 px-3 py-1.5 rounded-xl font-bold text-xs sm:text-sm">
-                          <Car size={16} /> {place.distanceText}
-                          <span className="font-medium text-xs opacity-80">
-                            ({place.durationText})
-                          </span>
+              <div className="grid gap-5 sm:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                {filteredResults.map((place, index) => (
+                  <motion.div
+                    key={place.place_id || index}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="bg-white rounded-[2rem] p-5 sm:p-6 shadow-sm hover:shadow-xl transition-all border border-[#EFE9D9] flex flex-col"
+                  >
+                    <div className="mb-4 h-40 overflow-hidden rounded-2xl bg-[#FDF8F1]">
+                      {place.photos?.length > 0 ? (
+                        <img
+                          src={`https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${place.photos[0].photo_reference}&key=${API_KEY}`}
+                          alt={place.name}
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="flex h-full items-center justify-center text-gray-400">
+                          <ImageIcon size={36} />
                         </div>
                       )}
                     </div>
+
+                    <div className="flex-grow">
+                      <h3 className="text-lg sm:text-xl font-black text-[#2D2A26] mb-2 line-clamp-2">
+                        {place.name}
+                      </h3>
+                      <p className="text-[#AFA99B] text-xs sm:text-sm mb-4 line-clamp-2">
+                        <MapPin size={16} className="inline-block mr-1" /> {place.vicinity || place.formatted_address}
+                      </p>
+
+                      <div className="flex items-center flex-wrap gap-2 mb-6">
+                        <div className="flex items-center gap-1 bg-orange-50 px-3 py-1.5 rounded-xl text-[#FF8E6E] font-black text-xs sm:text-sm">
+                          <Star size={14} className="fill-[#FF8E6E]" />{" "}
+                          {place.rating || "ไม่มีคะแนน"}
+                        </div>
+                        <span className="text-xs text-gray-400 font-medium">
+                          ({place.user_ratings_total || 0} รีวิว)
+                        </span>
+
+                        {place.calculatedDistance !== undefined && (
+                          <div className="ml-auto flex items-center gap-1.5 bg-green-50 text-green-600 px-3 py-1.5 rounded-xl font-bold text-xs sm:text-sm">
+                            <Car size={16} /> {place.calculatedDistance} กม.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => navigate(`/g-place/${place.place_id}`)}
+                      className="w-full py-3.5 bg-[#4A453A] text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-[#FF8E6E] transition-colors shadow-md active:scale-95 mt-auto text-sm sm:text-base"
+                    >
+                      <Star size={18} /> ดูรูปภาพและรีวิว
+                    </button>
+                  </motion.div>
+                ))}
+
+                {filteredResults.length === 0 && (
+                  <div className="col-span-full py-20 text-center">
+                    <h3 className="text-xl sm:text-2xl font-black text-gray-400">
+                      ไม่พบสถานที่ในระยะและคะแนนที่กำหนด 😢
+                    </h3>
                   </div>
+                )}
+              </div>
+            </div>
 
-                  <button
-                    onClick={() => navigate(`/g-place/${place.place_id}`)}
-                    className="w-full py-3.5 bg-[#4A453A] text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-[#FF8E6E] transition-colors shadow-md active:scale-95 mt-auto text-sm sm:text-base"
+            {/* 🌟 2.2: Mobile View (ออกแบบใหม่ตาม Mockup แสดงทีละ 3 + รีเฟรชลูป) 🌟 */}
+            <div className="md:hidden pb-10">
+              
+              {/* Header Mobile */}
+              <div className="flex items-center justify-between mb-6 px-1">
+                <button onClick={() => setApiResults(null)} className="w-10 h-10 flex items-center justify-center bg-white rounded-full shadow-sm text-gray-600 active:scale-95">
+                  <ChevronLeft size={22} />
+                </button>
+                <h2 className="font-bold text-gray-600 text-sm">รายการสถานที่</h2>
+                <button onClick={() => setIsFilterOpen(true)} className="w-10 h-10 flex items-center justify-center bg-white rounded-full shadow-sm text-gray-600 active:scale-95 relative">
+                  <SlidersHorizontal size={18} />
+                  {(maxDistance < 60 || minRating > 0) && (
+                    <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
+                  )}
+                </button>
+              </div>
+
+              {/* Title & Count */}
+              <div className="mb-6 px-2">
+                <h1 className="text-2xl font-black text-[#4A453A]">
+                  หมวดหมู่ค้นหา <span className="text-[#FF7F67]">{selectedCategoryName}</span>
+                </h1>
+                <div className="flex items-center mt-2 text-xs font-medium text-gray-500">
+                  <span className="w-2 h-2 rounded-full bg-green-500 mr-2 shadow-[0_0_5px_rgba(34,197,94,0.5)]"></span>
+                  พบสถานที่ที่เหมาะสมสำหรับคุณ {filteredResults.length} แห่ง
+                </div>
+              </div>
+
+              {/* Cards List (โชว์ทีละ 3 รูป) */}
+              <div className="space-y-6">
+                <AnimatePresence mode="popLayout">
+                  {currentPlacesToShow.map((place, idx) => (
+                    <motion.div 
+                      key={`${place.place_id}-${pageIndex}`} // ทำให้เกิด Animation ตอนเปลี่ยนหน้า
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ duration: 0.3, delay: idx * 0.1 }}
+                      className="bg-white rounded-[2rem] p-4 shadow-[0_4px_20px_rgba(0,0,0,0.03)] flex flex-col"
+                    >
+                      {/* Image & Badges */}
+                      <div className="relative h-48 rounded-[1.5rem] overflow-hidden mb-4 bg-gray-100">
+                        {place.photos?.length > 0 ? (
+                          <img
+                            src={`https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${place.photos[0].photo_reference}&key=${API_KEY}`}
+                            alt={place.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-gray-300">
+                            <ImageIcon size={40} />
+                          </div>
+                        )}
+                        
+                        {/* Rating Badge (Top Left) */}
+                        <div className="absolute top-3 left-3 bg-white/95 backdrop-blur-sm px-2.5 py-1 rounded-full flex items-center gap-1 shadow-sm">
+                          <Star size={12} className="fill-[#FF7F67] text-[#FF7F67]" />
+                          <span className="text-xs font-black text-gray-700">{place.rating || "N/A"}</span>
+                        </div>
+
+                        {/* Heart Badge (Top Right) */}
+                        <button 
+                          onClick={() => toggleFavorite(place.place_id)}
+                          className="absolute top-3 right-3 w-8 h-8 bg-white/95 backdrop-blur-sm rounded-full flex items-center justify-center shadow-sm active:scale-90 transition-transform"
+                        >
+                          <Heart size={16} className={favorites.includes(place.place_id) ? "fill-[#FF7F67] text-[#FF7F67]" : "text-gray-400"} />
+                        </button>
+                      </div>
+
+                      {/* Content */}
+                      <div className="px-1 flex-grow">
+                        <div className="flex justify-between items-start mb-2 gap-2">
+                          <h3 className="text-xl font-black text-[#4A453A] leading-tight line-clamp-2">{place.name}</h3>
+                          <span className="shrink-0 bg-[#FFF5F3] text-[#FF7F67] text-[10px] px-2 py-1 rounded-lg font-bold whitespace-nowrap">
+                            เปิดบริการ
+                          </span>
+                        </div>
+                        
+                        <p className="text-xs text-gray-400 font-medium flex items-start gap-1 line-clamp-2 mb-4">
+                          <MapPin size={14} className="text-[#FF7F67] shrink-0 mt-0.5" /> 
+                          {place.vicinity || place.formatted_address}
+                          {place.calculatedDistance !== undefined && ` (${place.calculatedDistance} กม.)`}
+                        </p>
+                      </div>
+
+                      {/* View Button */}
+                      <button 
+                        onClick={() => navigate(`/g-place/${place.place_id}`)}
+                        className="w-full bg-[#4A453A] text-white py-3.5 rounded-[1rem] font-bold text-sm flex items-center justify-center gap-2 hover:bg-gray-800 active:scale-95 transition-all mt-auto"
+                      >
+                        ดูรายละเอียด <ArrowRight size={16} />
+                      </button>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+
+                {filteredResults.length === 0 && (
+                  <div className="py-20 text-center">
+                    <h3 className="text-lg font-black text-gray-400">ไม่พบสถานที่ตามตัวกรองที่คุณเลือก 😢</h3>
+                  </div>
+                )}
+              </div>
+
+              {/* Load More (Refresh / Shuffle) Button */}
+              {filteredResults.length > 3 && (
+                <div className="mt-8 flex flex-col items-center">
+                  <button 
+                    onClick={handleLoadMore}
+                    className="bg-white border border-gray-100 text-gray-600 px-6 py-3 rounded-full font-bold text-sm flex items-center gap-2 shadow-sm active:scale-95 transition-all hover:bg-gray-50"
                   >
-                    <Star size={18} /> ดูรูปภาพและรีวิว
+                    โหลดเพิ่มเติม <RefreshCw size={16} className="text-[#FF7F67]" />
                   </button>
-                </motion.div>
-              ))}
-
-              {apiResults.length === 0 && (
-                <div className="col-span-full py-20 text-center">
-                  <h3 className="text-xl sm:text-2xl font-black text-gray-400">
-                    ไม่พบสถานที่ในระยะใกล้เคียง 😢
-                  </h3>
+                  
+                  {/* Pagination Dots */}
+                  <div className="flex gap-1.5 mt-6">
+                    <div className={`w-2 h-2 rounded-full ${pageIndex % 3 === 0 ? 'bg-[#FF7F67]' : 'bg-orange-200'}`}></div>
+                    <div className={`w-2 h-2 rounded-full ${pageIndex % 3 === 1 ? 'bg-[#FF7F67]' : 'bg-orange-200'}`}></div>
+                    <div className={`w-2 h-2 rounded-full ${pageIndex % 3 === 2 ? 'bg-[#FF7F67]' : 'bg-orange-200'}`}></div>
+                  </div>
                 </div>
               )}
             </div>
@@ -371,9 +643,8 @@ export default function FilterPage() {
               </div>
             </div>
 
-            {/* 🌟 3.2: มุมมอง Mobile (ดีไซน์ใหม่ตาม Mockup) 🌟 */}
+            {/* 🌟 3.2: มุมมอง Mobile (หน้าเลือกหมวดหมู่) 🌟 */}
             <div className="md:hidden animate-in fade-in duration-700 pb-10">
-              {/* Mobile Header */}
               <div className="flex items-center justify-between mb-8 px-2">
                 <button 
                   onClick={() => navigate("/")}
@@ -382,12 +653,10 @@ export default function FilterPage() {
                   <ChevronLeft size={20} />
                 </button>
                 <span className="font-bold text-gray-500 text-sm">เลือกหมวดหมู่</span>
-                <button className="w-10 h-10 flex items-center justify-center bg-white rounded-xl shadow-[0_2px_10px_rgba(0,0,0,0.05)] text-gray-500">
-                  <Search size={18} />
+                <button className="w-10 h-10 flex items-center justify-center  rounded-xl shadow-[0_2px_10px_rgba(0,0,0,0.05)] text-gray-500">
                 </button>
               </div>
 
-              {/* Mobile Titles */}
               <div className="text-center mb-8 px-4">
                 <h2 className="text-2xl font-black text-[#4A453A] mb-1">ตอนนี้คุณ</h2>
                 <h1 className="text-3xl font-black text-[#4A453A] mb-4">{currentMoodLabel}</h1>
@@ -397,23 +666,20 @@ export default function FilterPage() {
                 </p>
               </div>
 
-              {/* Mobile Cards List */}
               <div className="space-y-6">
-                {(showAllCategories ? displayCategories : displayCategories.slice(0, 2)).map((cat, idx) => (
+                {(showAllCategories ? displayCategories : displayCategories.slice(0, 2)).map((cat) => (
                   <motion.div 
                     key={cat.id}
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     className="bg-white rounded-[2rem] p-4 shadow-[0_8px_30px_rgba(0,0,0,0.04)]"
                   >
-                    {/* Image Area */}
                     <div className="relative h-48 rounded-[1.5rem] overflow-hidden mb-4 bg-gray-100">
                       <img 
                         src={cat.image} 
                         alt={cat.label} 
                         className="w-full h-full object-cover" 
                       />
-                      {/* Action Buttons Top Right */}
                       <div className="absolute top-3 right-3 flex flex-col gap-2">
                         <button className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-sm text-gray-600 hover:text-[#FF8E6E]">
                           <Share2 size={14} />
@@ -424,7 +690,6 @@ export default function FilterPage() {
                       </div>
                     </div>
 
-                    {/* Text & Action Area */}
                     <div className="px-2 pb-1">
                       <p className="text-[#FF8E6E] text-[10px] font-black uppercase tracking-wider mb-1">
                         {cat.subtitle || cat.id}
@@ -450,7 +715,6 @@ export default function FilterPage() {
                 ))}
               </div>
 
-              {/* "Show More" Button (แสดงเพิ่มเติม) */}
               {!showAllCategories && displayCategories.length > 2 && (
                 <div className="mt-8 flex justify-center">
                   <button 
