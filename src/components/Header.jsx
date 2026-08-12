@@ -203,7 +203,7 @@ export default function Header() {
         }
       `}</style>
 
-      <nav style={navCard} className="nav-card">
+      <nav style={navCard} className="nav-card hidden sm:flex">
         <Link to="/" style={logoContainer}>
           <img src="/logo1.png" alt="MoodPlace Logo" style={logoImageStyle} className="logo-img" />
         </Link>
@@ -325,7 +325,7 @@ export default function Header() {
 
 // --- Styles ---
 const headerWrapper = { position: "fixed", top: "15px", left: "0", right: "0", display: "flex", justifyContent: "center", zIndex: 1000, pointerEvents: "none" };
-const navCard = { display: "flex", alignItems: "center", justifyContent: "space-between", width: "90%", maxWidth: "1200px", backgroundColor: "rgba(249, 244, 232, 0.9)", backdropFilter: "blur(15px)", padding: "0 25px", borderRadius: "20px", boxShadow: "0 10px 30px rgba(74, 69, 58, 0.1)", pointerEvents: "auto", height: "70px" };
+const navCard = { alignItems: "center", justifyContent: "space-between", width: "90%", maxWidth: "1200px", backgroundColor: "rgba(249, 244, 232, 0.9)", backdropFilter: "blur(15px)", padding: "0 25px", borderRadius: "20px", boxShadow: "0 10px 30px rgba(74, 69, 58, 0.1)", pointerEvents: "auto", height: "70px" };
 const logoContainer = { display: "flex", alignItems: "center", flex: 1, height: "100%" };
 const logoImageStyle = { height: "100px", width: "auto", position: "absolute", top: "50%", transform: "translateY(-50%)", transition: "0.3s" };
 const menuCenter = { display: "flex", gap: "10px", justifyContent: "center", flex: 2 };

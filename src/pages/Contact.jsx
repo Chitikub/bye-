@@ -310,20 +310,25 @@ export default function ContactPage() {
   return (
     <div className="min-h-screen bg-[#FDF8F1] flex items-center justify-center py-8 px-4 font-['Prompt']">
       <div className="w-full max-w-xl bg-white rounded-[2rem] shadow-2xl border border-gray-100 flex flex-col h-[80vh] max-h-[750px] min-h-[500px] overflow-hidden relative animate-in fade-in zoom-in-95 duration-300">
-        <div className="bg-white border-b border-gray-100 p-4 flex items-center gap-4 z-10 shadow-sm">
+        <div className="bg-white border-b border-gray-100 p-4 flex items-center justify-between z-10 shadow-sm">
           <button onClick={handleCloseChatState} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500">
             <ArrowLeft size={24} />
           </button>
-          <div className="relative">
-            <div className="w-12 h-12 bg-gradient-to-tr from-[#FF8E6E] to-[#FFB385] rounded-full flex items-center justify-center shadow-inner">
-              <MessageCircle size={24} color="white" />
+          <div className="flex items-center gap-3 flex-1 mx-4">
+            <div className="w-10 h-10 rounded-full shadow-sm border border-gray-200 overflow-hidden flex-shrink-0">
+              <img src="/logo1.png" alt="Admin Support" className="w-full h-full object-cover" />
             </div>
-            <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white rounded-full"></div>
+            <div>
+              <h1 className="text-base font-black text-[#4A453A]">Admin Support</h1>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                <p className="text-xs text-green-600 font-bold">online</p>
+              </div>
+            </div>
           </div>
-          <div>
-            <h1 className="text-lg font-black text-[#4A453A]">ติดต่อ Admin</h1>
-            <p className="text-sm text-gray-500 font-medium">แอดมินพร้อมให้ความช่วยเหลือครับ</p>
-          </div>
+          <button className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500">
+            <MessageCircle size={24} />
+          </button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 bg-gray-50/50 flex flex-col gap-4">
@@ -394,11 +399,13 @@ export default function ContactPage() {
 
           {isAdminTyping && (
             <div className="flex justify-start gap-3 w-full max-w-[85%] animate-in fade-in slide-in-from-bottom-2">
-              <img 
-                src="https://cdn-icons-png.flaticon.com/512/4140/4140048.png" 
-                alt="Admin" 
-                className="w-10 h-10 rounded-full shadow-sm border border-gray-200 flex-shrink-0 object-cover mt-1" 
-              />
+              <div className="w-10 h-10 rounded-full shadow-sm border border-gray-200 flex-shrink-0 overflow-hidden mt-1">
+                <img 
+                  src="/logo1.png" 
+                  alt="Admin" 
+                  className="w-full h-full object-cover"
+                />
+              </div>
               <div className="flex flex-col">
                 <span className="text-[12px] font-bold text-gray-500 mb-1 ml-2">Admin กำลังพิมพ์...</span>
                 <div className="bg-white border border-gray-100 px-5 py-3.5 rounded-[1.5rem] rounded-tl-sm shadow-sm flex items-center gap-1.5 w-fit">

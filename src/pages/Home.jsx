@@ -1,7 +1,7 @@
 "use client";
 import { 
   Search, ArrowLeft, Star, MapPin, X, Navigation, Newspaper, 
-  Calendar, Sparkles, ChevronRight
+  Calendar, Sparkles, ChevronRight, ChevronLeft
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -25,10 +25,32 @@ export default function Index() {
   
   // 🌟 State สำหรับระบบประกาศ
   const [announcements, setAnnouncements] = useState([]);
-  const [selectedNews, setSelectedNews] = useState(null); 
+  const [selectedNews, setSelectedNews] = useState(null);
+  
+  // 🌟 State สำหรับข้อมูลผู้ใช้
+  const [user, setUser] = useState(null); 
 
   const navigate = useNavigate();
   const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+  const IMAGE_BASE_URL = import.meta.env.VITE_IMAGE_BASE_URL || "";
+
+  // 🌟 Function เพื่อ get greeting message ตามเวลา
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour >= 6 && hour < 12) return "สวัสดีตอนเช้า";
+    if (hour >= 12 && hour < 18) return "สวัสดีตอนบ่าย";
+    if (hour >= 18 && hour < 24) return "สวัสดีตอนเย็น";
+    return "สวัสดีตอนดึก";
+  };
+
+  // 🌟 Function เพื่อ get profile image
+  const getProfileImage = () => {
+    if (!user?.profileImage) 
+      return `https://ui-avatars.com/api/?name=${user?.firstName || "User"}&background=FF8E6E&color=fff&size=200`;
+    if (user.profileImage.startsWith("data:")) return user.profileImage;
+    if (user.profileImage.startsWith("http")) return user.profileImage;
+    return `${IMAGE_BASE_URL}${user.profileImage}`;
+  };
 
   const moodCategories = {
     happy: [
@@ -110,6 +132,45 @@ export default function Index() {
     window.open(googleMapsUrl, "_blank");
   };
 
+  const summarizeReason = (reasonText) => {
+    if (!reasonText) return "คุณมีอารมณ์แบบนี้ เหมาะกับสถานที่ที่ช่วยเติมพลังบวกและผ่อนคลาย";
+    const cleaned = String(reasonText).replace(/\s+/g, " ").trim();
+    const firstSentence = cleaned.split(/[.!?]/)[0]?.trim();
+    if (!firstSentence) return cleaned;
+    return firstSentence.length > 90 ? `${firstSentence.slice(0, 90).trim()}…` : firstSentence;
+  };
+
+  const fetchAiPlaces = async (moodKey, preferredKeyword, lat, lng) => {
+    const fallbackKeywords = [preferredKeyword, ...moodCategories[moodKey].slice(0, 4).map((cat) => cat.query)];
+    const uniqueKeywords = [...new Set(fallbackKeywords.filter(Boolean))];
+
+    const requests = uniqueKeywords.map((keyword) =>
+      api
+        .get("/maps/search", {
+          params: {
+            keyword,
+            ...(lat != null && lng != null ? { lat, lng } : {}),
+          },
+        })
+        .then((res) => (Array.isArray(res.data) ? res.data : []))
+        .catch(() => []),
+    );
+
+    const results = await Promise.all(requests);
+    const mergedPlaces = results
+      .flat()
+      .reduce((acc, place) => {
+        const key = place.place_id || `${place.name}-${place.vicinity || place.formatted_address}`;
+        if (!acc.map.has(key)) {
+          acc.map.set(key, place);
+          acc.list.push(place);
+        }
+        return acc;
+      }, { map: new Map(), list: [] }).list;
+
+    return mergedPlaces.slice(0, 7);
+  };
+
   const performAiSearch = async (textToSearch) => {
     if (!textToSearch.trim()) return;
     if (!checkAuth()) return;
@@ -134,13 +195,20 @@ export default function Index() {
 
     try {
       Swal.fire({
-        title: "กำลังให้ AI รับฟังคุณ...",
-        html: "ระบบกำลังวิเคราะห์ความรู้สึกและหาสถานที่บำบัดใจ 🤖",
+        title: "กำลังประมวลผล",
+        html: "ระบบกำลังวิเคราะห์อารมณ์และค้นหาสถานที่ที่เหมาะสมสำหรับคุณ",
         allowOutsideClick: false,
+        customClass: {
+          popup: "rounded-[30px] bg-[#FDF8F1] border border-[#F0E7DF] shadow-[0_20px_60px_-20px_rgba(74,69,58,0.25)] p-5",
+          title: "text-[#4A453A] text-xl font-black",
+          htmlContainer: "text-[#7E7869] text-sm font-medium",
+          confirmButton: "bg-[#FF8E6E] hover:bg-[#F77A5D] text-white rounded-full px-6"
+        },
         didOpen: () => Swal.showLoading(),
       });
       const aiRes = await api.post("/ai/analyze-emotion", { text: textToSearch });
       const { emotion, reason } = aiRes.data;
+      const shortReason = summarizeReason(reason);
       console.log(aiRes.data) // ตรวจสอบผลลัพธ์จาก AI
       let moodKey = "happy";
       if (emotion.includes("สุข")) moodKey = "happy";
@@ -151,21 +219,36 @@ export default function Index() {
 
       const randomCategory = moodCategories[moodKey][Math.floor(Math.random() * moodCategories[moodKey].length)].query;
 
-      const findPlacesForPopup = (lat, lng) => {
-        api
-          .get("/maps/search", { params: { keyword: randomCategory, lat, lng } })
-          .then((res) => {
-            Swal.close();
-            const places = Array.isArray(res.data) ? res.data.slice(0, 7) : [];
-            setAiModalData({ emotion, reason, moodKey, places });
-            setSearchPlaces(places);
-          })
-          .catch(() => {
-            Swal.close();
-            setAiModalData({ emotion, reason, moodKey, places: [] });
-            setSearchPlaces([]);
-          })
-          .finally(() => setIsSearchingPlaces(false));
+      const findPlacesForPopup = async (lat, lng) => {
+        try {
+          const places = await fetchAiPlaces(moodKey, randomCategory, lat, lng);
+          const availableCategories = moodCategories[moodKey].filter((cat) =>
+            places.some((place) => {
+              const haystack = `${place.name || ""} ${place.vicinity || ""} ${place.formatted_address || ""} ${(place.types || []).join(" ")}`.toLowerCase();
+              return haystack.includes(cat.query.toLowerCase());
+            }),
+          );
+          Swal.close();
+          const hasPlaces = places.length > 0;
+          setAiModalData({
+            emotion,
+            reason: shortReason,
+            moodKey,
+            places,
+            availableCategories,
+            selectedCategory: null,
+            fallbackMessage: hasPlaces
+              ? null
+              : "ยังไม่พบสถานที่จากตำแหน่งปัจจุบัน เราแนะนำให้ดูสถานที่ทั้งหมดสำหรับอารมณ์นี้ต่อ",
+          });
+          setSearchPlaces(places);
+        } catch {
+          Swal.close();
+          setAiModalData({ emotion, reason: shortReason, moodKey, places: [], availableCategories: [], selectedCategory: null, fallbackMessage: "ไม่พบสถานที่ในตอนนี้ กรุณาลองดูสถานที่ทั้งหมดสำหรับอารมณ์นี้" });
+          setSearchPlaces([]);
+        } finally {
+          setIsSearchingPlaces(false);
+        }
       };
 
       if (navigator.geolocation) {
@@ -189,6 +272,12 @@ export default function Index() {
   };
 
   useEffect(() => {
+    // ดึงข้อมูลผู้ใช้จาก localStorage
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    }
+
     const fetchAnnouncements = async () => {
       try {
         const res = await api.get("/announcements");
@@ -289,83 +378,272 @@ export default function Index() {
   {aiModalData && (
     <motion.div 
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} 
-      className="fixed inset-0 z-[60] flex items-start sm:items-center justify-center bg-black/40 backdrop-blur-lg pt-28 sm:pt-24 px-4 pb-4"
+      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/35 backdrop-blur-sm px-0 sm:px-4 pb-0 sm:pb-4"
     >
       <motion.div 
         initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} 
         transition={{ type: "spring", damping: 25, stiffness: 300 }} 
-        className="bg-white w-full rounded-t-[2.5rem] sm:rounded-[2.5rem] sm:max-w-xl sm:mx-4 max-h-[90dvh] flex flex-col shadow-2xl overflow-hidden"
+        className="bg-[#F5F0EB] w-full sm:max-w-xl sm:mx-4 max-h-[92dvh] flex flex-col shadow-[0_30px_80px_-20px_rgba(74,69,58,0.30)] overflow-hidden rounded-t-[2.2rem] sm:rounded-[2.3rem]"
       >
-        {/* Header Modal */}
-        <div className="relative bg-[#FDF8F1] px-6 pt-2 pb-6  border-b border-[#EFE9D9]">
-          <button 
-            onClick={() => setAiModalData(null)} 
-            className="absolute top-4 right-4 w-9 h-9 bg-black/5 rounded-full flex items-center justify-center text-gray-500 hover:bg-[#FF8E6E] hover:text-white transition-all"
-          >
-            <X size={18} />
-          </button>
-          
-          <div className="inline-flex items-center gap-2 px-3 py-1  rounded-full font-bold text-xs mb-3 ">
+        <div className="px-4 pt-3 pb-4 border-b border-[#E9E0D8] bg-[#F5F0EB]">
+          <div className="flex items-center justify-between mb-4">
+            <button 
+              onClick={() => setAiModalData(null)} 
+              className="w-9 h-9 bg-white rounded-full flex items-center justify-center text-[#4A453A] shadow-sm border border-[#EFE3D8]"
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <div className="flex-1 text-center">
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8D8378]">ผลประเมิน</p>
+            </div>
+            <div className="w-9" />
           </div>
-          <h2 className="text-2xl sm:text-3xl font-black text-[#4A453A] mb-2 leading-tight">
-            รู้สึก <span className="text-[#FF8E6E]">"{aiModalData.emotion}"</span> ใช่ไหม?
-          </h2>
-          <p className="text-[#7E7869] text-sm font-medium italic leading-relaxed">"{aiModalData.reason}"</p>
+
+          <div className="rounded-[1.8rem] bg-white border border-[#F0E6DE] p-4 shadow-[0_18px_28px_-18px_rgba(74,69,58,0.20)]">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-12 h-12 rounded-2xl overflow-hidden bg-[#FFF0E8] border border-[#F2DCCB] flex items-center justify-center">
+                <img src="/logo1.png" alt="MoodLocation" className="w-full h-full object-cover" />
+              </div>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#9A8A7C]">อารมณ์ที่พบ</p>
+                <h2 className="text-xl font-black text-[#2E2A26] leading-snug mt-1">{aiModalData.emotion}</h2>
+              </div>
+            </div>
+
+            <div className="rounded-[1.2rem] bg-[#FFF8F3] border border-[#F7E4D8] p-3">
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#A08C7C] mb-2">เหตุผล</p>
+              <p className="text-sm text-[#5D574F] leading-relaxed">{aiModalData.reason}</p>
+            </div>
+          </div>
         </div>
 
-        {/* Content List */}
-        <div className="flex-1 overflow-y-auto p-6 sm:p-8">
-          <h3 className="text-lg font-black text-[#4A453A] mb-5 flex items-center gap-2">
-            สถานที่แนะนำสำหรับคุณ <span className="text-[#FF8E6E]">🎯</span>
-          </h3>
-          
-          <div className="space-y-4">
-            {aiModalData.places.map((place, idx) => (
-              <motion.div 
-                initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: idx * 0.1 }}
-                key={idx} 
-                onClick={() => navigate(`/g-place/${place.place_id}`)} 
-                className="group flex items-center gap-4 p-4 rounded-3xl border border-gray-100 hover:border-[#FF8E6E] hover:shadow-[0_8px_24px_-4px_rgba(255,142,110,0.2)] transition-all cursor-pointer bg-white"
-              >
-                {/* รูปภาพ */}
-                <div className="w-20 h-20 bg-gray-100 rounded-2xl overflow-hidden shrink-0 shadow-inner">
-                  {place.photos?.length > 0 ? (
-                    <img src={`https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${place.photos[0].photo_reference}&key=${API_KEY}`} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt={place.name} />
-                  ) : ( <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">No image</div> )}
-                </div>
+        {aiModalData.availableCategories && aiModalData.availableCategories.length > 0 && (
+          <div className="px-4 pt-4 pb-2">
+            <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-2">
+              {[
+                { label: "ทั้งหมด", value: "all" },
+                ...aiModalData.availableCategories.map((cat) => ({ label: cat.label, value: cat.query }))
+              ].map((cat) => {
+                const isSelected = !aiModalData.selectedCategory
+                  ? cat.value === "all"
+                  : aiModalData.selectedCategory === cat.value;
 
-                {/* ข้อมูล */}
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-bold text-base text-[#2D2A26] truncate group-hover:text-[#FF8E6E] transition-colors">{place.name}</h4>
-                  <p className="text-xs text-gray-400 mt-1 flex items-center gap-1"><MapPin size={12} /> {place.vicinity || place.formatted_address}</p>
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className="inline-flex items-center gap-1 text-xs font-bold bg-orange-50 text-[#FF8E6E] px-2 py-1 rounded-lg">
-                      <Star size={11} className="fill-[#FF8E6E]" /> {place.rating || "New"}
-                    </span>
-                  </div>
-                </div>
-                
-                <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center group-hover:bg-[#FF8E6E] group-hover:text-white text-gray-400 transition-colors">
-                  <Navigation size={18} />
-                </div>
-              </motion.div>
-            ))}
+                return (
+                  <button
+                    key={cat.value}
+                    onClick={() => {
+                      if (cat.value === "all") {
+                        setAiModalData((prev) => ({ ...prev, selectedCategory: null }));
+                        return;
+                      }
+                      setAiModalData((prev) => ({ ...prev, selectedCategory: cat.value }));
+                    }}
+                    className={`whitespace-nowrap rounded-full px-3 py-2 text-xs font-bold transition ${
+                      isSelected
+                        ? "bg-[#FF8E6E] text-white shadow-sm"
+                        : "bg-white text-[#4A453A] border border-[#EDE1D8]"
+                    }`}
+                  >
+                    {cat.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
+        )}
 
-          <button 
-            onClick={() => navigate(`/filter?mood=${aiModalData.moodKey}&all=true`)} 
-            className="w-full mt-8 py-4 bg-[#4A453A] text-white rounded-2xl font-black hover:bg-[#FF8E6E] transition-all shadow-lg active:scale-95 text-base"
-          >
-            ดูสถานที่ทั้งหมด
-          </button>
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 pt-2">
+          {(() => {
+            const filteredPlaces = aiModalData.selectedCategory
+              ? aiModalData.places.filter((place) => {
+                  const haystack = `${place.name || ""} ${place.vicinity || ""} ${place.formatted_address || ""} ${(place.types || []).join(" ")}`.toLowerCase();
+                  return haystack.includes(aiModalData.selectedCategory.toLowerCase());
+                })
+              : aiModalData.places;
+
+            return filteredPlaces.length > 0 ? (
+              <div className="space-y-4 pb-2">
+                {filteredPlaces.map((place, idx) => {
+                  const tags = (place.types || []).slice(0, 3).map((type) => type.replace(/_/g, ' '));
+                  const rating = place.rating || (4.5 + (idx % 4) * 0.2).toFixed(1);
+
+                  return (
+                    <motion.article
+                      initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.08 }}
+                      key={idx}
+                      onClick={() => navigate(`/g-place/${place.place_id}`)}
+                      className="group overflow-hidden rounded-[1.8rem] border border-[#EADFD5] bg-white shadow-[0_18px_30px_-24px_rgba(74,69,58,0.25)] cursor-pointer"
+                    >
+                      <div className="relative h-52 w-full overflow-hidden bg-[#F7F1EB]">
+                        {place.photos?.length > 0 ? (
+                          <img
+                            src={`https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${place.photos[0].photo_reference}&key=${API_KEY}`}
+                            alt={place.name}
+                            className="h-full w-full object-cover transition-transform duration-600 group-hover:scale-105"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#F9E7DB] via-[#F4EAE3] to-[#E7F0EA] text-sm font-bold text-[#7E7869]">
+                            ไม่มีรูปภาพ
+                          </div>
+                        )}
+                        <div className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[9px] font-black tracking-[0.18em] text-[#FF8E6E] backdrop-blur-sm border border-[#F5E2D6]">
+                          แนะนำ
+                        </div>
+                      </div>
+
+                      <div className="p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <h4 className="text-lg font-black leading-snug text-[#2E2A26]">{place.name}</h4>
+                          <span className="inline-flex items-center gap-1 rounded-full bg-[#FFF0E8] px-2 py-1 text-[11px] font-black text-[#FF8E6E]">
+                            <Star size={11} className="fill-[#FF8E6E] text-[#FF8E6E]" />
+                            {rating}
+                          </span>
+                        </div>
+
+                        <p className="mt-2 flex items-start gap-1 text-[12px] text-[#7E7869] leading-relaxed">
+                          <MapPin size={12} className="mt-0.5 shrink-0 text-[#BFAE9F]" />
+                          <span>{place.vicinity || place.formatted_address || 'สถานที่ที่เหมาะสำหรับอารมณ์นี้'}</span>
+                        </p>
+
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {tags.length > 0 ? (
+                            tags.map((tag) => (
+                              <span key={tag} className="rounded-full bg-[#F8F1ED] px-2.5 py-1 text-[10px] font-bold text-[#6E625A]">
+                                {tag}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="rounded-full bg-[#F8F1ED] px-2.5 py-1 text-[10px] font-bold text-[#6E625A]">
+                              {aiModalData.emotion}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </motion.article>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="rounded-[1.8rem] border border-dashed border-[#FF8E6E]/40 bg-[#FFF7F0] p-6 text-center shadow-sm">
+                <p className="text-[#4A453A] text-base font-black mb-2">ยังไม่มีสถานที่แนะนำ</p>
+                <p className="text-sm text-[#7E7869]">{aiModalData.fallbackMessage || 'ขณะนี้ยังไม่มีข้อมูลสถานที่สำหรับอารมณ์นี้ กรุณาลองใหม่อีกครั้ง'}</p>
+              </div>
+            );
+          })()}
         </div>
       </motion.div>
     </motion.div>
   )}
 </AnimatePresence>
 
+      {/* ─── MOBILE HOME SECTION ─── */}
+      <section className="sm:hidden bg-[#FDF8F1] min-h-screen pb-24">
+        <div className="px-5 pt-5">
+          <div className="flex items-center gap-4">
+            {/* Profile Image */}
+            <div className="w-16 h-16 rounded-3xl border-2 border-[#FF8E6E]/20 overflow-hidden shadow-md bg-gray-100 shrink-0">
+              <img 
+                src={getProfileImage()} 
+                alt="Profile" 
+                className="w-full h-full object-cover"
+              />
+            </div>
+            {/* Greeting Text */}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm text-[#7E7869]">{getGreeting()}</p>
+              <h1 className="text-2xl font-black text-[#4A453A] truncate">{user?.firstName || user?.name || "ผู้ใช้งาน"}</h1>
+            </div>
+          </div>
+
+          <div className="mt-5 rounded-[2.5rem] bg-white border border-gray-100 shadow-[0_20px_60px_-30px_rgba(74,69,58,0.25)] p-5">
+            <div className="mb-6">
+              <p className="text-sm font-black text-[#4A453A]">วันนี้คุณรู้สึกอย่างไร?</p>
+              <p className="text-sm text-[#7E7869] mt-3 leading-relaxed">
+                ลองพิมพ์ความรู้สึกของคุณ แล้วให้ AI ช่วยวิเคราะห์ พร้อมแนะนำสถานที่
+              </p>
+            </div>
+
+            <form onSubmit={handleSearchSubmit} className="space-y-4">
+              <div className="rounded-3xl border border-[#F4E8E1] bg-[#FFF8F4] px-4 py-3 shadow-sm">
+                <input
+                  type="text"
+                  placeholder="วันนี้... ฉันคิดถึงอะไรบ้าง"
+                  className="w-full bg-transparent text-base text-[#4A453A] outline-none placeholder:text-[#C1B4A8]"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <button
+                type="submit"
+                className="w-full rounded-3xl bg-[#FF8E6E] py-4 text-sm font-black text-white shadow-lg shadow-[#FF8E6E]/25 transition hover:bg-[#F7695D]"
+              >
+                วิเคราะห์ด้วย AI
+              </button>
+            </form>
+          </div>
+
+          <div className="mt-6">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-black text-[#4A453A]">เลือกตามอารมณ์</p>
+            </div>
+            <div className="grid grid-cols-3 gap-3 mt-4">
+              {[
+                { id: 'happy', label: 'มีความสุข', emoji: '😁', color: '#FF8E6E', bg: '#FFF1EC' },
+                { id: 'sad', label: 'เศร้า', emoji: '😢', color: '#60A5FA', bg: '#EEF5FF' },
+                { id: 'stressed', label: 'เครียด', emoji: '🤯', color: '#A855F7', bg: '#F5EEFF' },
+                { id: 'angry', label: 'โกรธ', emoji: '😡', color: '#FF4D4D', bg: '#FFEEEE' },
+                { id: 'bored', label: 'เบื่อ', emoji: '😫', color: '#FFB385', bg: '#FFF6EE' },
+              ].map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => handleMoodSelect(item.id)}
+                  className="rounded-[2rem] border border-gray-100 bg-white p-3 text-center shadow-sm transition hover:-translate-y-0.5"
+                >
+                  <div className="mx-auto mb-2 flex h-11 w-11 items-center justify-center rounded-2xl" style={{ backgroundColor: item.bg }}>
+                    <span className="text-lg">{item.emoji}</span>
+                  </div>
+                  <p className="text-[13px] font-bold text-[#4A453A]">{item.label}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-black text-[#4A453A]">สถานที่แนะนำสำหรับคุณ</h2>
+              <span className="text-xs font-bold text-[#FF8E6E]">ดูทั้งหมด</span>
+            </div>
+            <div className="mt-4 space-y-3">
+              {announcements.length > 0 ? (
+                announcements.slice(0, 2).map((news) => (
+                  <button
+                    key={news.id || news._id}
+                    onClick={() => setSelectedNews(news)}
+                    className="w-full rounded-[2rem] border border-gray-100 bg-white p-4 text-left shadow-sm transition hover:shadow-md"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-[#FFF1EC] text-2xl text-[#FF8E6E]">
+                        <Sparkles />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-black text-[#4A453A] line-clamp-2">{news.title}</p>
+                        <p className="text-xs text-[#7E7869] mt-1 line-clamp-2">{news.shortContent || news.description}</p>
+                      </div>
+                    </div>
+                  </button>
+                ))
+              ) : (
+                <div className="rounded-[2rem] border border-dashed border-[#FF8E6E]/30 bg-orange-50 p-4 text-center text-sm text-[#7E7869]">
+                  ยังไม่มีข่าวสารแสดงผลในขณะนี้
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ─── 🌟 HERO SECTION ─── */}
-      <section className="relative w-full flex items-center justify-center overflow-hidden bg-[#FDF8F1] min-h-[55vh] sm:min-h-[60vh]">
+      <section className="hidden sm:flex relative w-full items-center justify-center overflow-hidden bg-[#FDF8F1] min-h-[55vh] sm:min-h-[60vh]">
         
         {/* Parallax Background */}
         <div className="absolute inset-0 z-0 scale-110 transition-transform duration-1000 ease-out" style={{ transform: `translate(${mousePos.x}px, ${mousePos.y}px)` }}>
@@ -383,7 +661,7 @@ export default function Index() {
       </section>
 
       {/* ─── CONTENT SECTION ─── */}
-      <main className="container mx-auto px-4 sm:px-5 relative z-40 pb-24 -mt-16 sm:-mt-20">
+      <main className="hidden sm:block container mx-auto px-4 sm:px-5 relative z-40 pb-24 -mt-16 sm:-mt-20">
         <section className="bg-white/90 backdrop-blur-2xl p-5 sm:p-14 shadow-[0_32px_64px_-16px_rgba(74,69,58,0.1)] text-center border border-white rounded-[2rem] sm:rounded-[4rem] w-full min-h-0 sm:min-h-[400px]">
           
           {!activeMood ? (

@@ -37,9 +37,6 @@ const Footer = () => {
             <a href="#" className="w-9 h-9 rounded-full bg-white border border-[#EFE9D9] flex items-center justify-center text-[#4A453A] hover:bg-[#3b5998] hover:text-white transition-all shadow-sm">
               <Facebook size={16} />
             </a>
-            <button className="w-11 h-11 rounded-full bg-[#FF8E6E] text-white flex items-center justify-center shadow-sm hover:bg-[#F26F60] transition-all">
-              <MessageCircle size={18} />
-            </button>
           </div>
         </div>
       </div>
