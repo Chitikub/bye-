@@ -1,4 +1,4 @@
-"use client";
+  "use client";
 import { 
   Search, ArrowLeft, Star, MapPin, X, Navigation, Newspaper, 
   Calendar, Sparkles, ChevronRight, ChevronLeft
@@ -378,11 +378,13 @@ export default function Index() {
   {aiModalData && (
     <motion.div 
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} 
+      onClick={() => setAiModalData(null)}
       className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/35 backdrop-blur-sm px-0 sm:px-4 pb-0 sm:pb-4"
     >
       <motion.div 
         initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} 
         transition={{ type: "spring", damping: 25, stiffness: 300 }} 
+        onClick={(e) => e.stopPropagation()}
         className="bg-[#F5F0EB] w-full sm:max-w-xl sm:mx-4 max-h-[92dvh] flex flex-col shadow-[0_30px_80px_-20px_rgba(74,69,58,0.30)] overflow-hidden rounded-t-[2.2rem] sm:rounded-[2.3rem]"
       >
         <div className="px-4 pt-3 pb-4 border-b border-[#E9E0D8] bg-[#F5F0EB]">
@@ -393,7 +395,7 @@ export default function Index() {
               aria-label="ย้อนกลับ"
             >
               <ChevronLeft size={18} />
-              <span className="hidden sm:inline text-sm font-bold">ย้อนกลับ</span>
+              <span className="text-sm font-bold">ย้อนกลับ</span>
             </button>
             <div className="flex-1 text-center">
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8D8378]">ผลประเมิน</p>
