@@ -386,12 +386,14 @@ export default function Index() {
         className="bg-[#F5F0EB] w-full sm:max-w-xl sm:mx-4 max-h-[92dvh] flex flex-col shadow-[0_30px_80px_-20px_rgba(74,69,58,0.30)] overflow-hidden rounded-t-[2.2rem] sm:rounded-[2.3rem]"
       >
         <div className="px-4 pt-3 pb-4 border-b border-[#E9E0D8] bg-[#F5F0EB]">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-4 gap-3">
             <button 
               onClick={() => setAiModalData(null)} 
-              className="w-9 h-9 bg-white rounded-full flex items-center justify-center text-[#4A453A] shadow-sm border border-[#EFE3D8]"
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-3 py-2 text-[#4A453A] shadow-sm border border-[#EFE3D8] transition hover:bg-[#FFF4EE]"
+              aria-label="ย้อนกลับ"
             >
               <ChevronLeft size={18} />
+              <span className="hidden sm:inline text-sm font-bold">ย้อนกลับ</span>
             </button>
             <div className="flex-1 text-center">
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8D8378]">ผลประเมิน</p>
