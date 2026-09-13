@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Mail, ArrowLeft } from "lucide-react";
 import Swal from "sweetalert2";
 import api from "@/api/axios";
+import { distance } from "framer-motion";
 
 export default function ForgotPassword() {
   const navigate = useNavigate();
@@ -36,6 +37,8 @@ export default function ForgotPassword() {
       setSubmitting(false);
     }
   };
+
+  
 
   return (
     <main className="min-h-screen w-full flex items-center justify-center bg-[#FDF8F1] py-12 px-4 relative font-['Kanit',sans-serif]">

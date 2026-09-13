@@ -264,7 +264,7 @@ export default function GooglePlaceDetail() {
           >
             <Navigation size={18} /> ค้นหาเส้นทาง
           </button>
-        </div>
+        </div>  
 
         {/* --- ส่วนรีวิว --- */}
         <div className="mt-10">

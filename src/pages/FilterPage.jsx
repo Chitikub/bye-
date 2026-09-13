@@ -57,6 +57,7 @@ export default function FilterPage() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [maxDistance, setMaxDistance] = useState(60); // 0 - 60 km
   const [minRating, setMinRating] = useState(0); // 1 - 5 stars
+  
 
   const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
@@ -204,7 +205,24 @@ export default function FilterPage() {
       });
 
       const placesData = Array.isArray(res.data) ? res.data : [];
-      setApiResults(placesData);
+      const placesWithDistance = await Promise.all(
+  placesData.map(async (place) => {
+const placeLat = place.geometry?.location?.lat;
+    const placeLng = place.geometry?.location?.lng;
+
+    if (!lat || !lng || !placeLat || !placeLng) {
+  return place;
+}
+
+    return {
+  ...place,
+  distanceKm: place.distance_km,
+  distanceText: `${place.distance_km.toFixed(1)} กม.`,
+};
+  })
+);
+
+setApiResults(placesWithDistance);
     } catch (err) {
       console.error(err);
       Swal.fire({
@@ -218,10 +236,12 @@ export default function FilterPage() {
     }
   };
 
+  
+  
+
   // 🌟 Effect สำหรับคำนวณและกรองข้อมูลแบบ Real-time
   useEffect(() => {
     if (!apiResults) return;
-
     let temp = [...apiResults];
 
     // 1. กรองด้วยดาว (Rating)
@@ -433,11 +453,12 @@ export default function FilterPage() {
                           ({place.user_ratings_total || 0} รีวิว)
                         </span>
 
-                        {place.calculatedDistance !== undefined && (
-                          <div className="ml-auto flex items-center gap-1.5 bg-green-50 text-green-600 px-3 py-1.5 rounded-xl font-bold text-xs sm:text-sm">
-                            <Car size={16} /> {place.calculatedDistance} กม.
-                          </div>
-                        )}
+                        {place.distanceText && (
+  <div className="ml-auto flex items-center gap-1.5 bg-green-50 text-green-600 px-3 py-1.5 rounded-xl font-bold text-xs sm:text-sm">
+    <Car size={16} />
+    {place.distanceText}
+  </div>
+)}
                       </div>
                     </div>
 
@@ -541,7 +562,7 @@ export default function FilterPage() {
                         <p className="text-xs text-gray-400 font-medium flex items-start gap-1 line-clamp-2 mb-4">
                           <MapPin size={14} className="text-[#FF7F67] shrink-0 mt-0.5" /> 
                           {place.vicinity || place.formatted_address}
-                          {place.calculatedDistance !== undefined && ` (${place.calculatedDistance} กม.)`}
+                          {place.distanceText && ` (${place.distanceText})`}
                         </p>
                       </div>
 
