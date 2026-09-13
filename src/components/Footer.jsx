@@ -3,7 +3,7 @@ import { MapPin, Youtube, Facebook, MessageCircle, Mail } from "lucide-react";
 
 const Footer = () => {
   return (
-    <footer className="bg-[#F9F4E8] text-[#4A453A] py-6 sm:py-7 border-t border-[#EFE9D9] font-['Prompt',sans-serif]">
+    <footer className="hidden sm:block bg-[#F9F4E8] text-[#4A453A] py-6 sm:py-7 border-t border-[#EFE9D9] font-['Prompt',sans-serif]">
       <div className="container mx-auto px-4 md:px-6">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between text-sm">
 

@@ -1,4 +1,4 @@
-"use client";
+  "use client";
 import { 
   Search, ArrowLeft, Star, MapPin, X, Navigation, Newspaper, 
   Calendar, Sparkles, ChevronRight, ChevronLeft
@@ -386,26 +386,25 @@ export default function Index() {
   {aiModalData && (
     <motion.div 
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} 
-      className="fixed inset-0 z-[2000] flex items-end sm:items-center justify-center bg-black/35 backdrop-blur-sm px-0 sm:px-4 pb-0 sm:pb-4"
+
     >
       <motion.div 
         initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} 
         transition={{ type: "spring", damping: 25, stiffness: 300 }} 
-        className="bg-[#F5F0EB] w-full sm:max-w-2xl sm:mx-4 max-h-[92dvh] flex flex-col shadow-[0_30px_80px_-20px_rgba(74,69,58,0.30)] overflow-hidden rounded-t-[2.2rem] sm:rounded-[2.3rem]"
+
+        onClick={(e) => e.stopPropagation()}
+        className="bg-[#F5F0EB] w-full sm:max-w-xl sm:mx-4 max-h-[92dvh] flex flex-col shadow-[0_30px_80px_-20px_rgba(74,69,58,0.30)] overflow-hidden rounded-t-[2.2rem] sm:rounded-[2.3rem]"
       >
         <div className="px-4 pt-3 pb-4 border-b border-[#E9E0D8] bg-[#F5F0EB]">
-          <div className="flex items-center justify-between mb-4">
-            <button
-              type="button"
-              onClick={() => {
-                setAiModalData(null);
-                setSearchPlaces([]);
-                setSearchQuery("");
-              }}
+          <div className="flex items-center justify-between mb-4 gap-3">
+            <button 
+              onClick={() => setAiModalData(null)} 
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-3 py-2 text-[#4A453A] shadow-sm border border-[#EFE3D8] transition hover:bg-[#FFF4EE]"
               aria-label="ย้อนกลับ"
-              className="relative z-10 w-10 h-10 bg-white rounded-full flex items-center justify-center text-[#4A453A] shadow-sm border border-[#EFE3D8] cursor-pointer hover:bg-[#FFF0E8] hover:text-[#FF8E6E] transition-colors"
+
             >
               <ChevronLeft size={18} />
+              <span className="text-sm font-bold">ย้อนกลับ</span>
             </button>
             <div className="flex-1 text-center">
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8D8378]">ผลประเมิน</p>
