@@ -29,6 +29,11 @@ api.interceptors.request.use(
         const cookieToken = Cookies.get('token'); 
         const localToken = localStorage.getItem('token');
         const token = cookieToken || localToken;
+
+        // Let the browser add the multipart boundary for file uploads.
+        if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+            delete config.headers['Content-Type'];
+        }
         
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;

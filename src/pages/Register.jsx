@@ -10,6 +10,8 @@ import {
   Lock,
   UserCircle,
   ShieldCheck,
+  Check,
+  X,
 } from "lucide-react";
 import Swal from "sweetalert2";
 import api from "@/api/axios";
@@ -19,6 +21,7 @@ export default function RegisterPage() {
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
@@ -56,9 +59,15 @@ export default function RegisterPage() {
     if (!form.lastName.trim()) e.lastName = "กรุณากรอกนามสกุล";
     if (!form.email.trim()) e.email = "กรุณากรอกอีเมล";
     if (!form.gender) e.gender = "กรุณาเลือกเพศ";
-    if (!form.password) e.password = "กรุณากรอกรหัสผ่าน";
-    else if (form.password.length < 6)
+    if (!form.password) {
+      e.password = "กรุณากรอกรหัสผ่าน";
+    } else if (form.password.length < 6) {
       e.password = "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร";
+    } else if (!/[A-Z]/.test(form.password)) {
+      e.password = "รหัสผ่านต้องมีตัวพิมพ์ใหญ่อย่างน้อย 1 ตัว";
+    } else if (!/[^A-Za-z0-9]/.test(form.password)) {
+      e.password = "รหัสผ่านต้องมีอักขระพิเศษอย่างน้อย 1 ตัว";
+    }
     if (form.password !== form.confirmPassword) {
       e.confirmPassword = "รหัสผ่านไม่ตรงกัน";
     }
@@ -231,6 +240,7 @@ export default function RegisterPage() {
                   autoComplete="new-password"
                   className="bg-transparent outline-none w-full text-[#4A453A] placeholder:text-gray-300 tracking-widest"
                   value={form.password}
+                  onFocus={() => setIsPasswordFocused(true)}
                   onChange={(e) => setForm({ ...form, password: e.target.value })}
                 />
                 <button
@@ -242,6 +252,20 @@ export default function RegisterPage() {
                 </button>
               </div>
               {errors.password && <p className="text-xs text-red-500 ml-1">{errors.password}</p>}
+              {isPasswordFocused && (
+                <div className="space-y-1 rounded-xl bg-[#FFF8F3] px-3 py-2 text-xs font-medium">
+                  {[
+                    { valid: form.password.length >= 6, label: "มีอย่างน้อย 6 ตัวอักษร" },
+                    { valid: /[A-Z]/.test(form.password), label: "มีตัวพิมพ์ใหญ่อย่างน้อย 1 ตัว" },
+                    { valid: /[^A-Za-z0-9]/.test(form.password), label: "มีอักขระพิเศษอย่างน้อย 1 ตัว" },
+                  ].map((requirement) => (
+                    <div key={requirement.label} className={`flex items-center gap-2 ${requirement.valid ? "text-green-600" : "text-red-500"}`}>
+                      {requirement.valid ? <Check size={14} /> : <X size={14} />}
+                      <span>{requirement.label}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Confirm Password Field */}
