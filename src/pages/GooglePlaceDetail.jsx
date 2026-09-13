@@ -262,7 +262,7 @@ export default function GooglePlaceDetail() {
             onClick={handleNavigation}
             className="w-full py-4 bg-[#4A453A] text-white rounded-2xl font-black text-base flex items-center justify-center gap-2 hover:bg-[#322f27] transition-all shadow-md active:scale-95"
           >
-            <Navigation size={18} /> ค้นหาเส้นทางในวิดีโอ
+            <Navigation size={18} /> ค้นหาเส้นทาง
           </button>
         </div>
 
