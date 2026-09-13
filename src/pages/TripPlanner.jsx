@@ -43,6 +43,8 @@ const regionFocus = [
 
 export default function TripPlanner() {
   const navigate = useNavigate();
+  const currentUser = JSON.parse(localStorage.getItem("user") || "null");
+  const tripStorageKey = `my_saved_trips_${currentUser?._id || currentUser?.id || "guest"}`;
   const [places, setPlaces] = useState([]);
   const [userLoc, setUserLoc] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -83,12 +85,12 @@ export default function TripPlanner() {
 
   // โหลดประวัติทริป และ พิกัดเมื่อเปิดหน้า
   useEffect(() => {
-    const savedTrips = localStorage.getItem("my_saved_trips");
+    const savedTrips = localStorage.getItem(tripStorageKey);
     if (savedTrips) {
       setPastTrips(JSON.parse(savedTrips));
     }
     fetchFavoritesAndCalculate();
-  }, []);
+  }, [tripStorageKey]);
 
   const fetchFavoritesAndCalculate = async () => {
     setLoading(true);
@@ -217,7 +219,7 @@ export default function TripPlanner() {
     }
 
     setPastTrips(updatedTrips);
-    localStorage.setItem("my_saved_trips", JSON.stringify(updatedTrips));
+    localStorage.setItem(tripStorageKey, JSON.stringify(updatedTrips));
     
     Swal.fire("สำเร็จ!", "บันทึกแพลนเดินทางเรียบร้อยแล้ว", "success").then(() => {
       setCurrentView('history');
@@ -241,7 +243,7 @@ export default function TripPlanner() {
       if (result.isConfirmed) {
         const updatedTrips = pastTrips.filter(t => t.id !== tripIdToDelete);
         setPastTrips(updatedTrips);
-        localStorage.setItem("my_saved_trips", JSON.stringify(updatedTrips));
+        localStorage.setItem(tripStorageKey, JSON.stringify(updatedTrips));
         Swal.fire({
           title: 'ลบสำเร็จ!',
           text: 'ทริปของคุณถูกลบเรียบร้อยแล้ว',
@@ -529,43 +531,80 @@ export default function TripPlanner() {
             </div>
           )}
 
-          {/* Timeline & Places (Desktop) */}
-          {!loading && !calculating && filteredPlaces.length > 0 && (
-            <div className="relative mt-12 pl-4 md:pl-8">
-              <div className="absolute left-[41px] md:left-[57px] top-10 bottom-10 w-2 bg-gradient-to-b from-[#FF8E6E] via-[#FFB385] to-[#4A453A] rounded-full opacity-30" />
-              <div className="flex items-start gap-4 md:gap-8 mb-16 relative z-10">
-                <div className="w-16 h-16 md:w-20 md:h-20 bg-[#FF8E6E] text-white rounded-full flex flex-col items-center justify-center shadow-xl border-4 border-[#FDF8F1] shrink-0"><MapPin size={28} /></div>
-                <div className="pt-2 md:pt-4 bg-white px-6 py-4 rounded-[2rem] shadow-sm border border-[#EFE9D9] flex-1">
-                  <h3 className="text-xl md:text-2xl font-black text-[#4A453A]">จุดเริ่มต้น (พิกัดปัจจุบัน)</h3>
+          {!loading && !calculating && (
+            <section className="mb-10 rounded-[2.5rem] border border-[#EFE9D9] bg-white p-6 shadow-sm">
+              <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-2xl font-black text-[#4A453A]">วางแผนการเดินทาง</h2>
+                  <p className="mt-1 text-sm font-medium text-[#AFA99B]">เลือกสถานที่ลงในแต่ละช่วงเวลาได้อย่างอิสระ</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {days.map((day) => (
+                    <button key={day.id} type="button" onClick={() => setActiveMobileDay(day.id)} className={`rounded-full border px-4 py-2 text-sm font-bold transition-colors ${activeMobileDay === day.id ? 'border-[#FF7F67] bg-[#FFF0EB] text-[#FF7F67]' : 'border-transparent bg-[#FDF8F1] text-gray-400 hover:text-[#FF7F67]'}`}>
+                      {day.name}
+                    </button>
+                  ))}
+                  <button type="button" onClick={addDay} className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-100 bg-[#FDF8F1] text-gray-400 hover:text-[#FF7F67]" aria-label="เพิ่มวัน">
+                    <Plus size={16} />
+                  </button>
                 </div>
               </div>
-              <div className="space-y-16">
-                <AnimatePresence mode="popLayout">
-                  {filteredPlaces.map((place, index) => {
-                    const isUnknown = place.distance === 9999;
-                    const prevDist = index === 0 ? 0 : filteredPlaces[index - 1].distance;
-                    const distFromPrev = isUnknown ? null : parseFloat((place.distance - prevDist).toFixed(1));
-                    return (
-                      <motion.div id={`timeline-card-${place.id}`} layout initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9 }} key={place.id} className="relative flex items-start gap-4 md:gap-8 z-10">
-                        {!isUnknown && distFromPrev > 0 && (
-                          <div className="absolute -top-10 left-[20px] md:left-[36px] bg-white text-[#FF8E6E] px-3 py-1.5 rounded-full text-xs md:text-sm font-black shadow-md border border-[#EFE9D9] flex items-center gap-1 z-20">
-                            <ArrowDown size={14} /> +{distFromPrev} กม.
-                          </div>
-                        )}
-                        <div className={`w-16 h-16 md:w-20 md:h-20 bg-white border-[5px] rounded-full flex flex-col items-center justify-center shadow-lg shrink-0 mt-4 relative z-10 transition-colors ${activeCardId === place.id ? 'border-[#4A453A] text-[#4A453A] scale-110' : 'border-[#FF8E6E] text-[#FF8E6E]'}`}>
-                          <span className="text-2xl font-black leading-none">{index + 1}</span>
-                        </div>
-                        <div className={`flex-1 bg-white rounded-[2rem] p-6 shadow-sm border group mt-2 relative z-10 ${activeCardId === place.id ? 'border-[#4A453A] ring-4 ring-[#4A453A]/20' : 'border-[#EFE9D9] hover:shadow-xl'}`}>
-                          <h3 className="text-xl md:text-2xl font-black text-[#2D2A26] line-clamp-2 mb-2">{place.placeName}</h3>
-                          <p className="text-sm text-[#AFA99B] mb-6"><MapPin className="inline shrink-0" size={16} /> {place.address}</p>
-                        </div>
-                      </motion.div>
-                    )
-                  })}
-                </AnimatePresence>
+              <div className="grid gap-4 md:grid-cols-3">
+                {mobilePlan[activeMobileDay]?.map((slot) => (
+                  <div key={slot.id} className="rounded-3xl border border-[#F4E5DE] bg-[#FFFaf9] p-4">
+                    <h3 className="mb-3 text-sm font-black text-[#7E7869]">{slot.label}</h3>
+                    {slot.place ? (
+                      <div className="relative rounded-2xl bg-white p-3 shadow-sm">
+                        <img src={slot.place.photo} alt={slot.place.placeName} className="mb-3 h-32 w-full rounded-xl object-cover" />
+                        <p className="truncate pr-8 text-sm font-black text-[#4A453A]">{slot.place.placeName}</p>
+                        <button type="button" onClick={() => handleRemovePlace(slot.id, slot.isDefault)} className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-[#FF7F67] text-white shadow-sm" aria-label="ลบสถานที่">
+                          <X size={16} strokeWidth={3} />
+                        </button>
+                      </div>
+                    ) : (
+                      <button type="button" onClick={() => openPlaceSelector(slot.id)} className="flex min-h-48 w-full flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-[#FFD8CF] bg-white text-sm font-bold text-[#FF7F67] transition-colors hover:bg-[#FFF0EB]">
+                        <Calendar size={24} />
+                        เพิ่มกิจกรรม
+                      </button>
+                    )}
+                  </div>
+                ))}
               </div>
-            </div>
+
+              <div className="mt-6 border-t border-[#F4E5DE] pt-6">
+                <label className="mb-2 block text-sm font-bold text-[#7E7869]" htmlFor="desktop-trip-name">
+                  ชื่อทริปของคุณ
+                </label>
+                <input
+                  id="desktop-trip-name"
+                  type="text"
+                  placeholder="เช่น ทริปฮีลใจวันหยุด"
+                  value={tripName}
+                  onChange={(event) => setTripName(event.target.value)}
+                  className="w-full rounded-2xl border-2 border-gray-100 px-5 py-3.5 font-bold text-[#4A453A] outline-none transition-all placeholder:text-gray-300 focus:border-[#FF7F67]"
+                />
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={openMobileRouteInGoogleMaps}
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl border-2 border-[#FF7F67] px-5 py-3.5 font-bold text-[#FF7F67] transition-colors hover:bg-orange-50"
+                  >
+                    <Map size={18} /> เปิดแผนที่นำทาง
+                  </button>
+                  <button
+                    type="button"
+                    onClick={saveTrip}
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#FF7F67] px-6 py-3.5 font-bold text-white shadow-md transition-colors hover:bg-[#ff6b50]"
+                  >
+                    <CheckCircle2 size={18} /> บันทึกแพลนเดินทาง
+                  </button>
+                </div>
+              </div>
+            </section>
           )}
+
+          
+  
         </main>
       </div>
 
@@ -703,10 +742,10 @@ export default function TripPlanner() {
       {/* MODAL เลือกสถานที่ (Mobile Only) */}
       <AnimatePresence>
         {showPlaceSelector && (
-          <div className="md:hidden fixed inset-0 z-[100] flex items-end justify-center bg-black/40 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center bg-black/40 backdrop-blur-sm p-0 md:p-6">
             <motion.div 
               initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="w-full bg-white rounded-t-[32px] h-[75vh] flex flex-col overflow-hidden shadow-2xl"
+              className="w-full md:max-w-2xl bg-white rounded-t-[32px] md:rounded-[32px] h-[75vh] md:h-[70vh] flex flex-col overflow-hidden shadow-2xl"
             >
               <div className="p-5 pb-3 flex items-center justify-between border-b border-gray-100">
                 <h3 className="text-lg font-black text-[#4A453A]">เลือกจากรายการโปรด</h3>
