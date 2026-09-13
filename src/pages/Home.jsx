@@ -179,9 +179,10 @@ export default function Index() {
     setIsSearchingPlaces(true);
 
     if (!isTextonly) {
+      setIsSearchingPlaces(false);
       Swal.fire({
         title: "แจ้งเตือน",
-        text: "กรุณากรอกข้อความที่สื่อความหมาย",
+        text: "กรุณากรอกข้อความที่สื่อความหมไาย",
         icon: "warning",
         confirmButtonColor: "#FF8E6E",
         confirmButtonText: "ตกลง",
@@ -190,6 +191,7 @@ export default function Index() {
       });
 
       return;
+
     }
 
 
@@ -260,10 +262,16 @@ export default function Index() {
         findPlacesForPopup(null, null);
       }
     } catch (error) {
-      Swal.fire("เกิดข้อผิดพลาด", "ไม่สามารถเชื่อมต่อระบบ AI ได้ในขณะนี้", "error");
-      setIsSearchingPlaces(false);
-      setSearchPlaces([]);
-    }
+  Swal.close();
+
+  const message =
+    error.response?.data?.message ||
+    "ไม่สามารถเชื่อมต่อระบบ AI ได้ในขณะนี้";
+
+  Swal.fire("แจ้งเตือน", message, "warning");
+  setIsSearchingPlaces(false);
+  setSearchPlaces([]);
+}
   };
 
   const handleSearchSubmit = (e) => {
