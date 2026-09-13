@@ -378,18 +378,24 @@ export default function Index() {
   {aiModalData && (
     <motion.div 
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} 
-      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/35 backdrop-blur-sm px-0 sm:px-4 pb-0 sm:pb-4"
+      className="fixed inset-0 z-[2000] flex items-end sm:items-center justify-center bg-black/35 backdrop-blur-sm px-0 sm:px-4 pb-0 sm:pb-4"
     >
       <motion.div 
         initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} 
         transition={{ type: "spring", damping: 25, stiffness: 300 }} 
-        className="bg-[#F5F0EB] w-full sm:max-w-xl sm:mx-4 max-h-[92dvh] flex flex-col shadow-[0_30px_80px_-20px_rgba(74,69,58,0.30)] overflow-hidden rounded-t-[2.2rem] sm:rounded-[2.3rem]"
+        className="bg-[#F5F0EB] w-full sm:max-w-2xl sm:mx-4 max-h-[92dvh] flex flex-col shadow-[0_30px_80px_-20px_rgba(74,69,58,0.30)] overflow-hidden rounded-t-[2.2rem] sm:rounded-[2.3rem]"
       >
         <div className="px-4 pt-3 pb-4 border-b border-[#E9E0D8] bg-[#F5F0EB]">
           <div className="flex items-center justify-between mb-4">
-            <button 
-              onClick={() => setAiModalData(null)} 
-              className="w-9 h-9 bg-white rounded-full flex items-center justify-center text-[#4A453A] shadow-sm border border-[#EFE3D8]"
+            <button
+              type="button"
+              onClick={() => {
+                setAiModalData(null);
+                setSearchPlaces([]);
+                setSearchQuery("");
+              }}
+              aria-label="ย้อนกลับ"
+              className="relative z-10 w-10 h-10 bg-white rounded-full flex items-center justify-center text-[#4A453A] shadow-sm border border-[#EFE3D8] cursor-pointer hover:bg-[#FFF0E8] hover:text-[#FF8E6E] transition-colors"
             >
               <ChevronLeft size={18} />
             </button>
@@ -401,9 +407,19 @@ export default function Index() {
 
           <div className="rounded-[1.8rem] bg-white border border-[#F0E6DE] p-4 shadow-[0_18px_28px_-18px_rgba(74,69,58,0.20)]">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-12 h-12 rounded-2xl overflow-hidden bg-[#FFF0E8] border border-[#F2DCCB] flex items-center justify-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setAiModalData(null);
+                  setSearchPlaces([]);
+                  setSearchQuery("");
+                  navigate("/");
+                }}
+                aria-label="กลับหน้าแรก"
+                className="relative z-10 w-12 h-12 rounded-2xl overflow-hidden bg-[#FFF0E8] border border-[#F2DCCB] flex items-center justify-center cursor-pointer hover:scale-105 transition-transform"
+              >
                 <img src="/logo1.png" alt="MoodLocation" className="w-full h-full object-cover" />
-              </div>
+              </button>
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#9A8A7C]">อารมณ์ที่พบ</p>
                 <h2 className="text-xl font-black text-[#2E2A26] leading-snug mt-1">{aiModalData.emotion}</h2>
