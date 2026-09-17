@@ -133,36 +133,29 @@ export default function GooglePlaceDetail() {
   };
 
   const handleNavigation = async () => {
-    const mobile_Url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(place.name)}&destination_place_id=${placeId}`;
+    const navUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(place.name)}&destination_place_id=${placeId}`;
 
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    if (isMobile) {
-      window.location.href = navUrl;
-    } else {
-      window.open(navUrl, '_blank');
-    }
     const token = localStorage.getItem("token");
-    
-    const imageUrl = place.photos && place.photos.length > 0 
-      ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=1000&photo_reference=${place.photos[0].photo_reference}&key=${API_KEY}`
-      : "";
-
     if (token) {
-      const imageUrl = place.photos && place.photos.length > 0
-      ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=1000&photo_reference=${place.photos[0].photo_reference}&key=${API_KEY}`
+      const imageUrl = place.photos && place.photos.length > 0 
+        ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=1000&photo_reference=${place.photos[0].photo_reference}&key=${API_KEY}`
         : "";
 
-        api.post("/history", { placeId, name: place.name, image: imageUrl }, {
-        headers: { Authorization: `Bearer ${token}` }
-      }).catch(error => console.error("Save history failed", error));
       try {
         await api.post("/history", { placeId, name: place.name, image: imageUrl }, {
           headers: { Authorization: `Bearer ${token}` }
         });
-      } catch (error) { console.error("Save history failed"); }
+      } catch (error) { 
+        console.error("Save history failed"); 
+      }
     }
-    const navUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(place.name)}&destination_place_id=${placeId}`;
-    window.open(navUrl, '_blank');
+
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if (isMobile) {
+      window.location.href = navUrl; 
+    } else {
+      window.open(navUrl, '_blank'); 
+    }
   };
 
   if (loading) return <div className="min-h-screen bg-[#FDF8F1] flex items-center justify-center"><Loader2 className="w-16 h-16 text-[#FF8E6E] animate-spin" /></div>;
