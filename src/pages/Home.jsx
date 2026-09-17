@@ -129,7 +129,7 @@ export default function Index() {
   const handleCategorySelect = (categoryQuery) => {
     const searchKeyword = `${categoryQuery} ใกล้ฉัน`;
     const googleMapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(searchKeyword)}`;
-    window.open(googleMapsUrl, "_blank");
+    window.open(googleMapsUrl, "_blank"); 
   };
 
   const summarizeReason = (reasonText) => {
@@ -140,10 +140,8 @@ export default function Index() {
     return firstSentence.length > 90 ? `${firstSentence.slice(0, 90).trim()}…` : firstSentence;
   };
 
-  const fetchAiPlaces = async (moodKey, preferredKeyword, lat, lng) => {
-    const fallbackKeywords = [preferredKeyword, ...moodCategories[moodKey].slice(0, 4).map((cat) => cat.query)];
-    const uniqueKeywords = [...new Set(fallbackKeywords.filter(Boolean))];
-
+  const fetchAiPlaces = async (moodKey, preferredKeyword, lat, lng) => {  
+const fallbackKeywords = [preferredKeyword, ...moodCategories[moodKey].slice(0, 4).map((cat) => cat.query)];
     const requests = uniqueKeywords.map((keyword) =>
       api
         .get("/maps/search", {
@@ -211,7 +209,7 @@ export default function Index() {
       const aiRes = await api.post("/ai/analyze-emotion", { text: textToSearch });
       const { emotion, reason } = aiRes.data;
       const shortReason = summarizeReason(reason);
-      console.log(aiRes.data) // ตรวจสอบผลลัพธ์จาก AI
+      console.log(aiRes.data) 
       let moodKey = "happy";
       if (emotion.includes("สุข")) moodKey = "happy";
       else if (emotion.includes("โกรธ")) moodKey = "angry";
@@ -219,14 +217,19 @@ export default function Index() {
       else if (emotion.includes("เศร้า")) moodKey = "sad";
       else if (emotion.includes("เครียด")) moodKey = "stressed";
 
+      // ************** ระบบสุ่ม ***************
       const randomCategory = moodCategories[moodKey][Math.floor(Math.random() * moodCategories[moodKey].length)].query;
 
       const findPlacesForPopup = async (lat, lng) => {
         try {
           const places = await fetchAiPlaces(moodKey, randomCategory, lat, lng);
           const availableCategories = moodCategories[moodKey].filter((cat) =>
+
+            // เเค่มี1ร้านก็เเสดง
             places.some((place) => {
-              const haystack = `${place.name || ""} ${place.vicinity || ""} ${place.formatted_address || ""} ${(place.types || []).join(" ")}`.toLowerCase();
+ 
+              //ชื่อตรงกับหมวดไหนก็สามารถไปหมวดนั้นได้ เเก้เอาทีอยู่ออก
+              const haystack = `${place.name || ""} ${(place.types || []).join(" ")}`.toLowerCase();
               return haystack.includes(cat.query.toLowerCase());
             }),
           );
@@ -270,7 +273,7 @@ export default function Index() {
 
   Swal.fire("แจ้งเตือน", message, "warning");
   setIsSearchingPlaces(false);
-  setSearchPlaces([]);
+  setSearchPlaces([]); 
 }
   };
 

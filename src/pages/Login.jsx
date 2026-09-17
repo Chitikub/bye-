@@ -239,7 +239,7 @@ export default function AuthPage() {
             <h1 className="text-3xl font-black text-[#4A453A] leading-tight">
               {isLogin ? "ยินดีต้อนรับกลับมา" : "สร้างบัญชีใหม่"}
             </h1>
-            <p className="text-gray-500 mt-2">เริ่มต้นการเดินทางไปกับ MoodPlace</p>
+            <p className="text-gray-500 mt-2">เริ่มต้นการเดินทางไปกับ Moodlocation</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5 md:space-y-4">

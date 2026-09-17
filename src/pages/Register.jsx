@@ -61,10 +61,14 @@ export default function RegisterPage() {
     if (!form.gender) e.gender = "กรุณาเลือกเพศ";
     if (!form.password) {
       e.password = "กรุณากรอกรหัสผ่าน";
-    } else if (form.password.length < 6) {
-      e.password = "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร";
+    } else if (form.password.length < 8) {
+      e.password = "รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร";
+    }else if (/[ก-๛]/.test(form.password)) {  // เพิ่มเงื่อนไขนี้เพื่อดักจับภาษาไทย
+      e.password = "รหัสผ่านต้องไม่มีภาษาไทย";
     } else if (!/[A-Z]/.test(form.password)) {
       e.password = "รหัสผ่านต้องมีตัวพิมพ์ใหญ่อย่างน้อย 1 ตัว";
+    } else if (!/[0-9]/.test(form.password)) {
+      e.password = "รหัสผ่านต้องมีตัวเลขอย่างน้อย 1 ตัว";
     } else if (!/[^A-Za-z0-9]/.test(form.password)) {
       e.password = "รหัสผ่านต้องมีอักขระพิเศษอย่างน้อย 1 ตัว";
     }
@@ -176,7 +180,7 @@ export default function RegisterPage() {
             <h1 className="text-3xl font-black text-[#4A453A] leading-tight">
               สร้างบัญชีใหม่
             </h1>
-            <p className="text-gray-500 mt-2">เริ่มต้นการเดินทางไปกับ MoodPlace</p>
+            <p className="text-gray-500 mt-2">เริ่มต้นการเดินทางไปกับ Moodlocation</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5 md:space-y-4">
@@ -254,10 +258,12 @@ export default function RegisterPage() {
               {errors.password && <p className="text-xs text-red-500 ml-1">{errors.password}</p>}
               {isPasswordFocused && (
                 <div className="space-y-1 rounded-xl bg-[#FFF8F3] px-3 py-2 text-xs font-medium">
-                  {[
-                    { valid: form.password.length >= 6, label: "มีอย่างน้อย 6 ตัวอักษร" },
+                  {[  
+                    { valid: form.password.length >= 8, label: "มีอย่างน้อย 8 ตัวอักษร" },
                     { valid: /[A-Z]/.test(form.password), label: "มีตัวพิมพ์ใหญ่อย่างน้อย 1 ตัว" },
-                    { valid: /[^A-Za-z0-9]/.test(form.password), label: "มีอักขระพิเศษอย่างน้อย 1 ตัว" },
+                    { valid: !/[ก-๛]/.test(form.password), label: "รหัสผ่านต้องไม่มีภาษาไทย" },
+                    { valid: /[0-9]/.test(form.password), label: "มีตัวเลขอย่างน้อย 1 ตัว" },
+                    { valid: /[^A-Za-zก-์0-9]/.test(form.password), label: "มีอักขระพิเศษอย่างน้อย 1 ตัว" },
                   ].map((requirement) => (
                     <div key={requirement.label} className={`flex items-center gap-2 ${requirement.valid ? "text-green-600" : "text-red-500"}`}>
                       {requirement.valid ? <Check size={14} /> : <X size={14} />}

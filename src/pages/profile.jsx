@@ -11,6 +11,8 @@ import {
   Eye,
   EyeOff,
   ShieldCheck,
+  Check,
+  X,
 } from "lucide-react";
 import api, { IMAGE_BASE_URL } from "@/api/axios";
 import Swal from "sweetalert2";
@@ -34,7 +36,8 @@ export default function Profile() {
   });
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
-
+  const [showNewPass, setShowNewPass] = useState(false);
+  const [showConfirmPass, setShowConfirmPass] = useState(false);
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
@@ -132,9 +135,37 @@ export default function Profile() {
       setLoading(false);
     }
   };
+  const newPass = passwords.newPassword;
+
+  const passwordRequirements = [
+  { valid: newPass.length >= 8, label: "มีอย่างน้อย 8 ตัวอักษร" },
+  { valid: /[A-Z]/.test(newPass), label: "มีตัวพิมพ์ใหญ่อย่างน้อย 1 ตัว" },
+  { valid: !/[ก-๛]/.test(newPass), label: "รหัสผ่านต้องไม่มีภาษาไทย" },
+  { valid: /[0-9]/.test(newPass), label: "มีตัวเลขอย่างน้อย 1 ตัว" },
+  { valid: /[^A-Za-z0-9ก-๛]/.test(newPass), label: "มีอักขระพิเศษอย่างน้อย 1 ตัว" },
+];
 
   const handleUpdatePassword = async (e) => {
     e.preventDefault();
+   const isPasswordValid = passwordRequirements.every((req) => req.valid);
+   if (!passwords.newPassword) {
+      return Swal.fire({
+        icon: "warning",
+        title: "ข้อมูลไม่ครบ",
+        text: "กรุณากรอกรหัสผ่านใหม่",
+        confirmButtonColor: "#FF7F67",
+      });
+    }
+
+    if (!isPasswordValid) {
+      return Swal.fire({
+        icon: "warning",
+        title: "รหัสผ่านไม่รัดกุม",
+        text: "กรุณากรอกรหัสผ่านใหม่ให้ครบตามเงื่อนไขด้านล่าง",
+        confirmButtonColor: "#FF7F67",
+      });
+    }
+
     if (passwords.newPassword !== passwords.confirmPassword) {
       return Swal.fire({
         icon: "error",
@@ -203,15 +234,11 @@ export default function Profile() {
             <ArrowLeft className="w-5 h-5" />
           </button>
           <h1 className="text-xl font-black text-[#4A453A]">โปรไฟล์คุณ</h1>
-          <button
-            onClick={() => setIsPasswordMode(!isPasswordMode)}
-            className="px-4 py-2 rounded-full bg-white text-[#FF8E6E] font-bold text-xs shadow-sm hover:shadow-md transition-all"
-          >
-            {isPasswordMode ? "ข้อมูลส่วนตัว" : "เปลี่ยนรหัส"}
-          </button>
+          
         </div>
 
         {/* Profile Info Card */}
+        
         <div className="bg-white rounded-3xl p-6 shadow-sm mb-6 flex flex-col items-center border border-[#F0E8DF]">
           <input
             type="file"
@@ -231,6 +258,7 @@ export default function Profile() {
                 className="w-full h-full object-cover transition-transform group-hover:scale-110 duration-300"
               />
             </div>
+            
             <div className="absolute inset-0 rounded-full bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
               <Camera className="w-6 h-6 text-white" />
             </div>
@@ -241,12 +269,23 @@ export default function Profile() {
           <p className="text-xs text-[#7E7869] text-center break-all mt-1">
             {user.email}
           </p>
+          
         </div>
 
         {/* Form Card */}
         <div className="bg-white rounded-3xl p-6 shadow-sm border border-[#F0E8DF]">
+          
           {!isPasswordMode ? (
+            
             <div className="space-y-4 animate-in fade-in duration-300">
+              
+              <button
+            onClick={() => setIsPasswordMode(!isPasswordMode)}
+            className="px-4 py-2 rounded-full bg-white text-[#FF8E6E] font-bold text-xs shadow-sm hover:shadow-md transition-all ml-75"
+          >
+            
+            {isPasswordMode ? "ข้อมูลส่วนตัว" : "เปลี่ยนรหัส"}
+          </button>
               <div className="space-y-2">
                 <label className="text-xs font-bold text-[#6F665F] block">
                   ชื่อ
@@ -262,6 +301,7 @@ export default function Profile() {
                     }
                   />
                 </div>
+                
               </div>
 
               <div className="space-y-2">
@@ -364,7 +404,7 @@ export default function Profile() {
                 <div className="flex items-center gap-3 bg-[#F8F6F3] px-3 py-2.5 rounded-xl border border-[#E8DED5]">
                   <Lock className="w-4 h-4 text-[#FF8E6E] shrink-0" />
                   <input
-                    type="password"
+                    type={showNewPass ? "text" : "password"}
                     required
                     className="bg-transparent outline-none w-full text-sm text-[#4A453A] font-medium"
                     onChange={(e) =>
@@ -374,7 +414,27 @@ export default function Profile() {
                       })
                     }
                   />
+                <button
+                    type="button"
+                    onClick={() => setShowNewPass(!showNewPass)}
+                    className="text-[#7E7869]"
+                  >
+                    {showNewPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
                 </div>
+                <div className="space-y-1 rounded-xl bg-[#FFF8F3] px-3 py-2 text-xs font-medium">
+    {passwordRequirements.map((requirement) => (
+      <div
+        key={requirement.label}
+        className={`flex items-center gap-2 ${
+          requirement.valid ? "text-green-600" : "text-red-500"
+        }`}
+      >
+        {requirement.valid ? <Check size={14} /> : <X size={14} />}
+        <span>{requirement.label}</span>
+      </div>
+    ))}
+  </div>
               </div>
 
               <div className="space-y-2">
@@ -384,7 +444,7 @@ export default function Profile() {
                 <div className="flex items-center gap-3 bg-[#F8F6F3] px-3 py-2.5 rounded-xl border border-[#E8DED5]">
                   <ShieldCheck className="w-4 h-4 text-[#FF8E6E] shrink-0" />
                   <input
-                    type="password"
+                    type={showConfirmPass ? "text" : "password"}
                     required
                     className="bg-transparent outline-none w-full text-sm text-[#4A453A] font-medium"
                     onChange={(e) =>
@@ -394,6 +454,13 @@ export default function Profile() {
                       })
                     }
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPass(!showConfirmPass)}
+                    className="text-[#7E7869]"
+                  >
+                    {showConfirmPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
                 </div>
               </div>
 
