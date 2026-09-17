@@ -179,9 +179,9 @@ export default function TripPlanner() {
     setActiveMobileDay(1);
     setMobilePlan({
       1: [
-        { id: 'm-1', isDefault: true, label: 'ช่วงเช้า (09:00 - 12:00)', place: null },
-        { id: 'a-1', isDefault: true, label: 'ช่วงบ่าย (13:00 - 17:00)', place: null },
-        { id: 'e-1', isDefault: true, label: 'ช่วงเย็น (18:00 เป็นต้นไป)', place: null }
+        { id: 'm-1', isDefault: true, label: 'กิจกรรมที่ 1', place: null },
+        { id: 'a-1', isDefault: true, label: 'กิจกรรมที่ 2-', place: null },
+        { id: 'e-1', isDefault: true, label: 'กิจกรรมที่ 3', place: null }
       ]
     });
   };
@@ -303,9 +303,9 @@ export default function TripPlanner() {
     setMobilePlan({
       ...mobilePlan,
       [nextId]: [
-        { id: `m-${nextId}`, isDefault: true, label: 'ช่วงเช้า (09:00 - 12:00)', place: null },
-        { id: `a-${nextId}`, isDefault: true, label: 'ช่วงบ่าย (13:00 - 17:00)', place: null },
-        { id: `e-${nextId}`, isDefault: true, label: 'ช่วงเย็น (18:00 เป็นต้นไป)', place: null }
+        { id: `m-${nextId}`, isDefault: true, label: 'กิจกรรมที่ 1', place: null },
+        { id: `a-${nextId}`, isDefault: true, label: 'กิจกรรมที่ 2', place: null },
+        { id: `e-${nextId}`, isDefault: true, label: 'กิจกรรมที่ 3', place: null }
       ]
     });
     setActiveMobileDay(nextId);
@@ -362,10 +362,6 @@ export default function TripPlanner() {
     window.open(`https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}${waypointsStr ? `&waypoints=${waypointsStr}` : ''}`, '_blank');
   };
 
-
-  // 🌟========================================================================🌟
-  // 🌟 VIEW 1: HISTORY VIEW (หน้าแสดงประวัติแรกสุด) 🌟
-  // 🌟========================================================================🌟
   if (currentView === "history") {
     return (
       <div className="min-h-screen bg-[#FDF8F1] font-['Prompt'] pt-24 pb-32 px-4 md:px-8">
@@ -443,9 +439,6 @@ export default function TripPlanner() {
     );
   }
 
-  // 🌟========================================================================🌟
-  // 🌟 VIEW 2: PLANNING VIEW (หน้าต่างจัดแพลน Desktop/Mobile ที่ทำไว้) 🌟
-  // 🌟========================================================================🌟
   return (
     <div className="min-h-screen bg-[#FDF8F1] font-['Prompt']">
       
@@ -463,73 +456,9 @@ export default function TripPlanner() {
             </div>
           </div>
 
-          {/* Map Section */}
-          {!loading && !calculating && isLoaded && filteredPlaces.length > 0 && userLoc && (
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-10 bg-white p-4 rounded-[2.5rem] shadow-sm border border-[#EFE9D9]">
-              <div className="flex flex-col md:flex-row gap-3 mb-4">
-                <div className="flex items-center flex-1 bg-[#FDF8F1] rounded-full px-1 border border-[#EFE9D9] overflow-hidden">
-                  <button onClick={() => scrollRegions('left')} className="p-2 text-[#4A453A]/70 bg-white/70 rounded-full hover:bg-[#FF8E6E]/20 hover:text-[#FF8E6E] shrink-0 transition-all"><ChevronLeft size={20} /></button>
-                  <div ref={regionScrollRef} className="flex overflow-x-auto hide-scrollbar gap-2 py-2 flex-1 scroll-smooth px-1">
-                    {regionFocus.map((region) => (
-                      <button key={region.name} onClick={() => handleMapFocus(region.coords, region.zoom)} className="whitespace-nowrap px-4 py-1.5 bg-white text-[#4A453A] rounded-full text-sm font-bold shadow-sm hover:bg-[#FF8E6E] hover:text-white transition-all border border-[#EFE9D9]">
-                        {region.name}
-                      </button>
-                    ))}
-                  </div>
-                  <button onClick={() => scrollRegions('right')} className="p-2 text-[#4A453A]/70 bg-white/70 rounded-full hover:bg-[#FF8E6E]/20 hover:text-[#FF8E6E] shrink-0 transition-all"><ChevronRight size={20} /></button>
-                </div>
-                <div className="relative w-full md:w-56 shrink-0 z-50">
-                  <div className="flex items-center bg-white border border-[#EFE9D9] rounded-full px-4 py-2 cursor-text shadow-sm focus-within:border-[#FF8E6E] focus-within:ring-1" onClick={() => setIsProvinceDropdownOpen(true)}>
-                    <Search size={16} className="text-gray-400 mr-2" />
-                    <input type="text" placeholder="ค้นหาจังหวัด..." className="w-full text-sm font-bold text-[#4A453A] outline-none" value={provinceSearchQuery} onChange={(e) => { setProvinceSearchQuery(e.target.value); setIsProvinceDropdownOpen(true); }} onFocus={() => setIsProvinceDropdownOpen(true)} />
-                    {provinceSearchQuery && <button onClick={() => { setProvinceSearchQuery(""); handleMapFocus({ lat: 13.5, lng: 100.9925 }, 6); }} className="text-gray-400 hover:text-red-500 ml-1">×</button>}
-                  </div>
-                </div>
-              </div>
-              <GoogleMap mapContainerStyle={mapContainerStyle} center={userLoc} zoom={13} options={mapOptions} onLoad={onLoadMap} onClick={() => setIsProvinceDropdownOpen(false)}>
-                <Marker position={userLoc} label={{ text: "คุณอยู่ที่นี่", fontWeight: "bold", className: "mt-8 bg-white px-2 py-1 rounded-lg shadow-sm" }} />
-                {filteredPlaces.map((place, idx) => (
-                  place.lat && place.lng && <Marker key={place.id} position={{ lat: place.lat, lng: place.lng }} label={{ text: `${idx + 1}`, color: "white", fontWeight: "bold" }} onClick={() => scrollToCard(place.id)} />
-                ))}
-              </GoogleMap>
-            </motion.div>
-          )}
+          
 
-          {/* Filter Section */}
-          {!loading && !calculating && places.length > 0 && (
-            <div className="grid gap-4 mb-10 bg-white p-5 rounded-[2rem] shadow-sm border border-[#EFE9D9] md:grid-cols-[1fr_auto] items-end">
-              <div className="relative w-full">
-                <label className="text-xs font-bold text-gray-400 mb-1 block ml-2 text-left">กรองจากรายการโปรดของคุณ</label>
-                <button onClick={() => setIsDropdownOpen(!isDropdownOpen)} className="w-full flex items-center justify-between px-5 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-[#4A453A] hover:border-[#FF8E6E] transition-colors">
-                  <span className="flex items-center gap-2 text-left"><Filter size={18} className="text-[#FF8E6E]" /> {currentDistanceLabel}</span>
-                  <ChevronDown size={18} className={`transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
-                </button>
-                <AnimatePresence>
-                  {isDropdownOpen && (
-                    <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="absolute top-full left-0 w-full mt-2 bg-white border border-[#EFE9D9] rounded-2xl shadow-xl z-50 overflow-hidden">
-                      {distanceOptions.map((opt, idx) => (
-                        <button key={idx} onClick={() => { setSelectedDistance(opt.value); setCustomDistance(""); setCustomDistanceError(""); setIsDropdownOpen(false); }} className={`w-full text-left px-5 py-4 font-medium transition-colors border-b border-gray-50 last:border-0 ${selectedDistance === opt.value ? 'bg-orange-50 text-[#FF8E6E] font-bold' : 'text-[#7E7869] hover:bg-gray-50'}`}>
-                          {opt.label}
-                        </button>
-                      ))}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-              <div className="col-span-full flex items-center justify-center text-sm font-bold text-[#7E7869]">หรือ</div>
-              <div className="grid gap-3 md:gap-2">
-                <label className="text-xs font-bold text-gray-400 ml-2">โปรดระบุระยะ</label>
-                <div className="flex items-center gap-2">
-                  <div className="relative w-full">
-                    <input type="number" min="1" value={customDistance} onChange={(e) => setCustomDistance(e.target.value)} placeholder="เช่น 40" className="w-full pr-16 pl-4 py-3.5 border border-gray-100 rounded-2xl text-sm font-bold text-[#4A453A] outline-none focus:border-[#FF8E6E]" />
-                    <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-[#4A453A]">กม.</span>
-                  </div>
-                  <button onClick={applyCustomDistance} className="px-4 py-3.5 bg-[#4A453A] text-white rounded-2xl font-bold hover:bg-[#FF8E6E] transition-all">ใช้</button>
-                </div>
-                {customDistanceError && <p className="text-xs text-red-500">{customDistanceError}</p>}
-              </div>
-            </div>
-          )}
+          
 
           {!loading && !calculating && (
             <section className="mb-10 rounded-[2.5rem] border border-[#EFE9D9] bg-white p-6 shadow-sm">
@@ -540,9 +469,28 @@ export default function TripPlanner() {
                 </div>
                 <div className="flex items-center gap-2">
                   {days.map((day) => (
-                    <button key={day.id} type="button" onClick={() => setActiveMobileDay(day.id)} className={`rounded-full border px-4 py-2 text-sm font-bold transition-colors ${activeMobileDay === day.id ? 'border-[#FF7F67] bg-[#FFF0EB] text-[#FF7F67]' : 'border-transparent bg-[#FDF8F1] text-gray-400 hover:text-[#FF7F67]'}`}>
-                      {day.name}
-                    </button>
+                    <div key={day.id} className="relative group">
+    <button 
+      type="button" 
+      onClick={() => setActiveMobileDay(day.id)} 
+      className={`rounded-full border px-4 py-2 text-sm font-bold transition-colors ${activeMobileDay === day.id ? 'border-[#FF7F67] bg-[#FFF0EB] text-[#FF7F67]' : 'border-transparent bg-[#FDF8F1] text-gray-400 hover:text-[#FF7F67]'}`}
+    >
+      {day.name}
+    </button>
+    
+
+    {days.length > 1 && (
+      <button 
+        onClick={(e) => { 
+          e.stopPropagation(); 
+          removeDay(day.id); 
+        }} 
+        className="absolute -top-1 -right-1 hidden group-hover:flex w-5 h-5 bg-red-400 text-white rounded-full items-center justify-center shadow-sm"
+      >
+        <X size={12} strokeWidth={3} />
+      </button>
+    )}
+  </div>
                   ))}
                   <button type="button" onClick={addDay} className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-100 bg-[#FDF8F1] text-gray-400 hover:text-[#FF7F67]" aria-label="เพิ่มวัน">
                     <Plus size={16} />
