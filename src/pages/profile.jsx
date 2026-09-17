@@ -281,7 +281,7 @@ export default function Profile() {
               
               <button
             onClick={() => setIsPasswordMode(!isPasswordMode)}
-            className="px-4 py-2 rounded-full bg-white text-[#FF8E6E] font-bold text-xs shadow-sm hover:shadow-md transition-all ml-75"
+            className="px-4 py-2 rounded-full bg-white text-[#FF8E6E] font-bold text-xs shadow-sm hover:shadow-md transition-all ml-51 sm:ml-[300px]"
           >
             
             {isPasswordMode ? "ข้อมูลส่วนตัว" : "เปลี่ยนรหัส"}
