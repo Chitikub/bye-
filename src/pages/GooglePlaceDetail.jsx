@@ -253,11 +253,11 @@ export default function GooglePlaceDetail() {
           </div>
 
           <button 
-            onClick={handleNavigation}
-            className="w-full py-4 bg-[#4A453A] text-white rounded-2xl font-black text-base flex items-center justify-center gap-2 hover:bg-[#322f27] transition-all shadow-md active:scale-95"
-          >
-            <Navigation size={18} /> ค้นหาเส้นทาง
-          </button>
+  onClick={handleNavigation}
+  className="relative z-50 w-full py-4 bg-[#4A453A] text-white rounded-2xl font-black text-base flex items-center justify-center gap-2 md:hover:bg-[#322f27] active:bg-[#322f27] transition-all shadow-md active:scale-95"
+>
+  <Navigation size={18} /> ค้นหาเส้นทาง
+</button>
         </div>  
 
         {/* --- ส่วนรีวิว --- */}
