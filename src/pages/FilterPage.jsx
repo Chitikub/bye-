@@ -127,7 +127,11 @@ export default function FilterPage() {
       navigator.geolocation.getCurrentPosition(
         (position) => resolve({ lat: position.coords.latitude, lng: position.coords.longitude }),
         () => resolve(null),
-        { timeout: 7000 },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        },
       );
     });
 
@@ -197,6 +201,29 @@ export default function FilterPage() {
       fetchPlacesFromAPI(categoryQuery, null, null);
     }
   };
+  const getRealDrivingDistance = (userLat, userLng, placeLat, placeLng) => {
+    return new Promise((resolve) => {
+      if (!window.google) return resolve(null);
+
+      const service = new window.google.maps.DistanceMatrixService();
+    service.getDistanceMatrix(
+      {
+        origins: [{ lat: userLat, lng: userLng }],
+        destinations: [{ lat: placeLat, lng: placeLng }],
+        travelMode: window.google.maps.TravelMode.DRIVING, // โหมดขับรถ
+        language: 'th', // ขอภาษาไทย จะได้คำว่า "กม."
+      },
+      (response, status) => {
+        if (status === 'OK' && response.rows[0].elements[0].status === 'OK') {
+          // จะได้ข้อความเช่น "1.2 กม." กลับมาเป๊ะๆ
+          resolve(response.rows[0].elements[0].distance.text); 
+        } else {
+          resolve(null);
+        }
+      }
+    );
+  });
+};
 
   const fetchPlacesFromAPI = async (keyword, lat, lng) => {
     try {
@@ -236,10 +263,14 @@ setApiResults(placesWithDistance);
     }
   };
 
-  
-  
+  const [displayPlaces, setDisplayPlaces] = useState([]);
 
-  // 🌟 Effect สำหรับคำนวณและกรองข้อมูลแบบ Real-time
+  // 🌟 2. ตัวแปรหั่นข้อมูล 3 ตัว (ย้ายมาไว้ข้างบน เพื่อให้ useEffect ข้างล่างมองเห็น)
+  const currentPlacesToShow = filteredResults.slice(pageIndex * 3, (pageIndex * 3) + 3);
+
+  // ---------------------------------------------------------
+  // 🌟 Effect ที่ 1: กรองข้อมูลดิบด้วยสูตร Haversine และ ดาว (อันเดิม แก้ให้ถูก)
+  // ---------------------------------------------------------
   useEffect(() => {
     if (!apiResults) return;
     let temp = [...apiResults];
@@ -249,12 +280,12 @@ setApiResults(placesWithDistance);
       temp = temp.filter(p => (p.rating || 0) >= minRating);
     }
 
-    // 2. กรองด้วยระยะทาง
+    // 2. กรองด้วยระยะทาง (Haversine)
     if (userLoc) {
       temp = temp.filter(p => {
         const lat = p.geometry?.location?.lat;
         const lng = p.geometry?.location?.lng;
-        // รองรับทั้งแบบ function และ value จาก Google Maps
+        
         const latVal = typeof lat === 'function' ? lat() : lat;
         const lngVal = typeof lng === 'function' ? lng() : lng;
 
@@ -271,11 +302,51 @@ setApiResults(placesWithDistance);
     setPageIndex(0); // กลับไปหน้าแรกเสมอเมื่อฟิลเตอร์เปลี่ยน
   }, [apiResults, minRating, maxDistance, userLoc]);
 
-  // ฟังก์ชันรีเฟรช/โหลดเพิ่มเติมทีละ 3 (วนลูป)
+
+
+  useEffect(() => {
+
+    const fetchRealDistances = async () => {
+      if (!userLoc || currentPlacesToShow.length === 0) {
+        setDisplayPlaces(currentPlacesToShow);
+        return;
+      }
+
+      const updatedPlaces = await Promise.all(currentPlacesToShow.map(async (place) => {
+        const placeLat = place.geometry?.location?.lat;
+        const placeLng = place.geometry?.location?.lng;
+        
+        const latVal = typeof placeLat === 'function' ? placeLat() : placeLat;
+        const lngVal = typeof placeLng === 'function' ? placeLng() : placeLng;
+
+        const realDist = await getRealDrivingDistance(userLoc.lat, userLoc.lng, latVal, lngVal);
+        
+        return { 
+          ...place, 
+          distanceText: realDist || place.distanceText 
+        };
+      }));
+
+
+      setDisplayPlaces(updatedPlaces);
+    };
+
+    fetchRealDistances();
+  }, [pageIndex, filteredResults, userLoc]);
+
+  useEffect(() => {
+    setApiResults(null);
+    setSelectedCategoryName("");
+    setIsSearching(false);
+
+    if (showAll && selectedMood) {
+      fetchAllPlacesForMood(selectedMood);
+    }
+  }, [showAll, selectedMood]);
+
   const handleLoadMore = () => {
     setPageIndex(prev => {
       const nextIndex = prev + 1;
-      // ถ้าเกินจำนวนที่มี ให้วนกลับไป 0 ใหม่
       if (nextIndex * 3 >= filteredResults.length) {
         return 0;
       }
@@ -288,20 +359,6 @@ setApiResults(placesWithDistance);
       prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]
     );
   };
-
-  useEffect(() => {
-    setApiResults(null);
-    setSelectedCategoryName("");
-    setIsSearching(false);
-
-    if (showAll && selectedMood) {
-      fetchAllPlacesForMood(selectedMood);
-    }
-  }, [showAll, selectedMood]);
-
-  // ตัวแปรสำหรับสถานที่ 3 แห่งที่จะแสดงในหน้านี้
-  const currentPlacesToShow = filteredResults.slice(pageIndex * 3, (pageIndex * 3) + 3);
-
   return (
     <div className="min-h-screen bg-[#FDF8F1] font-['Prompt',sans-serif] text-[#4A453A] pt-12 sm:pt-28 pb-20 sm:pb-32">
       

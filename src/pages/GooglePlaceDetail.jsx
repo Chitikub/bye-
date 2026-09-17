@@ -43,13 +43,7 @@ export default function GooglePlaceDetail() {
             const userLng = position.coords.longitude;
             const placeLat = res.data.geometry.location.lat;
             const placeLng = res.data.geometry.location.lng;
-            try {
-              const distRes = await api.get('/maps/distance', {
-                params: { originLat: userLat, originLng: userLng, destLat: placeLat, destLng: placeLng }
-              });
-              setDistance(distRes.data.distanceText);
-              setDuration(distRes.data.durationText);
-            } catch (e) { console.log("Distance API error"); }
+            
           }
         );
       }
